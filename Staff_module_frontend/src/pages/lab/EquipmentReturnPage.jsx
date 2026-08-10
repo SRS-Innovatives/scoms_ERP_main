@@ -1,0 +1,8 @@
+import React from 'react';
+import LabInventoryPage from './LabInventoryPage';
+
+export const EquipmentReturnPage = () => {
+  return <LabInventoryPage />;
+};
+
+export default EquipmentReturnPage;
