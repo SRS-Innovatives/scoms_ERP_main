@@ -151,10 +151,13 @@ import PaymentGatewaySettingsPage from '../pages/settings/PaymentGatewaySettings
 import ThemeSettingsPage from '../pages/settings/ThemeSettingsPage';
 import BackupRestorePage from '../pages/settings/BackupRestorePage';
 import AuditLogsPage from '../pages/settings/AuditLogsPage';
+import LoginPage from '../Pages/auth/LoginPage';
 
 export const AppRoutes = () => {
   return (
     <Routes>
+      <Route path="/admin/login" element={<LoginPage />} />
+      <Route path="/login" element={<LoginPage />} />
       <Route path="/" element={<Navigate to="/admin/dashboard" replace />} />
       <Route path="/admin" element={<MainLayout />}>
         <Route index element={<Navigate to="/admin/dashboard" replace />} />

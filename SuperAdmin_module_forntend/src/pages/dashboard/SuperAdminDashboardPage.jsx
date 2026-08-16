@@ -18,7 +18,8 @@ import {
   CreditCard,
   UserPlus,
   Send,
-  BarChart2
+  BarChart2,
+  Receipt
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 

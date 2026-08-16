@@ -126,10 +126,13 @@ import PrintMarkEntrySheet from '../pages/print/PrintMarkEntrySheet';
 import PrintStudentProgressReport from '../pages/print/PrintStudentProgressReport';
 import PrintParentMeetingRecord from '../pages/print/PrintParentMeetingRecord';
 import PrintDutyAllotmentLetter from '../pages/print/PrintDutyAllotmentLetter';
+import LoginPage from '../pages/auth/LoginPage';
 
 export const AppRoutes = () => {
   return (
     <Routes>
+      <Route path="/staff/login" element={<LoginPage />} />
+      <Route path="/login" element={<LoginPage />} />
       <Route path="/" element={<Navigate to="/staff/dashboard" replace />} />
 
       {/* Staff Layout Routes */}

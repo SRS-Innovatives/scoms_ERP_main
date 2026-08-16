@@ -80,6 +80,7 @@ export const AppRoutes = () => {
   return (
     <Routes>
       {/* Standalone Auth Routes */}
+      <Route path="/login" element={<LoginPage />} />
       <Route path="/super-admin/login" element={<LoginPage />} />
       <Route path="/super-admin/forgot-password" element={<ForgotPasswordPage />} />
 

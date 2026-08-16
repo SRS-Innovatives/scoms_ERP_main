@@ -79,6 +79,7 @@ export const AppRoutes = () => {
   return (
     <Routes>
       {/* Auth Routes */}
+      <Route path="/login" element={<LoginPage />} />
       <Route path="/student/login" element={<LoginPage />} />
       <Route path="/student/forgot-password" element={<ForgotPasswordPage />} />
       <Route path="/student/reset-password" element={<ResetPasswordPage />} />

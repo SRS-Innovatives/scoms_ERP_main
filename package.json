@@ -1,0 +1,31 @@
+{
+  "name": "scoms-erp-platform",
+  "version": "1.0.0",
+  "description": "SCOMS - School College Management System Multi-Tenant Backend Platform",
+  "private": true,
+  "workspaces": [
+    "shared",
+    "SuperAdmin_Backend",
+    "IntituteAdmin_Backend",
+    "Staff_backend",
+    "Student_Backend"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run start:super-admin\" \"npm run start:institute-admin\" \"npm run start:staff\" \"npm run start:student\"",
+    "prisma:generate": "prisma generate",
+    "prisma:validate": "prisma validate",
+    "prisma:migrate": "prisma migrate dev",
+    "prisma:seed": "node prisma/seed/seed.js",
+    "start:super-admin": "node SuperAdmin_Backend/src/server.js",
+    "start:institute-admin": "node IntituteAdmin_Backend/src/server.js",
+    "start:staff": "node Staff_backend/src/server.js",
+    "start:student": "node Student_Backend/src/server.js"
+  },
+  "devDependencies": {
+    "concurrently": "^10.0.5",
+    "prisma": "^5.10.0"
+  },
+  "prisma": {
+    "seed": "node prisma/seed/seed.js"
+  }
+}
