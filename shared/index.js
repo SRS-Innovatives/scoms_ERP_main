@@ -1,0 +1,43 @@
+/**
+ * SCOMS Shared Package Root Exports
+ */
+
+const { ROLES, PERMISSIONS } = require('./constants/roles');
+const STATUSES = require('./constants/statuses');
+const errors = require('./errors/customErrors');
+const logger = require('./utils/logger');
+const responseFormatter = require('./utils/responseFormatter');
+const idGenerators = require('./utils/idGenerators');
+const prisma = require('./database/client');
+const jwt = require('./auth/jwt');
+const password = require('./auth/password');
+const { ROLE_PERMISSIONS, hasPermission } = require('./permissions/permissionMatrix');
+const requireAuth = require('./middleware/requireAuth');
+const requireTenant = require('./middleware/requireTenant');
+const { requirePermission, requireRole } = require('./middleware/requirePermission');
+const errorHandler = require('./middleware/errorHandler');
+const schemas = require('./validation/schemas');
+
+const { handleUnifiedLogin } = require('./auth/unifiedAuth');
+
+module.exports = {
+  ROLES,
+  PERMISSIONS,
+  STATUSES,
+  ...errors,
+  logger,
+  ...responseFormatter,
+  ...idGenerators,
+  prisma,
+  ...jwt,
+  ...password,
+  handleUnifiedLogin,
+  ROLE_PERMISSIONS,
+  hasPermission,
+  requireAuth,
+  requireTenant,
+  requirePermission,
+  requireRole,
+  errorHandler,
+  schemas,
+};
