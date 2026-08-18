@@ -1,27 +1,59 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import FormSection from '../../components/common/FormSection';
 import FileUpload from '../../components/common/FileUpload';
 import { useNotification } from '../../context/NotificationContext';
 import { User, Briefcase, Award, Save, CheckCircle } from 'lucide-react';
+import apiCall from '../../services/api';
+import { useNavigate } from 'react-router-dom';
 
 export const StaffRegistrationPage = () => {
-  const { notifySuccess } = useNotification();
+  const { notifySuccess, notifyError } = useNotification();
+  const navigate = useNavigate();
   const [formData, setFormData] = useState({
-    name: '',
+    firstName: '',
+    lastName: '',
     type: 'Teaching',
-    role: 'Assistant Professor',
-    dept: 'Computer Science & Engineering',
+    role: 'TEACHER',
+    departmentId: '',
     email: '',
     phone: '',
-    qualification: 'M.E. (CSE)',
-    experience: '5 Years',
-    salary: '75000',
-    doj: ''
+    employeeCode: '',
+    designation: '',
+    qualification: '',
+    joiningDate: ''
   });
 
-  const handleSubmit = (e) => {
+  const [departments, setDepartments] = useState([]);
+
+  useEffect(() => {
+    fetchDepartments();
+  }, []);
+
+  const fetchDepartments = async () => {
+    try {
+      const res = await apiCall('/setup/departments');
+      setDepartments(res.data);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    notifySuccess(`Faculty / Staff registered successfully! Emp ID: T-CSE-045 assigned.`, 'Staff Registered');
+    try {
+      const payload = {
+        ...formData,
+        name: formData.firstName + ' ' + formData.lastName // Only if backend still expects name or for UI fallback
+      };
+      const res = await apiCall('/staff', {
+        method: 'POST',
+        body: payload
+      });
+      notifySuccess(`Faculty / Staff registered successfully! Emp ID: ${res.data.employeeCode} assigned.`, 'Staff Registered');
+      navigate('/admin/staff/list');
+    } catch (err) {
+      notifyError(`Failed to register staff: ${err.message}`);
+    }
   };
 
   return (
@@ -34,13 +66,23 @@ export const StaffRegistrationPage = () => {
       <FormSection title="1. Employee Personal Details" icon={User}>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
           <div>
-            <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Full Name *</label>
+            <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">First Name *</label>
             <input
               type="text"
               required
-              placeholder="e.g. Dr. P. Sathishkumar"
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              placeholder="e.g. Sathishkumar"
+              value={formData.firstName}
+              onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+              className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border rounded-lg font-medium"
+            />
+          </div>
+          <div>
+            <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Last Name</label>
+            <input
+              type="text"
+              placeholder="e.g. P"
+              value={formData.lastName}
+              onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
               className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border rounded-lg font-medium"
             />
           </div>
@@ -57,28 +99,39 @@ export const StaffRegistrationPage = () => {
             </select>
           </div>
           <div>
-            <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Designation / Role *</label>
+            <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Designation *</label>
             <input
               type="text"
               required
               placeholder="e.g. Associate Professor"
-              value={formData.role}
-              onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+              value={formData.designation}
+              onChange={(e) => setFormData({ ...formData, designation: e.target.value })}
+              className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border rounded-lg font-medium"
+            />
+          </div>
+          <div>
+            <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Employee Code *</label>
+            <input
+              type="text"
+              required
+              placeholder="e.g. EMP123"
+              value={formData.employeeCode}
+              onChange={(e) => setFormData({ ...formData, employeeCode: e.target.value })}
               className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border rounded-lg font-medium"
             />
           </div>
           <div>
             <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Department *</label>
             <select
-              value={formData.dept}
-              onChange={(e) => setFormData({ ...formData, dept: e.target.value })}
+              required
+              value={formData.departmentId}
+              onChange={(e) => setFormData({ ...formData, departmentId: e.target.value })}
               className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border rounded-lg font-medium"
             >
-              <option value="Computer Science & Engineering">Computer Science & Engineering</option>
-              <option value="Electronics & Communication Engg">Electronics & Communication Engg</option>
-              <option value="Artificial Intelligence & Data Science">Artificial Intelligence & Data Science</option>
-              <option value="Finance & Accounts">Finance & Accounts</option>
-              <option value="Central Library">Central Library</option>
+              <option value="">Select Department</option>
+              {departments.map((dept) => (
+                <option key={dept.id} value={dept.id}>{dept.name}</option>
+              ))}
             </select>
           </div>
           <div>

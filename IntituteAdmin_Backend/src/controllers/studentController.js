@@ -58,27 +58,52 @@ const createStudentAdmission = async (req, res, next) => {
       lastName,
       dob,
       gender,
+      bloodGroup,
       email,
       phone,
+      address,
+      city,
+      state,
+      pincode,
+      
+      fatherName,
+      motherName,
+      guardianName,
+      parentPhone,
+      parentEmail,
+      
       departmentId,
       courseId,
+      semesterId,
       sectionId,
       rollNumber,
       password,
     } = req.body;
 
-    const count = await prisma.student.count({
-      where: { institutionId: req.institutionId },
-    });
-
-    const admissionNumber = generateAdmissionNumber('ADM', count + 1);
-    const hashedPassword = await hashPassword(password || 'Student@123');
-
     const result = await prisma.$transaction(async (tx) => {
+      // 1. Validate Academic setup belongs to Tenant
+      if (sectionId) {
+        const section = await tx.section.findFirst({
+          where: { id: sectionId, semester: { course: { institutionId: req.institutionId } } }
+        });
+        if (!section) throw new Error('Invalid section or access denied');
+      }
+
+      // 2. Generate admission number (better safe generation using count)
+      const count = await tx.student.count({
+        where: { institutionId: req.institutionId },
+      });
+      const year = new Date().getFullYear();
+      const paddedCount = String(count + 1).padStart(6, '0');
+      const admissionNumber = `SCOMS/${year}/${paddedCount}`;
+
+      // 3. Create User Login
+      const hashedPassword = await hashPassword(password || 'Student@123');
       const user = await tx.user.create({
         data: {
           institutionId: req.institutionId,
           email,
+          mobile: phone,
           admissionNumber,
           password: hashedPassword,
           role: ROLES.STUDENT,
@@ -86,6 +111,7 @@ const createStudentAdmission = async (req, res, next) => {
         },
       });
 
+      // 4. Create Student
       const student = await tx.student.create({
         data: {
           userId: user.id,
@@ -95,13 +121,68 @@ const createStudentAdmission = async (req, res, next) => {
           firstName,
           lastName,
           dob: new Date(dob),
-          gender,
+          gender: gender || 'OTHER',
+          bloodGroup,
           email,
           phone,
+          address,
+          city,
+          state,
+          pincode,
           departmentId,
           courseId,
+          semesterId,
           sectionId,
         },
+      });
+
+      // 5. Create Parent User (Optional but requested)
+      if (fatherName || motherName || guardianName) {
+        const parentPassword = await hashPassword('Parent@123');
+        const parentUser = await tx.user.create({
+          data: {
+            institutionId: req.institutionId,
+            email: parentEmail || `parent.${admissionNumber.replace(/\//g, '')}@scoms.edu.in`,
+            mobile: parentPhone,
+            password: parentPassword,
+            role: ROLES.PARENT,
+            status: 'ACTIVE',
+          }
+        });
+
+        const parent = await tx.parent.create({
+          data: {
+            userId: parentUser.id,
+            fatherName,
+            motherName,
+            guardianName,
+            fatherPhone: parentPhone,
+            address,
+          }
+        });
+
+        await tx.parentStudent.create({
+          data: {
+            parentId: parent.id,
+            studentId: student.id,
+            relation: fatherName ? 'FATHER' : (motherName ? 'MOTHER' : 'GUARDIAN')
+          }
+        });
+      }
+
+      // 6. Create Audit Log
+      await tx.auditLog.create({
+        data: {
+          institutionId: req.institutionId,
+          userId: req.user.id,
+          action: 'CREATE',
+          module: 'STUDENT',
+          entity: 'Student',
+          entityId: student.id,
+          newValues: JSON.stringify({ admissionNumber: student.admissionNumber }),
+          ipAddress: req.ip || '',
+          userAgent: req.get('user-agent') || ''
+        }
       });
 
       return { student, user };

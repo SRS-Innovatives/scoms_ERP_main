@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import StepperForm from '../../components/common/StepperForm';
 import FormSection from '../../components/common/FormSection';
 import FileUpload from '../../components/common/FileUpload';
 import { useNotification } from '../../context/NotificationContext';
 import { User, Users, MapPin, GraduationCap, Bus, Home, Save, CheckCircle, ArrowRight, ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import apiCall from '../../services/api';
 
 export const StudentAdmissionPage = () => {
   const { notifySuccess } = useNotification();
@@ -33,15 +34,81 @@ export const StudentAdmissionPage = () => {
     state: 'Tamil Nadu',
     pincode: '600017',
 
-    course: 'B.E. Computer Science & Engineering',
-    dept: 'Computer Science & Engineering',
-    previousSchool: 'St. Joseph Higher Secondary School, Chennai',
-    cutoffMarks: '192.5',
+    departmentId: '',
+    courseId: '',
+    semesterId: '',
+    sectionId: '',
+    
+    previousSchool: '',
+    cutoffMarks: '',
+    rollNumber: '',
+    password: '',
 
     transport: 'None',
     hostel: 'Day Scholar',
     photo: null
   });
+
+  const [departments, setDepartments] = useState([]);
+  const [courses, setCourses] = useState([]);
+  const [semesters, setSemesters] = useState([]);
+  const [sections, setSections] = useState([]);
+
+  useEffect(() => {
+    fetchDepartments();
+  }, []);
+
+  useEffect(() => {
+    if (formData.departmentId) fetchCourses(formData.departmentId);
+    else setCourses([]);
+  }, [formData.departmentId]);
+
+  useEffect(() => {
+    if (formData.courseId) fetchSemesters(formData.courseId);
+    else setSemesters([]);
+  }, [formData.courseId]);
+
+  useEffect(() => {
+    if (formData.semesterId) fetchSections(formData.semesterId);
+    else setSections([]);
+  }, [formData.semesterId]);
+
+  const fetchDepartments = async () => {
+    try {
+      const res = await apiCall('/setup/departments');
+      setDepartments(res.data);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  const fetchCourses = async (deptId) => {
+    try {
+      const res = await apiCall('/setup/courses');
+      // For now, client side filter (can also be done server side with ?departmentId)
+      setCourses(res.data.filter(c => c.departmentId === deptId));
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  const fetchSemesters = async (courseId) => {
+    try {
+      const res = await apiCall(`/setup/semesters?courseId=${courseId}`);
+      setSemesters(res.data);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  const fetchSections = async (semesterId) => {
+    try {
+      const res = await apiCall(`/setup/sections?semesterId=${semesterId}`);
+      setSections(res.data);
+    } catch (error) {
+      console.error(error);
+    }
+  };
 
   const steps = [
     { label: 'Personal Info' },
@@ -50,10 +117,18 @@ export const StudentAdmissionPage = () => {
     { label: 'Services & Photo' }
   ];
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    notifySuccess(`Admission created successfully for ${formData.name || 'New Student'}! Roll No: 25CS${Math.floor(100 + Math.random() * 900)} assigned.`, 'Admission Created');
-    navigate('/admin/student/list');
+    try {
+      const res = await apiCall('/students/admission', {
+        method: 'POST',
+        body: formData
+      });
+      notifySuccess(`Admission created successfully for ${formData.name || 'New Student'}!`, 'Admission Created');
+      navigate('/admin/student/list');
+    } catch (error) {
+      notifySuccess(`Failed to create admission: ${error.message}`);
+    }
   };
 
   return (
@@ -269,17 +344,65 @@ export const StudentAdmissionPage = () => {
           <FormSection title="3. Academic Admission & Previous School" subtitle="Choice of branch & HSC cutoff score" icon={GraduationCap}>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
               <div>
-                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Course / Degree Program *</label>
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Department *</label>
                 <select
-                  value={formData.course}
-                  onChange={(e) => setFormData({ ...formData, course: e.target.value })}
+                  required
+                  value={formData.departmentId}
+                  onChange={(e) => setFormData({ ...formData, departmentId: e.target.value, courseId: '', semesterId: '', sectionId: '' })}
                   className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white font-medium"
                 >
-                  <option value="B.E. Computer Science & Engineering">B.E. Computer Science & Engineering</option>
-                  <option value="B.Tech. AI & Data Science">B.Tech. AI & Data Science</option>
-                  <option value="B.E. Electronics & Communication">B.E. Electronics & Communication</option>
-                  <option value="B.E. Mechanical Engineering">B.E. Mechanical Engineering</option>
-                  <option value="B.Sc. Computer Science">B.Sc. Computer Science</option>
+                  <option value="">Select Department</option>
+                  {departments.map((dept) => (
+                    <option key={dept.id} value={dept.id}>{dept.name} ({dept.code})</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Course / Degree Program *</label>
+                <select
+                  required
+                  disabled={!formData.departmentId}
+                  value={formData.courseId}
+                  onChange={(e) => setFormData({ ...formData, courseId: e.target.value, semesterId: '', sectionId: '' })}
+                  className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white font-medium"
+                >
+                  <option value="">Select Course</option>
+                  {courses.map((c) => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+              </div>
+              
+              <div>
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Semester *</label>
+                <select
+                  required
+                  disabled={!formData.courseId}
+                  value={formData.semesterId}
+                  onChange={(e) => setFormData({ ...formData, semesterId: e.target.value, sectionId: '' })}
+                  className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white font-medium"
+                >
+                  <option value="">Select Semester</option>
+                  {semesters.map((sem) => (
+                    <option key={sem.id} value={sem.id}>{sem.name}</option>
+                  ))}
+                </select>
+              </div>
+              
+              <div>
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Section *</label>
+                <select
+                  required
+                  disabled={!formData.semesterId}
+                  value={formData.sectionId}
+                  onChange={(e) => setFormData({ ...formData, sectionId: e.target.value })}
+                  className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white font-medium"
+                >
+                  <option value="">Select Section</option>
+                  {sections.map((sec) => (
+                    <option key={sec.id} value={sec.id}>{sec.name}</option>
+                  ))}
                 </select>
               </div>
 
