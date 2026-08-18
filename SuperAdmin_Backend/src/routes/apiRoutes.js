@@ -23,6 +23,7 @@ router.post('/auth/change-password', authController.changePassword);
 // Institutions Management
 router.get('/institutions', institutionController.getInstitutions);
 router.post('/institutions', institutionController.createInstitutionOnboarding);
+router.post('/institutions/:institutionId/admin', institutionController.createInstituteAdmin);
 router.get('/institutions/:id', institutionController.getInstitutionById);
 router.patch('/institutions/:id/status', institutionController.updateInstitutionStatus);
 

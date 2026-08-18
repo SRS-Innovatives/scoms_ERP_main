@@ -12,25 +12,28 @@ export const apiCall = async (endpoint, options = {}) => {
   };
 
   try {
-    const res = await fetch(`${BASE_URL}${endpoint}`, {
+    const res = await fetch(`${BASE_URL}/api/v1${endpoint}`, {
       method: options.method || 'GET',
       headers,
       body: options.body ? JSON.stringify(options.body) : undefined,
     });
 
+    const result = await res.json();
+    
     if (res.ok) {
-      const result = await res.json();
       return { status: res.status, data: result.data || result };
+    } else {
+      if (res.status === 401) {
+        // Handle token expiration globally
+        localStorage.removeItem('scoms_admin_token');
+        window.location.href = '/login';
+      }
+      throw new Error(result.message || 'API Error');
     }
   } catch (err) {
-    console.warn(`[SCOMS API] Backend connection to ${BASE_URL}${endpoint} unavailable, using mock data.`);
+    console.error(`[SCOMS API Error] ${endpoint}:`, err.message);
+    throw err;
   }
-
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      resolve({ status: 200, data: options.mockResponse || {} });
-    }, options.delay || 100);
-  });
 };
 
 export default apiCall;
