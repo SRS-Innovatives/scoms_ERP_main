@@ -1,9 +1,8 @@
-import { mockUsers } from '../data/mockUsersData';
 import { apiCall } from './api';
 
 export const userService = {
   getUsers: async () => {
-    return apiCall('/api/super-admin/users', { mockResponse: mockUsers });
+    return apiCall('/api/v1/super-admin/users');
   }
 };
 

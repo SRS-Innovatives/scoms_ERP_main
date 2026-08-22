@@ -137,8 +137,16 @@ async function main() {
     },
   });
 
-  const semesterTerm1 = await prisma.semester.create({
-    data: {
+  const semesterTerm1 = await prisma.semester.upsert({
+    where: {
+      courseId_semesterNumber_academicYearId: {
+        courseId: courseClass10.id,
+        semesterNumber: 1,
+        academicYearId: academicYear.id,
+      },
+    },
+    update: {},
+    create: {
       courseId: courseClass10.id,
       academicYearId: academicYear.id,
       name: 'Term 1',

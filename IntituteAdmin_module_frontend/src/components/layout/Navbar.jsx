@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useTheme } from '../../context/ThemeContext';
+import { useNavigate } from 'react-router-dom';
 import { useNotification } from '../../context/NotificationContext';
 import {
   Menu,
@@ -19,6 +20,7 @@ import {
 import { instituteInfo } from '../../data/mockData';
 
 export const Navbar = ({ onToggleSidebar, onToggleMobile }) => {
+  const navigate = useNavigate();
   const { theme, toggleTheme } = useTheme();
   const { notifyInfo } = useNotification();
   const [showNotifications, setShowNotifications] = useState(false);
@@ -205,6 +207,7 @@ export const Navbar = ({ onToggleSidebar, onToggleMobile }) => {
                   onClick={() => {
                     notifyInfo("Logged out safely", "Session Ended");
                     setShowProfileMenu(false);
+                    navigate('/login');
                   }}
                   className="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/40 text-rose-600 font-medium"
                 >

@@ -1,7 +1,6 @@
 import React from 'react';
 import StatCard from '../../components/common/StatCard';
 import ChartCard from '../../components/common/ChartCard';
-import { mockInstitutions } from '../../data/mockInstitutionsData';
 import { mockBillingStats } from '../../data/mockBillingData';
 import { mockAnalytics } from '../../data/mockAnalyticsData';
 import {

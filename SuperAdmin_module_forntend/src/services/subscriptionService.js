@@ -1,12 +1,11 @@
-import { mockPlans, mockSubscriptions } from '../data/mockSubscriptionsData';
 import { apiCall } from './api';
 
 export const subscriptionService = {
   getPlans: async () => {
-    return apiCall('/api/super-admin/plans', { mockResponse: mockPlans });
+    return apiCall('/api/v1/super-admin/plans');
   },
   getSubscriptions: async () => {
-    return apiCall('/api/super-admin/subscriptions', { mockResponse: mockSubscriptions });
+    return apiCall('/api/v1/super-admin/subscriptions');
   }
 };
 

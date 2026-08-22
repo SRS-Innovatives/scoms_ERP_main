@@ -3,13 +3,15 @@ import FormInput from '../../components/common/FormInput';
 import Select from '../../components/common/Select';
 import FileUpload from '../../components/common/FileUpload';
 import { useNotification } from '../../context/NotificationContext';
-import { Check, ChevronRight, ChevronLeft, Building2, CheckCircle2, ShieldCheck } from 'lucide-react';
+import { Check, ChevronRight, ChevronLeft, Building2, CheckCircle2, ShieldCheck, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import institutionService from '../../services/institutionService';
 
 export const OnboardingWizardPage = () => {
-  const { success } = useNotification();
+  const { success, error: showError } = useNotification();
   const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState(1);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const steps = [
     "Basic Info",
@@ -26,25 +28,44 @@ export const OnboardingWizardPage = () => {
   const [formData, setFormData] = useState({
     name: 'SRS Institute of Technology',
     code: 'ENG-TN-909',
-    type: 'Engineering College',
-    category: 'College',
+    type: 'COLLEGE',
     affiliation: 'Anna University',
     email: 'admin@srstech.edu.in',
     phone: '+91 94433 11223',
+    address: '123 Tech Park Avenue',
     city: 'Coimbatore',
     state: 'Tamil Nadu',
     pincode: '641001',
     adminName: 'Dr. V. Rajesh',
     adminEmail: 'principal@srstech.edu.in',
-    plan: 'Enterprise'
+    adminPassword: '',
+    plan: 'Enterprise',
+    establishmentYear: '2005',
+    accreditation: 'NAAC A+',
+    modules: ['Library Management', 'Hostel Management']
   });
 
-  const handleNext = () => {
+  const handleNext = async () => {
     if (currentStep < 9) {
       setCurrentStep(prev => prev + 1);
     } else {
-      success(`Institution ${formData.name} successfully onboarded and activated!`, 'Onboarding Complete');
-      navigate('/super-admin/institutions');
+      setIsSubmitting(true);
+      try {
+        const response = await institutionService.createInstitution(formData);
+        
+        if (response?.status === 201 || response?.status === 200) {
+          success(`Institution ${formData.name} successfully onboarded and activated!`, 'Onboarding Complete');
+          navigate('/super-admin/institutions');
+        } else {
+          console.error('Failed to create institution', response);
+          // notification could be added here
+        }
+      } catch (error) {
+        console.error("Onboarding failed", error);
+        showError(error.message || "Failed to onboard institution.", "Activation Failed");
+      } finally {
+        setIsSubmitting(false);
+      }
     }
   };
 
@@ -99,7 +120,7 @@ export const OnboardingWizardPage = () => {
             <FormInput label="Institution Name" required value={formData.name} onChange={(v) => setFormData({ ...formData, name: v })} />
             <div className="grid grid-cols-2 gap-4">
               <FormInput label="Institution Code" required value={formData.code} onChange={(v) => setFormData({ ...formData, code: v })} />
-              <Select label="Category" value={formData.category} onChange={(v) => setFormData({ ...formData, category: v })} options={[{ value: 'School', label: 'School' }, { value: 'College', label: 'College' }, { value: 'University', label: 'University' }]} />
+              <Select label="Institution Type" value={formData.type} onChange={(v) => setFormData({ ...formData, type: v })} options={[{ value: 'SCHOOL', label: 'School' }, { value: 'COLLEGE', label: 'College' }, { value: 'UNIVERSITY', label: 'University' }, { value: 'POLYTECHNIC', label: 'Polytechnic' }]} />
             </div>
           </div>
         )}
@@ -110,17 +131,74 @@ export const OnboardingWizardPage = () => {
             <div className="grid grid-cols-2 gap-4">
               <FormInput label="Official Email" required value={formData.email} onChange={(v) => setFormData({ ...formData, email: v })} />
               <FormInput label="Official Phone" required value={formData.phone} onChange={(v) => setFormData({ ...formData, phone: v })} />
+              <FormInput label="Street Address" required value={formData.address} onChange={(v) => setFormData({ ...formData, address: v })} />
               <FormInput label="City" required value={formData.city} onChange={(v) => setFormData({ ...formData, city: v })} />
               <FormInput label="State" required value={formData.state} onChange={(v) => setFormData({ ...formData, state: v })} />
+              <FormInput label="Pincode" required value={formData.pincode} onChange={(v) => setFormData({ ...formData, pincode: v })} />
             </div>
           </div>
         )}
 
-        {currentStep >= 3 && currentStep <= 7 && (
+        {currentStep === 3 && (
           <div className="space-y-4">
-            <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">Step {currentStep}: {steps[currentStep - 1]}</h3>
-            <p className="text-xs text-slate-500">Configure parameters for {steps[currentStep - 1]}. All validation constraints met.</p>
-            <FileUpload label={`Upload ${steps[currentStep - 1]} verification PDF document`} />
+            <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">Step 3: Academic Info</h3>
+            <div className="grid grid-cols-2 gap-4">
+              <FormInput label="Affiliation / University" required value={formData.affiliation} onChange={(v) => setFormData({ ...formData, affiliation: v })} />
+              <FormInput label="Establishment Year" required value={formData.establishmentYear} onChange={(v) => setFormData({ ...formData, establishmentYear: v })} />
+              <Select label="Accreditation Status" value={formData.accreditation} onChange={(v) => setFormData({ ...formData, accreditation: v })} options={[{ value: 'NAAC A++', label: 'NAAC A++' }, { value: 'NAAC A+', label: 'NAAC A+' }, { value: 'NAAC A', label: 'NAAC A' }, { value: 'NBA', label: 'NBA' }, { value: 'None', label: 'None' }]} />
+            </div>
+          </div>
+        )}
+
+        {currentStep === 4 && (
+          <div className="space-y-4">
+            <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">Step 4: Admin Account</h3>
+            <div className="grid grid-cols-2 gap-4">
+              <FormInput label="Admin Full Name" required value={formData.adminName} onChange={(v) => setFormData({ ...formData, adminName: v })} />
+              <FormInput label="Admin Official Email" required value={formData.adminEmail} onChange={(v) => setFormData({ ...formData, adminEmail: v })} />
+              <FormInput label="Temporary Password" type="password" required value={formData.adminPassword} onChange={(v) => setFormData({ ...formData, adminPassword: v })} />
+            </div>
+          </div>
+        )}
+
+        {currentStep === 5 && (
+          <div className="space-y-4">
+            <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">Step 5: Subscription Plan</h3>
+            <div className="grid grid-cols-2 gap-4">
+              <Select label="Select Plan" value={formData.plan} onChange={(v) => setFormData({ ...formData, plan: v })} options={[{ value: 'Free', label: 'Free Tier' }, { value: 'Basic', label: 'Basic Plan' }, { value: 'Pro', label: 'Pro Plan' }, { value: 'Enterprise', label: 'Enterprise Plan' }]} />
+            </div>
+          </div>
+        )}
+
+        {currentStep === 6 && (
+          <div className="space-y-4">
+            <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">Step 6: Modules</h3>
+            <p className="text-xs text-slate-500">Select the modules you wish to enable for this institution.</p>
+            <div className="grid grid-cols-2 gap-4">
+              {['Library Management', 'Hostel Management', 'Transport', 'Cafeteria', 'Alumni', 'Placement'].map(mod => (
+                <label key={mod} className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300">
+                  <input type="checkbox" className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500" 
+                    checked={formData.modules?.includes(mod)}
+                    onChange={(e) => {
+                      const newModules = e.target.checked 
+                        ? [...(formData.modules || []), mod] 
+                        : (formData.modules || []).filter(m => m !== mod);
+                      setFormData({ ...formData, modules: newModules });
+                    }}
+                  />
+                  {mod}
+                </label>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {currentStep === 7 && (
+          <div className="space-y-4">
+            <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">Step 7: Documents</h3>
+            <p className="text-xs text-slate-500">Upload mandatory registration and tax documents.</p>
+            <FileUpload label="Registration Certificate (PDF)" />
+            <FileUpload label="Tax Registration / GST (PDF)" />
           </div>
         )}
 
@@ -129,7 +207,7 @@ export const OnboardingWizardPage = () => {
             <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">Step 8: Final Review & Inspection</h3>
             <div className="p-4 bg-slate-50 dark:bg-slate-800/60 rounded-xl space-y-2">
               <p><span className="font-bold">Institution:</span> {formData.name} ({formData.code})</p>
-              <p><span className="font-bold">Category:</span> {formData.category} • Location: {formData.city}, {formData.state}</p>
+              <p><span className="font-bold">Type:</span> {formData.type} • Location: {formData.city}, {formData.state}</p>
               <p><span className="font-bold">Admin Email:</span> {formData.adminEmail}</p>
               <p><span className="font-bold">Subscription Plan:</span> {formData.plan}</p>
             </div>
@@ -160,10 +238,11 @@ export const OnboardingWizardPage = () => {
 
           <button
             onClick={handleNext}
-            className="flex items-center gap-1.5 px-6 py-2.5 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-md"
+            disabled={isSubmitting}
+            className="flex items-center gap-1.5 px-6 py-2.5 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <span>{currentStep === 9 ? 'Activate Institution' : 'Next Step'}</span>
-            <ChevronRight className="w-4 h-4" />
+            {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <span>{currentStep === 9 ? 'Activate Institution' : 'Next Step'}</span>}
+            {!isSubmitting && <ChevronRight className="w-4 h-4" />}
           </button>
         </div>
       </div>

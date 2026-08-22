@@ -6,6 +6,8 @@ const {
   prisma,
   sendSuccess,
   hashPassword,
+  sendEmailNotification,
+  sendSMSNotification,
 } = require('../../../shared');
 
 const getStaff = async (req, res, next) => {
@@ -90,6 +92,24 @@ const createStaff = async (req, res, next) => {
 
       return { ...staff, user: { email: user.email, role: user.role } };
     });
+
+    // Send email & SMS notifications to staff with credentials
+    const staffPlainPassword = 'Password@123';
+    const staffRole = role || 'TEACHER';
+    if (email) {
+      sendEmailNotification({
+        to: email,
+        subject: 'Welcome to SCOMS - Your Staff Account Credentials',
+        text: `Dear ${firstName} ${lastName},\n\nWelcome to SCOMS! Your staff account has been successfully created. Here are your login credentials:\n\nLogin URL: http://localhost:5175/login\nEmployee Code: ${employeeCode}\nEmail: ${email}\nTemporary Password: ${staffPlainPassword}\nRole: ${staffRole}\n\nPlease change your password after logging in.\n\nBest Regards,\nInstitution Administration`,
+        html: `<p>Dear ${firstName} ${lastName},</p><p>Welcome to SCOMS! Your staff account has been successfully created. Here are your login credentials:</p><ul><li><b>Login URL:</b> <a href="http://localhost:5175/login">http://localhost:5175/login</a></li><li><b>Employee Code:</b> ${employeeCode}</li><li><b>Email:</b> ${email}</li><li><b>Temporary Password:</b> ${staffPlainPassword}</li><li><b>Role:</b> ${staffRole}</li></ul><p>Please change your password after logging in.</p><p>Best Regards,<br>Institution Administration</p>`
+      }).catch(err => console.error('Error sending staff welcome email:', err));
+    }
+    if (phone) {
+      sendSMSNotification({
+        to: phone,
+        message: `Welcome to SCOMS! Your staff account is active. Login at http://localhost:5175/login. User: ${employeeCode || email}, Temp Pass: ${staffPlainPassword}`
+      }).catch(err => console.error('Error sending staff welcome SMS:', err));
+    }
 
     return sendSuccess(res, result, 'Staff registered successfully', 201);
   } catch (err) {
