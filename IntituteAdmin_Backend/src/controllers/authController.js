@@ -9,6 +9,7 @@ const {
   generateRefreshToken,
   sendSuccess,
   AuthenticationError,
+  ROLES,
   handleUnifiedLogin,
 } = require('../../../shared');
 const {
@@ -19,7 +20,7 @@ const {
 } = require('../../../shared/auth/authControllerBase');
 
 const login = async (req, res, next) => {
-  return handleUnifiedLogin(req, res, next);
+  return handleUnifiedLogin(req, res, next, [ROLES.INSTITUTE_ADMIN]);
 };
 
 module.exports = {

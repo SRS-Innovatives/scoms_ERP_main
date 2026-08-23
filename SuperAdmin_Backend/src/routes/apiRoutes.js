@@ -36,6 +36,7 @@ router.get('/institutions/:id', institutionController.getInstitutionById);
 router.patch('/institutions/:id/status', institutionController.updateInstitutionStatus);
 router.put('/institutions/:id', institutionController.updateInstitution);
 router.delete('/institutions/:id', institutionController.deleteInstitution);
+router.get('/audit-logs', institutionController.getAuditLogs);
 
 // Users
 router.get('/users', userController.getUsers);

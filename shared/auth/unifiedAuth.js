@@ -10,7 +10,7 @@ const { sendSuccess } = require('../utils/responseFormatter');
 const { AuthenticationError } = require('../errors/customErrors');
 const { ROLES } = require('../constants/roles');
 
-const handleUnifiedLogin = async (req, res, next) => {
+const handleUnifiedLogin = async (req, res, next, allowedRoles = null) => {
   try {
     const { identifier, email, admissionNumber, employeeCode, password } = req.body;
 
@@ -69,6 +69,11 @@ const handleUnifiedLogin = async (req, res, next) => {
     const isMatch = await comparePassword(password, user.password);
     if (!isMatch) {
       throw new AuthenticationError('Invalid credentials. Password incorrect.');
+    }
+
+    // Validate role restriction if provided
+    if (allowedRoles && !allowedRoles.includes(user.role)) {
+      throw new AuthenticationError('Access denied. Insufficient permissions for this portal.');
     }
 
     // Map role to standard module redirect URL

@@ -187,7 +187,7 @@ export const UnifiedLoginPage = ({ defaultRole = 'INSTITUTE_ADMIN', onCustomLogi
         }
 
         if (onCustomLoginSuccess) {
-          onCustomLoginSuccess(user, accessToken);
+          onCustomLoginSuccess(user, accessToken, activeModule.id);
         }
 
         setTimeout(() => {

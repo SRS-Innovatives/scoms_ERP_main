@@ -1,8 +1,9 @@
 import { apiCall } from './api';
 
 export const institutionService = {
-  getInstitutions: async () => {
-    return apiCall('/api/v1/super-admin/institutions');
+  getInstitutions: async (params = {}) => {
+    const query = new URLSearchParams(params).toString();
+    return apiCall(`/api/v1/super-admin/institutions${query ? '?' + query : ''}`);
   },
 
   getInstitutionById: async (id) => {
