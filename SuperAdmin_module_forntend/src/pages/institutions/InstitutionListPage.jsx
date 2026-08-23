@@ -1,16 +1,35 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import DataTable from '../../components/common/DataTable';
 import PageHeader from '../../components/common/PageHeader';
 import StatusBadge from '../../components/common/StatusBadge';
-import { mockInstitutions } from '../../data/mockInstitutionsData';
 import { useNotification } from '../../context/NotificationContext';
-import { Eye, Edit, ShieldAlert, CheckCircle, Trash2, Building2 } from 'lucide-react';
+import { Eye, Edit, ShieldAlert, CheckCircle, Trash2, Building2, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import institutionService from '../../services/institutionService';
 
 export const InstitutionListPage = () => {
   const navigate = useNavigate();
   const { success, warning } = useNotification();
-  const [institutions, setInstitutions] = useState(mockInstitutions);
+  const [institutions, setInstitutions] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchInstitutions();
+  }, []);
+
+  const fetchInstitutions = async () => {
+    try {
+      setLoading(true);
+      const res = await institutionService.getInstitutions();
+      if (res?.data) {
+        setInstitutions(res.data);
+      }
+    } catch (error) {
+      console.error("Failed to fetch institutions", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const columns = [
     {
@@ -35,17 +54,18 @@ export const InstitutionListPage = () => {
     },
     {
       header: 'Affiliation',
-      key: 'affiliation'
+      key: 'affiliation',
+      render: (val) => val || 'N/A'
     },
     {
       header: 'Plan',
-      key: 'plan',
-      render: (val) => <span className="font-bold text-indigo-600 dark:text-indigo-400">{val}</span>
+      key: 'planName',
+      render: (val, row) => <span className="font-bold text-indigo-600 dark:text-indigo-400">{row.planName || val || 'N/A'}</span>
     },
     {
       header: 'Students',
       key: 'studentsCount',
-      render: (val) => <span className="font-bold text-slate-800 dark:text-slate-200">{val.toLocaleString()}</span>
+      render: (val, row) => <span className="font-bold text-slate-800 dark:text-slate-200">{(row._count?.students || 0).toLocaleString()}</span>
     },
     {
       header: 'Status',
@@ -84,20 +104,26 @@ export const InstitutionListPage = () => {
         subtitle="Control and monitor all registered schools, colleges, and universities."
         actionLabel="Onboard New Institution"
         onAction={() => navigate('/super-admin/institutions/new')}
-        badge="5 Registered"
+        badge={`${institutions.length} Registered`}
       />
 
-      <DataTable
-        columns={columns}
-        data={institutions}
-        searchPlaceholder="Search institution name, code, state, city..."
-        filterOptions={[
-          { value: 'School', label: 'Schools' },
-          { value: 'College', label: 'Colleges' },
-          { value: 'University', label: 'Universities' }
-        ]}
-        onExport={() => success('Exported institution master dataset to Excel.', 'Export Ready')}
-      />
+      {loading ? (
+        <div className="flex justify-center items-center py-20">
+          <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
+        </div>
+      ) : (
+        <DataTable
+          columns={columns}
+          data={institutions}
+          searchPlaceholder="Search institution name, code, state, city..."
+          filterOptions={[
+            { value: 'School', label: 'Schools' },
+            { value: 'College', label: 'Colleges' },
+            { value: 'University', label: 'Universities' }
+          ]}
+          onExport={() => success('Exported institution master dataset to Excel.', 'Export Ready')}
+        />
+      )}
     </div>
   );
 };

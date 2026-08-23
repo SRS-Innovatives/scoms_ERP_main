@@ -37,6 +37,7 @@ const MODULE_ROLES = [
       roleName: 'Super Admin',
     },
     redirectUrl: '/super-admin/dashboard',
+    apiPrefix: '/api/v1/super-admin',
   },
   {
     id: 'INSTITUTE_ADMIN',
@@ -58,6 +59,7 @@ const MODULE_ROLES = [
       roleName: 'Institute Admin',
     },
     redirectUrl: '/admin/dashboard',
+    apiPrefix: '/api/v1/admin',
   },
   {
     id: 'STAFF',
@@ -79,6 +81,7 @@ const MODULE_ROLES = [
       roleName: 'Staff / Faculty',
     },
     redirectUrl: '/staff/dashboard',
+    apiPrefix: '/api/v1/staff',
   },
   {
     id: 'STUDENT',
@@ -100,6 +103,7 @@ const MODULE_ROLES = [
       roleName: 'Student',
     },
     redirectUrl: '/student/dashboard',
+    apiPrefix: '/api/v1/student',
   },
 ];
 
@@ -136,7 +140,7 @@ export const UnifiedLoginPage = ({ defaultRole = 'INSTITUTE_ADMIN', onCustomLogi
     setSuccessMessage('');
 
     const targetPort = activeModule.port;
-    const backendUrl = `http://localhost:${targetPort}/api/v1/auth/login`;
+    const backendUrl = `http://localhost:${targetPort}${activeModule.apiPrefix}/auth/login`;
 
     try {
       const response = await fetch(backendUrl, {
@@ -163,6 +167,25 @@ export const UnifiedLoginPage = ({ defaultRole = 'INSTITUTE_ADMIN', onCustomLogi
         localStorage.setItem('scoms_user', JSON.stringify(user));
         localStorage.setItem('scoms_current_role', user.role || activeModule.id);
 
+        // Set role/module-specific tokens and user details
+        if (user.role === 'SUPER_ADMIN' || user.role === 'PLATFORM_ADMIN') {
+          localStorage.setItem('scoms_superadmin_token', accessToken || 'demo_access_token');
+          localStorage.setItem('scoms_superadmin_user', JSON.stringify(user));
+        } else if (user.role === 'INSTITUTE_ADMIN') {
+          localStorage.setItem('scoms_admin_token', accessToken || 'demo_access_token');
+          localStorage.setItem('scoms_admin_user', JSON.stringify(user));
+        } else if ([
+          'PRINCIPAL', 'VICE_PRINCIPAL', 'HOD', 'TEACHER', 'STAFF',
+          'ACCOUNTANT', 'LIBRARIAN', 'TRANSPORT_MANAGER', 'HOSTEL_WARDEN',
+          'EXAM_ADMIN', 'PLACEMENT_OFFICER'
+        ].includes(user.role)) {
+          localStorage.setItem('scoms_staff_token', accessToken || 'demo_access_token');
+          localStorage.setItem('scoms_staff_user', JSON.stringify(user));
+        } else if (user.role === 'STUDENT' || user.role === 'PARENT') {
+          localStorage.setItem('scoms_student_token', accessToken || 'demo_access_token');
+          localStorage.setItem('scoms_student_user', JSON.stringify(user));
+        }
+
         if (onCustomLoginSuccess) {
           onCustomLoginSuccess(user, accessToken);
         }
@@ -180,32 +203,8 @@ export const UnifiedLoginPage = ({ defaultRole = 'INSTITUTE_ADMIN', onCustomLogi
         throw new Error(result.message || 'Invalid credentials provided.');
       }
     } catch (err) {
-      console.warn('[SCOMS Unified Auth] Backend call failed or offline mode:', err.message);
-      setSuccessMessage(`Offline Demo Mode Activated. Redirecting to ${activeModule.name}...`);
-      
-      const demoUserData = {
-        id: `DEMO-${activeModule.id}-001`,
-        email: identifier,
-        role: activeModule.id,
-        name: activeModule.demoUser.roleName,
-        institutionName: 'Delhi Public International School',
-      };
-
-      localStorage.setItem('scoms_access_token', 'demo_access_token_2026');
-      localStorage.setItem('scoms_user', JSON.stringify(demoUserData));
-
-      if (onCustomLoginSuccess) {
-        onCustomLoginSuccess(demoUserData, 'demo_access_token_2026');
-      }
-
-      setTimeout(() => {
-        const targetFrontendPort = activeModule.frontendPort;
-        if (window.location.port && window.location.port !== String(targetFrontendPort)) {
-          window.location.href = `http://localhost:${targetFrontendPort}${activeModule.redirectUrl}`;
-        } else {
-          navigate(activeModule.redirectUrl);
-        }
-      }, 800);
+      console.error('[SCOMS Unified Auth] Backend call failed:', err.message);
+      setErrorMessage(err.message || 'Failed to connect to the authentication server.');
     } finally {
       setLoading(false);
     }

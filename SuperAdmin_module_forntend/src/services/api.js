@@ -18,20 +18,22 @@ export const apiCall = async (endpoint, options = {}) => {
       body: options.body ? JSON.stringify(options.body) : undefined,
     });
 
-    if (res.ok) {
-      const result = await res.json();
-      return { status: res.status, data: result.data || result };
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({}));
+      if (res.status === 401) {
+        localStorage.removeItem('scoms_superadmin_user');
+        localStorage.removeItem('scoms_superadmin_token');
+        window.location.href = '/super-admin/login';
+      }
+      throw new Error(errorData.message || `API Error: ${res.status}`);
     }
-  } catch (err) {
-    console.warn(`[SCOMS API] Backend connection to ${BASE_URL}${endpoint} unavailable, using mock data.`);
-  }
 
-  // Graceful fallback to mock data if backend server is not running during offline UI preview
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      resolve({ status: 200, data: options.mockResponse || {} });
-    }, options.delay || 100);
-  });
+    const result = await res.json();
+    return { status: res.status, data: result.data || result };
+  } catch (err) {
+    console.error(`[SCOMS API] Backend connection to ${BASE_URL}${endpoint} failed:`, err);
+    throw err;
+  }
 };
 
 export default apiCall;

@@ -9,6 +9,8 @@ const {
   hashPassword,
   generateAdmissionNumber,
   ROLES,
+  sendEmailNotification,
+  sendSMSNotification,
 } = require('../../../shared');
 
 const getStudents = async (req, res, next) => {
@@ -187,6 +189,23 @@ const createStudentAdmission = async (req, res, next) => {
 
       return { student, user };
     });
+
+    // Send email & SMS notifications to student with credentials
+    const studentPlainPassword = password || 'Student@123';
+    if (email) {
+      sendEmailNotification({
+        to: email,
+        subject: 'Welcome to SCOMS - Your Student Account Credentials',
+        text: `Dear ${firstName} ${lastName},\n\nWelcome to SCOMS! Your student account has been successfully created. Here are your login credentials:\n\nLogin URL: http://localhost:5176/login\nAdmission Number: ${result.student.admissionNumber}\nEmail: ${email}\nTemporary Password: ${studentPlainPassword}\n\nPlease change your password after logging in.\n\nBest Regards,\nInstitution Administration`,
+        html: `<p>Dear ${firstName} ${lastName},</p><p>Welcome to SCOMS! Your student account has been successfully created. Here are your login credentials:</p><ul><li><b>Login URL:</b> <a href="http://localhost:5176/login">http://localhost:5176/login</a></li><li><b>Admission Number:</b> ${result.student.admissionNumber}</li><li><b>Email:</b> ${email}</li><li><b>Temporary Password:</b> ${studentPlainPassword}</li></ul><p>Please change your password after logging in.</p><p>Best Regards,<br>Institution Administration</p>`
+      }).catch(err => console.error('Error sending student welcome email:', err));
+    }
+    if (phone) {
+      sendSMSNotification({
+        to: phone,
+        message: `Welcome to SCOMS! Your student account is active. Login at http://localhost:5176/login. User: ${result.student.admissionNumber}, Temp Pass: ${studentPlainPassword}`
+      }).catch(err => console.error('Error sending student welcome SMS:', err));
+    }
 
     return sendSuccess(res, result, 'Student admitted successfully', 201);
   } catch (err) {

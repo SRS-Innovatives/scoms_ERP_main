@@ -16,10 +16,10 @@
     "prisma:validate": "prisma validate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:seed": "node prisma/seed/seed.js",
-    "start:super-admin": "node SuperAdmin_Backend/src/server.js",
-    "start:institute-admin": "node IntituteAdmin_Backend/src/server.js",
-    "start:staff": "node Staff_backend/src/server.js",
-    "start:student": "node Student_Backend/src/server.js"
+    "start:super-admin": "node --watch SuperAdmin_Backend/src/server.js",
+    "start:institute-admin": "node --watch IntituteAdmin_Backend/src/server.js",
+    "start:staff": "node --watch Staff_backend/src/server.js",
+    "start:student": "node --watch Student_Backend/src/server.js"
   },
   "devDependencies": {
     "concurrently": "^10.0.5",

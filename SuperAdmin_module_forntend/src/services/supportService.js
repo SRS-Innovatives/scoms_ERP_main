@@ -1,9 +1,8 @@
-import { mockSupportTickets } from '../data/mockSupportData';
 import { apiCall } from './api';
 
 export const supportService = {
   getTickets: async () => {
-    return apiCall('/api/super-admin/tickets', { mockResponse: mockSupportTickets });
+    return apiCall('/api/v1/super-admin/tickets');
   }
 };
 

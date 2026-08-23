@@ -19,6 +19,7 @@ const errorHandler = require('./middleware/errorHandler');
 const schemas = require('./validation/schemas');
 
 const { handleUnifiedLogin } = require('./auth/unifiedAuth');
+const { sendEmailNotification, sendSMSNotification } = require('./utils/notifications');
 
 module.exports = {
   ROLES,
@@ -32,6 +33,8 @@ module.exports = {
   ...jwt,
   ...password,
   handleUnifiedLogin,
+  sendEmailNotification,
+  sendSMSNotification,
   ROLE_PERMISSIONS,
   hasPermission,
   requireAuth,

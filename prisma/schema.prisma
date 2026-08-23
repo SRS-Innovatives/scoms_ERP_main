@@ -49,6 +49,8 @@ model Institution {
   country            String            @default("India")
   principalName      String?
   establishedYear    Int?
+  planName           String?
+  modules            Json?
   status             InstitutionStatus @default(ACTIVE)
   createdAt          DateTime          @default(now())
   updatedAt          DateTime          @updatedAt
@@ -210,8 +212,8 @@ model Course {
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
 
-  institution   Institution @relation(fields: [institutionId], references: [id])
-  department    Department  @relation(fields: [departmentId], references: [id])
+  institution   Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  department    Department  @relation(fields: [departmentId], references: [id], onDelete: Cascade)
   semesters     Semester[]
   students      Student[]
   subjects      Subject[]
@@ -229,8 +231,8 @@ model Semester {
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
 
-  course       Course       @relation(fields: [courseId], references: [id])
-  academicYear AcademicYear @relation(fields: [academicYearId], references: [id])
+  course       Course       @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  academicYear AcademicYear @relation(fields: [academicYearId], references: [id], onDelete: Cascade)
   sections     Section[]
 
   @@unique([courseId, semesterNumber, academicYearId])
@@ -244,7 +246,7 @@ model Section {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
-  semester           Semester            @relation(fields: [semesterId], references: [id])
+  semester           Semester            @relation(fields: [semesterId], references: [id], onDelete: Cascade)
   students           Student[]
   attendanceSessions AttendanceSession[]
   timetables         Timetable[]
@@ -260,7 +262,7 @@ model Subject {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
-  course          Course                  @relation(fields: [courseId], references: [id])
+  course          Course                  @relation(fields: [courseId], references: [id], onDelete: Cascade)
   teacherMappings SubjectTeacherMapping[]
   materials       StudyMaterial[]
   questionBanks   QuestionBank[]
@@ -276,8 +278,8 @@ model SubjectTeacherMapping {
   sectionId String?
   createdAt DateTime @default(now())
 
-  subject Subject  @relation(fields: [subjectId], references: [id])
-  staff   Staff    @relation(fields: [staffId], references: [id])
+  subject Subject  @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  staff   Staff    @relation(fields: [staffId], references: [id], onDelete: Cascade)
 }
 
 // ------------------------------------------------------

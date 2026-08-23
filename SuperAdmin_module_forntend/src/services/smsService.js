@@ -1,9 +1,8 @@
-import { mockSmsGateways } from '../data/mockSmsData';
 import { apiCall } from './api';
 
 export const smsService = {
   getSmsStats: async () => {
-    return apiCall('/api/super-admin/sms-stats', { mockResponse: mockSmsGateways });
+    return apiCall('/api/v1/super-admin/sms-stats');
   }
 };
 

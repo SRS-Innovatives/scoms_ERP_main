@@ -1,23 +1,28 @@
-import { mockInstitutions } from '../data/mockInstitutionsData';
 import { apiCall } from './api';
 
 export const institutionService = {
   getInstitutions: async () => {
-    return apiCall('/api/super-admin/institutions', { mockResponse: mockInstitutions });
+    return apiCall('/api/v1/super-admin/institutions');
   },
 
   getInstitutionById: async (id) => {
-    const found = mockInstitutions.find(i => i.id === id) || mockInstitutions[0];
-    return apiCall(`/api/super-admin/institutions/${id}`, { mockResponse: found });
+    return apiCall(`/api/v1/super-admin/institutions/${id}`);
   },
 
   createInstitution: async (data) => {
-    const newInst = { id: `INST-00${mockInstitutions.length + 1}`, ...data, createdDate: new Date().toISOString().split('T')[0] };
-    return apiCall('/api/super-admin/institutions', { mockResponse: newInst });
+    return apiCall('/api/v1/super-admin/institutions', { method: 'POST', body: data });
   },
 
   updateInstitutionStatus: async (id, status) => {
-    return apiCall(`/api/super-admin/institutions/${id}/status`, { mockResponse: { id, status, success: true } });
+    return apiCall(`/api/v1/super-admin/institutions/${id}/status`, { method: 'PATCH', body: { status } });
+  },
+
+  updateInstitution: async (id, data) => {
+    return apiCall(`/api/v1/super-admin/institutions/${id}`, { method: 'PUT', body: data });
+  },
+
+  deleteInstitution: async (id) => {
+    return apiCall(`/api/v1/super-admin/institutions/${id}`, { method: 'DELETE' });
   }
 };
 

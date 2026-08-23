@@ -32,6 +32,11 @@ const getInstitutions = async (req, res, next) => {
         skip: Number(skip),
         take: Number(limit),
         orderBy: { createdAt: 'desc' },
+        include: {
+          _count: {
+            select: { students: true }
+          }
+        }
       }),
       prisma.institution.count({ where }),
     ]);
@@ -45,19 +50,9 @@ const getInstitutions = async (req, res, next) => {
 const createInstitutionOnboarding = async (req, res, next) => {
   try {
     const {
-      name,
-      code,
-      type,
-      registrationNumber,
-      affiliation,
-      email,
-      phone,
-      address,
-      city,
-      district,
-      state,
-      pincode,
-      country,
+      name, code, type, registrationNumber, affiliation, email, phone,
+      address, city, district, state, pincode, country,
+      establishmentYear, adminName, adminEmail, adminPassword, plan, modules, accreditation
     } = req.body;
 
     const result = await prisma.$transaction(async (tx) => {
@@ -67,14 +62,22 @@ const createInstitutionOnboarding = async (req, res, next) => {
         throw new Error('Institution with this code already exists');
       }
 
-      // 2. Create institution
+      // 2. Validate email for admin early
+      if (adminEmail) {
+        const existingUser = await tx.user.findUnique({ where: { email: adminEmail } });
+        if (existingUser) {
+          throw new Error('User with this admin email already exists');
+        }
+      }
+
+      // 3. Create institution
       const institution = await tx.institution.create({
         data: {
           name,
           code,
           type: type || 'COLLEGE',
           registrationNumber,
-          affiliation,
+          affiliation: affiliation || accreditation, // store accreditation here if needed, or use separate field
           email,
           phone,
           address,
@@ -83,10 +86,38 @@ const createInstitutionOnboarding = async (req, res, next) => {
           state,
           pincode,
           country: country || 'India',
+          establishedYear: establishmentYear ? parseInt(establishmentYear) : null,
+          planName: plan,
+          modules: modules ? modules : null,
+          principalName: adminName,
         },
       });
 
-      // 8. Create audit log
+      // 4. Create admin user if provided
+      if (adminEmail && adminPassword) {
+        const hashedPassword = await hashPassword(adminPassword);
+        const user = await tx.user.create({
+          data: {
+            institutionId: institution.id,
+            email: adminEmail,
+            mobile: phone,
+            password: hashedPassword,
+            role: ROLES.INSTITUTE_ADMIN,
+            status: 'ACTIVE',
+          },
+        });
+        
+        await tx.staff.create({
+          data: {
+            userId: user.id,
+            institutionId: institution.id,
+            employeeCode: `ADM-${Date.now()}`,
+            designation: 'Institute Admin',
+          }
+        });
+      }
+
+      // 5. Create audit log
       await tx.auditLog.create({
         data: {
           institutionId: institution.id,
@@ -107,7 +138,7 @@ const createInstitutionOnboarding = async (req, res, next) => {
     return sendSuccess(res, result, 'Institution created successfully', 201);
   } catch (err) {
     if (err.message.includes('already exists')) {
-      return res.status(400).json({ success: false, message: err.message, code: 'DUPLICATE_CODE' });
+      return res.status(400).json({ success: false, message: err.message, code: 'DUPLICATE_ENTRY' });
     }
     next(err);
   }
@@ -217,10 +248,47 @@ const updateInstitutionStatus = async (req, res, next) => {
   }
 };
 
+const updateInstitution = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const updateData = req.body;
+    
+    // Convert establishedYear to int if present
+    if (updateData.establishedYear) {
+      updateData.establishedYear = parseInt(updateData.establishedYear);
+    }
+    
+    const institution = await prisma.institution.update({
+      where: { id },
+      data: updateData,
+    });
+    
+    return sendSuccess(res, institution, 'Institution updated successfully');
+  } catch (err) {
+    next(err);
+  }
+};
+
+const deleteInstitution = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const institution = await prisma.institution.update({
+      where: { id },
+      data: { deletedAt: new Date(), status: 'EXPIRED' },
+    });
+    
+    return sendSuccess(res, institution, 'Institution soft-deleted successfully');
+  } catch (err) {
+    next(err);
+  }
+};
+
 module.exports = {
   getInstitutions,
   createInstitutionOnboarding,
   createInstituteAdmin,
   getInstitutionById,
   updateInstitutionStatus,
+  updateInstitution,
+  deleteInstitution,
 };

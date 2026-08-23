@@ -5,9 +5,9 @@ import { useAuth } from '../../context/AuthContext';
 export const LoginPage = () => {
   const { login } = useAuth();
 
-  const handleCustomLoginSuccess = (user) => {
+  const handleCustomLoginSuccess = (user, accessToken) => {
     if (login) {
-      login(user.email || 'superadmin@scoms.in', 'Password@123');
+      login(user, accessToken);
     }
   };
 
