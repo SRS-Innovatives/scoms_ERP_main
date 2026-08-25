@@ -40,6 +40,9 @@ router.get('/audit-logs', institutionController.getAuditLogs);
 
 // Users
 router.get('/users', userController.getUsers);
+router.get('/roles', userController.getRoles);
+router.get('/roles/:role/permissions', userController.getRolePermissions);
+router.put('/roles/:role/permissions', userController.updateRolePermissions);
 
 // Billing
 router.get('/invoices', billingController.getInvoices);
