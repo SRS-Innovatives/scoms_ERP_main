@@ -237,9 +237,27 @@ const updateInstitutionStatus = async (req, res, next) => {
     const { id } = req.params;
     const { status } = req.body;
 
+    const oldInstitution = await prisma.institution.findUnique({ where: { id } });
+
     const institution = await prisma.institution.update({
       where: { id },
       data: { status },
+    });
+
+    // Create Audit Log
+    await prisma.auditLog.create({
+      data: {
+        institutionId: id,
+        userId: req.user.id,
+        action: 'STATUS_CHANGE',
+        module: 'INSTITUTION',
+        entity: 'Institution',
+        entityId: id,
+        oldValues: oldInstitution ? JSON.stringify(oldInstitution) : null,
+        newValues: JSON.stringify(institution),
+        ipAddress: req.ip || '',
+        userAgent: req.get('user-agent') || ''
+      }
     });
 
     return sendSuccess(res, institution, 'Institution status updated');
@@ -258,9 +276,27 @@ const updateInstitution = async (req, res, next) => {
       updateData.establishedYear = parseInt(updateData.establishedYear);
     }
     
+    const oldInstitution = await prisma.institution.findUnique({ where: { id } });
+
     const institution = await prisma.institution.update({
       where: { id },
       data: updateData,
+    });
+
+    // Create Audit Log
+    await prisma.auditLog.create({
+      data: {
+        institutionId: id,
+        userId: req.user.id,
+        action: 'UPDATE',
+        module: 'INSTITUTION',
+        entity: 'Institution',
+        entityId: id,
+        oldValues: oldInstitution ? JSON.stringify(oldInstitution) : null,
+        newValues: JSON.stringify(institution),
+        ipAddress: req.ip || '',
+        userAgent: req.get('user-agent') || ''
+      }
     });
     
     return sendSuccess(res, institution, 'Institution updated successfully');
@@ -283,6 +319,46 @@ const deleteInstitution = async (req, res, next) => {
   }
 };
 
+const getAuditLogs = async (req, res, next) => {
+  try {
+    const { page = 1, limit = 20, search = '', institutionId = '' } = req.query;
+    const skip = (page - 1) * limit;
+
+    const where = {};
+    if (institutionId) {
+      where.institutionId = institutionId;
+    }
+
+    if (search) {
+      where.OR = [
+        { action: { contains: search, mode: 'insensitive' } },
+        { module: { contains: search, mode: 'insensitive' } },
+        { entity: { contains: search, mode: 'insensitive' } },
+        { ipAddress: { contains: search, mode: 'insensitive' } },
+        { user: { email: { contains: search, mode: 'insensitive' } } },
+      ];
+    }
+
+    const [logs, total] = await Promise.all([
+      prisma.auditLog.findMany({
+        where,
+        skip: Number(skip),
+        take: Number(limit),
+        orderBy: { createdAt: 'desc' },
+        include: {
+          institution: { select: { name: true, code: true } },
+          user: { select: { email: true, role: true } },
+        },
+      }),
+      prisma.auditLog.count({ where }),
+    ]);
+
+    return sendPaginated(res, logs, page, limit, total, 'Audit logs retrieved successfully');
+  } catch (err) {
+    next(err);
+  }
+};
+
 module.exports = {
   getInstitutions,
   createInstitutionOnboarding,
@@ -291,4 +367,5 @@ module.exports = {
   updateInstitutionStatus,
   updateInstitution,
   deleteInstitution,
+  getAuditLogs,
 };

@@ -20,7 +20,7 @@ const {
 } = require('../../../shared/auth/authControllerBase');
 
 const login = async (req, res, next) => {
-  return handleUnifiedLogin(req, res, next);
+  return handleUnifiedLogin(req, res, next, [ROLES.SUPER_ADMIN, ROLES.PLATFORM_ADMIN]);
 };
 
 module.exports = {

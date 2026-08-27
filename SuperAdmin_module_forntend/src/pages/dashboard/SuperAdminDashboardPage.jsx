@@ -1,8 +1,10 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import StatCard from '../../components/common/StatCard';
 import ChartCard from '../../components/common/ChartCard';
 import { mockBillingStats } from '../../data/mockBillingData';
 import { mockAnalytics } from '../../data/mockAnalyticsData';
+import analyticsService from '../../services/analyticsService';
+import billingService from '../../services/billingService';
 import {
   Building2,
   Users,
@@ -15,15 +17,59 @@ import {
   Activity,
   Plus,
   CreditCard,
-  UserPlus,
-  Send,
-  BarChart2,
   Receipt
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 export const SuperAdminDashboardPage = () => {
   const navigate = useNavigate();
+  const [analytics, setAnalytics] = useState(null);
+  const [billingStats, setBillingStats] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const loadDashboardData = async () => {
+      try {
+        setLoading(true);
+        const [analyticsRes, billingRes] = await Promise.all([
+          analyticsService.getAnalytics(),
+          billingService.getBillingStats()
+        ]);
+        if (analyticsRes?.data) {
+          setAnalytics(analyticsRes.data);
+        }
+        if (billingRes?.data) {
+          setBillingStats(billingRes.data);
+        }
+      } catch (err) {
+        console.error('Failed to load dashboard metrics:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadDashboardData();
+  }, []);
+
+  const totalInst = analytics?.totalInstitutions ?? 0;
+  const activeInst = analytics?.activeInstitutions ?? 0;
+  const trialInst = analytics?.trialInstitutions ?? 0;
+  const suspendedInst = analytics?.suspendedInstitutions ?? 0;
+  const totalUsers = analytics?.totalUsers?.toLocaleString() ?? '0';
+  const totalStudents = analytics?.totalStudents?.toLocaleString() ?? '0';
+  const totalStaff = analytics?.totalStaff?.toLocaleString() ?? '0';
+  const systemHealth = analytics ? `${analytics.systemHealth}%` : '0.00%';
+
+  const totalRevenue = billingStats
+    ? `₹${(billingStats.totalRevenue / 100000).toFixed(2)} Lakhs`
+    : '₹0.00 Lakhs';
+  const mrr = billingStats
+    ? `₹${(billingStats.mrr / 100000).toFixed(2)} Lakhs`
+    : '₹0.00 Lakhs';
+  const pendingRevenue = billingStats
+    ? `₹${(billingStats.pendingRevenue / 100000).toFixed(2)} Lakhs`
+    : '₹0.00 Lakhs';
+
+  const activePercentage = totalInst > 0 ? `${Math.round((activeInst / totalInst) * 100)}%` : '0%';
 
   return (
     <div className="space-y-6">
@@ -37,8 +83,8 @@ export const SuperAdminDashboardPage = () => {
                 Multi-Tenant SaaS
               </span>
             </div>
-            <p className="text-xs text-indigo-100 mt-1">
-              Supervising <span className="font-bold text-white">5 Registered Institutions</span> across 4 Indian States.
+            <p className="text-xs text-black mt-1">
+              Supervising <span className="font-bold">{totalInst} Registered Institutions</span> across India.
             </p>
           </div>
 
@@ -62,7 +108,7 @@ export const SuperAdminDashboardPage = () => {
         </div>
       </div>
 
-      {/* 13 KPI Cards Grid */}
+      {/* 12 KPI Cards Grid */}
       <div>
         <h3 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3">
           Platform KPIs & Key Metrics
@@ -70,7 +116,7 @@ export const SuperAdminDashboardPage = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard
             title="Total Institutions"
-            value="5"
+            value={totalInst}
             subtitle="Schools, Colleges, Univs"
             icon={Building2}
             color="indigo"
@@ -78,24 +124,24 @@ export const SuperAdminDashboardPage = () => {
           />
           <StatCard
             title="Active Institutions"
-            value="4"
+            value={activeInst}
             subtitle="Paying Subscriptions"
             icon={Building2}
             color="emerald"
-            badgeText="80%"
+            badgeText={activePercentage}
             onClick={() => navigate('/super-admin/institutions')}
           />
           <StatCard
             title="Trial Institutions"
-            value="1"
-            subtitle="Govt HSS Palakkad"
+            value={trialInst}
+            subtitle="Trial Accounts Active"
             icon={Clock}
             color="amber"
             onClick={() => navigate('/super-admin/subscriptions/trials')}
           />
           <StatCard
             title="Suspended Institutions"
-            value="0"
+            value={suspendedInst}
             subtitle="Clean Compliance"
             icon={Building2}
             color="rose"
@@ -103,7 +149,7 @@ export const SuperAdminDashboardPage = () => {
           />
           <StatCard
             title="Total Users"
-            value="15,400"
+            value={totalUsers}
             subtitle="Across All Portals"
             icon={Users}
             color="sky"
@@ -111,21 +157,21 @@ export const SuperAdminDashboardPage = () => {
           />
           <StatCard
             title="Total Students"
-            value="24,500"
+            value={totalStudents}
             subtitle="Enrolled Students"
             icon={GraduationCap}
             color="purple"
           />
           <StatCard
             title="Total Staff"
-            value="1,575"
+            value={totalStaff}
             subtitle="Teaching & Non-Teaching"
             icon={Briefcase}
             color="indigo"
           />
           <StatCard
             title="Total Revenue"
-            value="₹28.45 Lakhs"
+            value={totalRevenue}
             subtitle="Lifetime Platform Earnings"
             icon={DollarSign}
             color="emerald"
@@ -133,30 +179,29 @@ export const SuperAdminDashboardPage = () => {
           />
           <StatCard
             title="Monthly Recurring (MRR)"
-            value="₹4.85 Lakhs"
-            subtitle="+14% Month over Month"
+            value={mrr}
+            subtitle="Current Month Collections"
             icon={TrendingUp}
             color="emerald"
-            badgeText="+14%"
           />
           <StatCard
             title="Pending Payments"
-            value="₹1.53 Lakhs"
-            subtitle="1 Invoice Awaiting Settlement"
+            value={pendingRevenue}
+            subtitle={`${billingStats?.overdueInvoices || 0} Overdue Invoices`}
             icon={Receipt}
             color="amber"
           />
           <StatCard
             title="Support Tickets"
-            value="3 Open"
-            subtitle="Avg Response Time: 45m"
+            value="0 Open"
+            subtitle="Avg Response Time: 0m"
             icon={LifeBuoy}
             color="indigo"
             onClick={() => navigate('/super-admin/tickets')}
           />
           <StatCard
             title="System Health"
-            value="99.98%"
+            value={systemHealth}
             subtitle="All Gateways Operational"
             icon={Activity}
             color="emerald"
@@ -174,24 +219,25 @@ export const SuperAdminDashboardPage = () => {
           <ChartCard
             title="Institution Growth Trajectory"
             subtitle="Monthly onboarded institutions"
-            data={mockAnalytics.institutionGrowth}
+            data={analytics?.institutionGrowth || []}
             height={200}
           />
           <ChartCard
             title="Platform User Growth"
             subtitle="Active student, staff & admin accounts"
-            data={mockAnalytics.userGrowth}
+            data={analytics?.userGrowth || []}
             height={200}
           />
           <ChartCard
             title="Monthly Recurring Revenue (INR ₹)"
             subtitle="SaaS subscription collections"
-            data={mockAnalytics.revenueMonthly}
+            data={analytics?.revenueMonthly || []}
             height={200}
           />
           <ChartCard
             title="State-wise Distribution Ranking"
-            subtitle="Tamil Nadu, Karnataka, Kerala, Maharashtra"
+            subtitle="By institution state location"
+            data={analytics?.stateDistribution || []}
             height={200}
           />
         </div>

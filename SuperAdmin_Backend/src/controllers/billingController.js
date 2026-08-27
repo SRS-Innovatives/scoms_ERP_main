@@ -31,10 +31,18 @@ const getBillingStats = async (req, res, next) => {
     let totalRevenue = 0;
     let pendingRevenue = 0;
     let overdueInvoices = 0;
+    let mrr = 0;
+
+    const currentMonth = new Date().getMonth();
+    const currentYear = new Date().getFullYear();
 
     invoices.forEach(inv => {
+      const invDate = new Date(inv.createdAt);
       if (inv.status === 'PAID') {
         totalRevenue += inv.amount;
+        if (invDate.getMonth() === currentMonth && invDate.getFullYear() === currentYear) {
+          mrr += inv.amount;
+        }
       } else if (inv.status === 'PENDING') {
         pendingRevenue += inv.amount;
       } else if (inv.status === 'OVERDUE') {
@@ -46,6 +54,7 @@ const getBillingStats = async (req, res, next) => {
       totalRevenue,
       pendingRevenue,
       overdueInvoices,
+      mrr,
       totalInvoices: invoices.length
     };
 

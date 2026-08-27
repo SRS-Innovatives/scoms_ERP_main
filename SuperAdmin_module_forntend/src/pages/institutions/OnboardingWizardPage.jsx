@@ -26,23 +26,23 @@ export const OnboardingWizardPage = () => {
   ];
 
   const [formData, setFormData] = useState({
-    name: 'SRS Institute of Technology',
-    code: 'ENG-TN-909',
-    type: 'COLLEGE',
-    affiliation: 'Anna University',
-    email: 'admin@srstech.edu.in',
-    phone: '+91 94433 11223',
-    address: '123 Tech Park Avenue',
-    city: 'Coimbatore',
-    state: 'Tamil Nadu',
-    pincode: '641001',
-    adminName: 'Dr. V. Rajesh',
-    adminEmail: 'principal@srstech.edu.in',
+    name: '',
+    code: '',
+    type: '',
+    affiliation: '',
+    email: '',
+    phone: '',
+    address: '',
+    city: '',
+    state: '',
+    pincode: '',
+    adminName: '',
+    adminEmail: '',
     adminPassword: '',
-    plan: 'Enterprise',
-    establishmentYear: '2005',
-    accreditation: 'NAAC A+',
-    modules: ['Library Management', 'Hostel Management']
+    plan: '',
+    establishmentYear: '',
+    accreditation: '',
+    modules: ['', '']
   });
 
   const handleNext = async () => {
@@ -52,7 +52,7 @@ export const OnboardingWizardPage = () => {
       setIsSubmitting(true);
       try {
         const response = await institutionService.createInstitution(formData);
-        
+
         if (response?.status === 201 || response?.status === 200) {
           success(`Institution ${formData.name} successfully onboarded and activated!`, 'Onboarding Complete');
           navigate('/super-admin/institutions');
@@ -92,13 +92,12 @@ export const OnboardingWizardPage = () => {
             return (
               <div key={idx} className="flex items-center gap-1 shrink-0">
                 <div
-                  className={`w-7 h-7 rounded-full text-xs font-bold flex items-center justify-center transition-all ${
-                    isCompleted
-                      ? 'bg-emerald-600 text-white'
-                      : isCurrent
+                  className={`w-7 h-7 rounded-full text-xs font-bold flex items-center justify-center transition-all ${isCompleted
+                    ? 'bg-emerald-600 text-white'
+                    : isCurrent
                       ? 'bg-indigo-600 text-white ring-4 ring-indigo-500/20'
                       : 'bg-slate-100 dark:bg-slate-800 text-slate-400'
-                  }`}
+                    }`}
                 >
                   {isCompleted ? <Check className="w-4 h-4" /> : stepNum}
                 </div>
@@ -117,9 +116,9 @@ export const OnboardingWizardPage = () => {
         {currentStep === 1 && (
           <div className="space-y-4">
             <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">Step 1: Basic Institution Information</h3>
-            <FormInput label="Institution Name" required value={formData.name} onChange={(v) => setFormData({ ...formData, name: v })} />
+            <FormInput label="Institution Name" required value={formData.name} onChange={(v) => setFormData({ ...formData, name: v })} placeholder="Enter institution name" />
             <div className="grid grid-cols-2 gap-4">
-              <FormInput label="Institution Code" required value={formData.code} onChange={(v) => setFormData({ ...formData, code: v })} />
+              <FormInput label="Institution Code" required value={formData.code} onChange={(v) => setFormData({ ...formData, code: v })} placeholder="Enter institution code" />
               <Select label="Institution Type" value={formData.type} onChange={(v) => setFormData({ ...formData, type: v })} options={[{ value: 'SCHOOL', label: 'School' }, { value: 'COLLEGE', label: 'College' }, { value: 'UNIVERSITY', label: 'University' }, { value: 'POLYTECHNIC', label: 'Polytechnic' }]} />
             </div>
           </div>
@@ -129,12 +128,12 @@ export const OnboardingWizardPage = () => {
           <div className="space-y-4">
             <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">Step 2: Contact & Address Information</h3>
             <div className="grid grid-cols-2 gap-4">
-              <FormInput label="Official Email" required value={formData.email} onChange={(v) => setFormData({ ...formData, email: v })} />
-              <FormInput label="Official Phone" required value={formData.phone} onChange={(v) => setFormData({ ...formData, phone: v })} />
-              <FormInput label="Street Address" required value={formData.address} onChange={(v) => setFormData({ ...formData, address: v })} />
-              <FormInput label="City" required value={formData.city} onChange={(v) => setFormData({ ...formData, city: v })} />
-              <FormInput label="State" required value={formData.state} onChange={(v) => setFormData({ ...formData, state: v })} />
-              <FormInput label="Pincode" required value={formData.pincode} onChange={(v) => setFormData({ ...formData, pincode: v })} />
+              <FormInput label="Official Email" required value={formData.email} onChange={(v) => setFormData({ ...formData, email: v })} placeholder="Enter official email" />
+              <FormInput label="Official Phone" required value={formData.phone} onChange={(v) => setFormData({ ...formData, phone: v })} placeholder="Enter official phone" />
+              <FormInput label="Street Address" required value={formData.address} onChange={(v) => setFormData({ ...formData, address: v })} placeholder="Enter street address" />
+              <FormInput label="City" required value={formData.city} onChange={(v) => setFormData({ ...formData, city: v })} placeholder="Enter city" />
+              <FormInput label="State" required value={formData.state} onChange={(v) => setFormData({ ...formData, state: v })} placeholder="Enter state" />
+              <FormInput label="Pincode" required value={formData.pincode} onChange={(v) => setFormData({ ...formData, pincode: v })} placeholder="Enter pincode" />
             </div>
           </div>
         )}
@@ -143,9 +142,9 @@ export const OnboardingWizardPage = () => {
           <div className="space-y-4">
             <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">Step 3: Academic Info</h3>
             <div className="grid grid-cols-2 gap-4">
-              <FormInput label="Affiliation / University" required value={formData.affiliation} onChange={(v) => setFormData({ ...formData, affiliation: v })} />
-              <FormInput label="Establishment Year" required value={formData.establishmentYear} onChange={(v) => setFormData({ ...formData, establishmentYear: v })} />
-              <Select label="Accreditation Status" value={formData.accreditation} onChange={(v) => setFormData({ ...formData, accreditation: v })} options={[{ value: 'NAAC A++', label: 'NAAC A++' }, { value: 'NAAC A+', label: 'NAAC A+' }, { value: 'NAAC A', label: 'NAAC A' }, { value: 'NBA', label: 'NBA' }, { value: 'None', label: 'None' }]} />
+              <FormInput label="Affiliation / University" required value={formData.affiliation} onChange={(v) => setFormData({ ...formData, affiliation: v })} placeholder="Enter affiliation / university" />
+              <FormInput label="Establishment Year" required value={formData.establishmentYear} onChange={(v) => setFormData({ ...formData, establishmentYear: v })} placeholder="Enter establishment year" />
+              <Select label="Accreditation Status" value={formData.accreditation} onChange={(v) => setFormData({ ...formData, accreditation: v })} options={[{ value: 'NAAC A++', label: 'NAAC A++' }, { value: 'NAAC A+', label: 'NAAC A+' }, { value: 'NAAC A', label: 'NAAC A' }, { value: 'NBA', label: 'NBA' }, { value: 'None', label: 'None' }]} placeholder="Select accreditation status" />
             </div>
           </div>
         )}
@@ -154,9 +153,9 @@ export const OnboardingWizardPage = () => {
           <div className="space-y-4">
             <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">Step 4: Admin Account</h3>
             <div className="grid grid-cols-2 gap-4">
-              <FormInput label="Admin Full Name" required value={formData.adminName} onChange={(v) => setFormData({ ...formData, adminName: v })} />
-              <FormInput label="Admin Official Email" required value={formData.adminEmail} onChange={(v) => setFormData({ ...formData, adminEmail: v })} />
-              <FormInput label="Temporary Password" type="password" required value={formData.adminPassword} onChange={(v) => setFormData({ ...formData, adminPassword: v })} />
+              <FormInput label="Admin Full Name" required value={formData.adminName} onChange={(v) => setFormData({ ...formData, adminName: v })} placeholder="Enter admin full name" />
+              <FormInput label="Admin Official Email" required value={formData.adminEmail} onChange={(v) => setFormData({ ...formData, adminEmail: v })} placeholder="Enter admin official email" />
+              <FormInput label="Temporary Password" type="password" required value={formData.adminPassword} onChange={(v) => setFormData({ ...formData, adminPassword: v })} placeholder="Enter temporary password" />
             </div>
           </div>
         )}
@@ -177,11 +176,11 @@ export const OnboardingWizardPage = () => {
             <div className="grid grid-cols-2 gap-4">
               {['Library Management', 'Hostel Management', 'Transport', 'Cafeteria', 'Alumni', 'Placement'].map(mod => (
                 <label key={mod} className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300">
-                  <input type="checkbox" className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500" 
+                  <input type="checkbox" className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
                     checked={formData.modules?.includes(mod)}
                     onChange={(e) => {
-                      const newModules = e.target.checked 
-                        ? [...(formData.modules || []), mod] 
+                      const newModules = e.target.checked
+                        ? [...(formData.modules || []), mod]
                         : (formData.modules || []).filter(m => m !== mod);
                       setFormData({ ...formData, modules: newModules });
                     }}
