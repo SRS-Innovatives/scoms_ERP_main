@@ -22,6 +22,14 @@ export const institutionService = {
     return apiCall(`/api/v1/super-admin/institutions/${id}`, { method: 'PUT', body: data });
   },
 
+  getModuleCatalog: async () => {
+    return apiCall('/api/v1/super-admin/institutions/modules-catalog');
+  },
+
+  updateInstitutionModules: async (id, modules) => {
+    return apiCall(`/api/v1/super-admin/institutions/${id}/modules`, { method: 'PATCH', body: { modules } });
+  },
+
   deleteInstitution: async (id) => {
     return apiCall(`/api/v1/super-admin/institutions/${id}`, { method: 'DELETE' });
   }

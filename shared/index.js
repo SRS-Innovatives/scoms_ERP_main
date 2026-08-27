@@ -4,6 +4,7 @@
 
 const { ROLES, PERMISSIONS } = require('./constants/roles');
 const STATUSES = require('./constants/statuses');
+const { CORE_MODULE_KEYS, MODULE_CATALOG, OPTIONAL_MODULE_KEYS, resolveEnabledModules } = require('./constants/institutionModules');
 const errors = require('./errors/customErrors');
 const logger = require('./utils/logger');
 const responseFormatter = require('./utils/responseFormatter');
@@ -25,6 +26,10 @@ module.exports = {
   ROLES,
   PERMISSIONS,
   STATUSES,
+  CORE_MODULE_KEYS,
+  MODULE_CATALOG,
+  OPTIONAL_MODULE_KEYS,
+  resolveEnabledModules,
   ...errors,
   logger,
   ...responseFormatter,

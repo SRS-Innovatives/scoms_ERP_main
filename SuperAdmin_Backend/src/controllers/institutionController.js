@@ -7,8 +7,11 @@ const {
   sendSuccess,
   sendPaginated,
   NotFoundError,
+  ValidationError,
   hashPassword,
   ROLES,
+  MODULE_CATALOG,
+  OPTIONAL_MODULE_KEYS,
 } = require('../../../shared');
 
 const getInstitutions = async (req, res, next) => {
@@ -319,6 +322,56 @@ const deleteInstitution = async (req, res, next) => {
   }
 };
 
+const getModuleCatalog = async (req, res, next) => {
+  try {
+    return sendSuccess(res, MODULE_CATALOG, 'Module catalog retrieved');
+  } catch (err) {
+    next(err);
+  }
+};
+
+const updateInstitutionModules = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { modules } = req.body;
+
+    if (!Array.isArray(modules)) {
+      throw new ValidationError('modules must be an array of module keys');
+    }
+    const invalid = modules.filter((m) => !OPTIONAL_MODULE_KEYS.includes(m));
+    if (invalid.length > 0) {
+      throw new ValidationError(`Unknown module key(s): ${invalid.join(', ')}`);
+    }
+
+    const oldInstitution = await prisma.institution.findUnique({ where: { id } });
+    if (!oldInstitution) throw new NotFoundError('Institution not found');
+
+    const institution = await prisma.institution.update({
+      where: { id },
+      data: { modules },
+    });
+
+    await prisma.auditLog.create({
+      data: {
+        institutionId: id,
+        userId: req.user.id,
+        action: 'MODULES_UPDATED',
+        module: 'INSTITUTION',
+        entity: 'Institution',
+        entityId: id,
+        oldValues: JSON.stringify({ modules: oldInstitution.modules }),
+        newValues: JSON.stringify({ modules }),
+        ipAddress: req.ip || '',
+        userAgent: req.get('user-agent') || '',
+      },
+    });
+
+    return sendSuccess(res, institution, 'Institution modules updated successfully');
+  } catch (err) {
+    next(err);
+  }
+};
+
 const getAuditLogs = async (req, res, next) => {
   try {
     const { page = 1, limit = 20, search = '', institutionId = '' } = req.query;
@@ -366,6 +419,8 @@ module.exports = {
   getInstitutionById,
   updateInstitutionStatus,
   updateInstitution,
+  updateInstitutionModules,
+  getModuleCatalog,
   deleteInstitution,
   getAuditLogs,
 };

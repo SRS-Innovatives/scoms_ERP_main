@@ -7,6 +7,7 @@ const { verifyRefreshToken, generateAccessToken, generateRefreshToken } = requir
 const { hashPassword, comparePassword } = require('./password');
 const { sendSuccess } = require('../utils/responseFormatter');
 const { AuthenticationError, NotFoundError, BusinessRuleError } = require('../errors/customErrors');
+const { resolveEnabledModules } = require('../constants/institutionModules');
 
 const handleRefreshToken = async (req, res, next) => {
   try {
@@ -93,6 +94,7 @@ const handleGetMe = async (req, res, next) => {
             code: true,
             type: true,
             logo: true,
+            modules: true,
           },
         },
         student: {
@@ -120,7 +122,19 @@ const handleGetMe = async (req, res, next) => {
       throw new NotFoundError('User profile not found');
     }
 
-    return sendSuccess(res, user, 'Authenticated user context retrieved');
+    // Resolve the institution's enabled optional modules so the frontend can gate
+    // navigation without duplicating the default/legacy-institution fallback logic.
+    const enrichedUser = user.institution
+      ? {
+          ...user,
+          institution: {
+            ...user.institution,
+            enabledModules: resolveEnabledModules(user.institution.modules),
+          },
+        }
+      : user;
+
+    return sendSuccess(res, enrichedUser, 'Authenticated user context retrieved');
   } catch (err) {
     next(err);
   }

@@ -31,9 +31,11 @@ router.post('/auth/change-password', authController.changePassword);
 // Institutions Management
 router.get('/institutions', institutionController.getInstitutions);
 router.post('/institutions', institutionController.createInstitutionOnboarding);
+router.get('/institutions/modules-catalog', institutionController.getModuleCatalog);
 router.post('/institutions/:institutionId/admin', institutionController.createInstituteAdmin);
 router.get('/institutions/:id', institutionController.getInstitutionById);
 router.patch('/institutions/:id/status', institutionController.updateInstitutionStatus);
+router.patch('/institutions/:id/modules', institutionController.updateInstitutionModules);
 router.put('/institutions/:id', institutionController.updateInstitution);
 router.delete('/institutions/:id', institutionController.deleteInstitution);
 router.get('/audit-logs', institutionController.getAuditLogs);
@@ -44,9 +46,14 @@ router.get('/roles', userController.getRoles);
 router.get('/roles/:role/permissions', userController.getRolePermissions);
 router.put('/roles/:role/permissions', userController.updateRolePermissions);
 
-// Billing
+// Billing & GST
 router.get('/invoices', billingController.getInvoices);
+router.post('/invoices', billingController.generateInvoice);
+router.get('/invoices/:id', billingController.getInvoiceById);
+router.patch('/invoices/:id/status', billingController.updateInvoiceStatus);
 router.get('/billing-stats', billingController.getBillingStats);
+router.get('/billing/gst-profile', billingController.getGstProfile);
+router.put('/billing/gst-profile', billingController.updateGstProfile);
 
 // Subscriptions
 router.get('/plans', subscriptionController.getPlans);
@@ -54,6 +61,8 @@ router.get('/subscriptions', subscriptionController.getSubscriptions);
 
 // Support
 router.get('/tickets', supportController.getTickets);
+router.post('/tickets', supportController.createTicket);
+router.patch('/tickets/:id', supportController.updateTicket);
 
 // AI Usage
 router.get('/ai-usage', aiController.getAiUsage);
@@ -63,6 +72,7 @@ router.get('/analytics', analyticsController.getAnalytics);
 
 // Settings
 router.get('/settings', settingsController.getSettings);
+router.put('/settings', settingsController.updateSettings);
 
 // SMS Stats
 router.get('/sms-stats', smsController.getSmsStats);

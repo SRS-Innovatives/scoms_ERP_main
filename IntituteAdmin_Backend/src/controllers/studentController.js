@@ -203,7 +203,9 @@ const createStudentAdmission = async (req, res, next) => {
     if (phone) {
       sendSMSNotification({
         to: phone,
-        message: `Welcome to SCOMS! Your student account is active. Login at http://localhost:5176/login. User: ${result.student.admissionNumber}, Temp Pass: ${studentPlainPassword}`
+        message: `Welcome to SCOMS! Your student account is active. Login at http://localhost:5176/login. User: ${result.student.admissionNumber}, Temp Pass: ${studentPlainPassword}`,
+        institutionId: req.institutionId,
+        purpose: 'WELCOME_CREDENTIALS'
       }).catch(err => console.error('Error sending student welcome SMS:', err));
     }
 

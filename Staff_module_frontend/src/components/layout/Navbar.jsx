@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useTheme } from '../../context/ThemeContext';
 import { useNotification } from '../../context/NotificationContext';
 import { mockStaffProfile, mockNotifications } from '../../data/mockStaffData';
+import { useNavigate } from 'react-router-dom';
 import {
   Sun,
   Moon,
@@ -16,9 +17,10 @@ import {
   Sparkles,
   MessageSquare
 } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, Navigate } from 'react-router-dom';
 
 export const Navbar = ({ sidebarOpen, setSidebarOpen, onOpenCompose }) => {
+  const Navigate = useNavigate();
   const { isDark, toggleTheme } = useTheme();
   const { info } = useNotification();
   const [showNotifications, setShowNotifications] = useState(false);
@@ -170,6 +172,7 @@ export const Navbar = ({ sidebarOpen, setSidebarOpen, onOpenCompose }) => {
                   onClick={() => {
                     setShowProfileMenu(false);
                     info('Logged out safely from SCOMS Staff Portal.');
+                    Navigate('/login')
                   }}
                   className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/50 rounded-xl transition-colors"
                 >

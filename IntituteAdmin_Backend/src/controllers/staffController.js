@@ -107,7 +107,9 @@ const createStaff = async (req, res, next) => {
     if (phone) {
       sendSMSNotification({
         to: phone,
-        message: `Welcome to SCOMS! Your staff account is active. Login at http://localhost:5175/login. User: ${employeeCode || email}, Temp Pass: ${staffPlainPassword}`
+        message: `Welcome to SCOMS! Your staff account is active. Login at http://localhost:5175/login. User: ${employeeCode || email}, Temp Pass: ${staffPlainPassword}`,
+        institutionId: req.institutionId,
+        purpose: 'WELCOME_CREDENTIALS'
       }).catch(err => console.error('Error sending staff welcome SMS:', err));
     }
 
