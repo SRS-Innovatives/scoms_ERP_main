@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import FormInput from '../../components/common/FormInput';
 import Select from '../../components/common/Select';
 import FileUpload from '../../components/common/FileUpload';
@@ -12,6 +12,13 @@ export const OnboardingWizardPage = () => {
   const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [moduleCatalog, setModuleCatalog] = useState([]);
+
+  useEffect(() => {
+    institutionService.getModuleCatalog()
+      .then((res) => setModuleCatalog(res.data || []))
+      .catch((err) => console.error('Failed to load module catalog', err));
+  }, []);
 
   const steps = [
     "Basic Info",
@@ -42,7 +49,7 @@ export const OnboardingWizardPage = () => {
     plan: '',
     establishmentYear: '',
     accreditation: '',
-    modules: ['', '']
+    modules: []
   });
 
   const handleNext = async () => {
@@ -172,20 +179,25 @@ export const OnboardingWizardPage = () => {
         {currentStep === 6 && (
           <div className="space-y-4">
             <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">Step 6: Modules</h3>
-            <p className="text-xs text-slate-500">Select the modules you wish to enable for this institution.</p>
-            <div className="grid grid-cols-2 gap-4">
-              {['Library Management', 'Hostel Management', 'Transport', 'Cafeteria', 'Alumni', 'Placement'].map(mod => (
-                <label key={mod} className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300">
-                  <input type="checkbox" className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-                    checked={formData.modules?.includes(mod)}
+            <p className="text-xs text-slate-500">Select which optional modules this institution should have access to. Core modules (Dashboard, Setup, Settings) are always included.</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {moduleCatalog.map((mod) => (
+                <label key={mod.key} className="flex items-start gap-2 p-2.5 rounded-lg border border-slate-200 dark:border-slate-700 text-sm text-slate-700 dark:text-slate-300 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/60">
+                  <input
+                    type="checkbox"
+                    className="mt-0.5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                    checked={formData.modules?.includes(mod.key)}
                     onChange={(e) => {
                       const newModules = e.target.checked
-                        ? [...(formData.modules || []), mod]
-                        : (formData.modules || []).filter(m => m !== mod);
+                        ? [...(formData.modules || []), mod.key]
+                        : (formData.modules || []).filter((m) => m !== mod.key);
                       setFormData({ ...formData, modules: newModules });
                     }}
                   />
-                  {mod}
+                  <span>
+                    <span className="font-semibold block">{mod.label}</span>
+                    <span className="text-[11px] text-slate-400">{mod.description}</span>
+                  </span>
                 </label>
               ))}
             </div>

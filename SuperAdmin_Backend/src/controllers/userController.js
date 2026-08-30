@@ -1,7 +1,7 @@
 /**
  * Super Admin Users Controller
  */
-const { prisma, sendSuccess, sendPaginated } = require('../../../shared');
+const { prisma, sendSuccess, sendPaginated, ValidationError } = require('../../../shared');
 
 const getUsers = async (req, res, next) => {
   try {
@@ -133,8 +133,11 @@ const getRolePermissions = async (req, res, next) => {
   try {
     const { role } = req.params;
     const { ROLE_PERMISSIONS } = require('../../../shared');
-    
-    const permissions = ROLE_PERMISSIONS[role] || [];
+
+    // A saved override in the DB takes precedence over the static default matrix
+    const override = await prisma.rolePermissionOverride.findUnique({ where: { role } });
+    const permissions = override ? override.permissions : (ROLE_PERMISSIONS[role] || []);
+
     return sendSuccess(res, permissions, `Permissions retrieved for role ${role}`);
   } catch (err) {
     next(err);
@@ -145,8 +148,29 @@ const updateRolePermissions = async (req, res, next) => {
   try {
     const { role } = req.params;
     const { permissions } = req.body;
-    
-    return sendSuccess(res, permissions, `Permissions updated successfully for role ${role}`);
+
+    if (!Array.isArray(permissions)) {
+      throw new ValidationError('permissions must be an array of permission keys');
+    }
+
+    const saved = await prisma.rolePermissionOverride.upsert({
+      where: { role },
+      create: { role, permissions, updatedBy: req.user?.id || null },
+      update: { permissions, updatedBy: req.user?.id || null },
+    });
+
+    await prisma.auditLog.create({
+      data: {
+        userId: req.user?.id || null,
+        action: 'ROLE_PERMISSIONS_UPDATED',
+        module: 'ROLES',
+        entity: 'RolePermissionOverride',
+        entityId: saved.id,
+        newValues: { role, permissions },
+      },
+    }).catch(() => {});
+
+    return sendSuccess(res, saved.permissions, `Permissions updated successfully for role ${role}`);
   } catch (err) {
     next(err);
   }

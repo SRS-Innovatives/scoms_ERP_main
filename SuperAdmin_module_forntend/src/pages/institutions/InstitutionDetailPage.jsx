@@ -1,25 +1,38 @@
 import React, { useState } from 'react';
 import { useNotification } from '../../context/NotificationContext';
-import { Building2, Users, GraduationCap, Briefcase, CreditCard, Receipt, Layers, FileText, Activity, Settings, Check, Loader2 } from 'lucide-react';
+import { Building2, Users, GraduationCap, Briefcase, CreditCard, Receipt, Layers, FileText, Activity, Settings, Check, Loader2, Save } from 'lucide-react';
 import { useParams } from 'react-router-dom';
 import institutionService from '../../services/institutionService';
 import StatusBadge from '../../components/common/StatusBadge';
 
 export const InstitutionDetailPage = () => {
   const { id } = useParams();
-  const { success, warning } = useNotification();
+  const { success, warning, error: showError } = useNotification();
   const [inst, setInst] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('Overview');
+
+  const [moduleCatalog, setModuleCatalog] = useState([]);
+  const [selectedModules, setSelectedModules] = useState([]);
+  const [savingModules, setSavingModules] = useState(false);
 
   React.useEffect(() => {
     const fetchInst = async () => {
       try {
         setLoading(true);
-        const res = await institutionService.getInstitutionById(id);
-        if (res?.data) {
-          setInst(res.data);
+        const [instRes, catalogRes] = await Promise.all([
+          institutionService.getInstitutionById(id),
+          institutionService.getModuleCatalog(),
+        ]);
+        if (instRes?.data) {
+          setInst(instRes.data);
+          setSelectedModules(
+            Array.isArray(instRes.data.modules) && instRes.data.modules.length > 0
+              ? instRes.data.modules
+              : (catalogRes.data || []).map((m) => m.key) // legacy/unset institutions default to everything enabled
+          );
         }
+        setModuleCatalog(catalogRes.data || []);
       } catch (err) {
         console.error("Failed to fetch institution", err);
       } finally {
@@ -28,6 +41,23 @@ export const InstitutionDetailPage = () => {
     };
     fetchInst();
   }, [id]);
+
+  const toggleModule = (key) => {
+    setSelectedModules((prev) => (prev.includes(key) ? prev.filter((m) => m !== key) : [...prev, key]));
+  };
+
+  const handleSaveModules = async () => {
+    setSavingModules(true);
+    try {
+      const res = await institutionService.updateInstitutionModules(id, selectedModules);
+      setInst((prev) => ({ ...prev, modules: res.data.modules }));
+      success(`Module access updated for ${inst.name}. The Institute Admin sidebar will reflect this on next login/refresh.`, 'Modules Saved');
+    } catch (err) {
+      showError(err.message || 'Failed to update modules', 'Save Failed');
+    } finally {
+      setSavingModules(false);
+    }
+  };
 
   const tabs = [
     'Overview',
@@ -129,13 +159,45 @@ export const InstitutionDetailPage = () => {
 
         {activeTab === 'Modules' && (
           <div className="space-y-4 text-xs">
-            <h3 className="font-bold text-sm text-slate-900 dark:text-slate-100 border-b pb-2">Enabled Module Access Control</h3>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-              {(inst.modules || []).map((m, idx) => (
-                <div key={idx} className="p-3 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-xl flex items-center gap-2 font-bold text-emerald-800 dark:text-emerald-200">
-                  <Check className="w-4 h-4 text-emerald-600" /> {m}
-                </div>
-              ))}
+            <div className="flex items-center justify-between border-b pb-2">
+              <div>
+                <h3 className="font-bold text-sm text-slate-900 dark:text-slate-100">Module Access Control</h3>
+                <p className="text-[11px] text-slate-500 mt-0.5">Choose which optional modules {inst.name} has access to. Core modules (Dashboard, Setup, Settings) are always available.</p>
+              </div>
+              <button
+                onClick={handleSaveModules}
+                disabled={savingModules}
+                className="flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold shadow-sm transition-all disabled:opacity-50 shrink-0"
+              >
+                {savingModules ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                {savingModules ? 'Saving...' : 'Save Module Access'}
+              </button>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {moduleCatalog.map((mod) => {
+                const isEnabled = selectedModules.includes(mod.key);
+                return (
+                  <label
+                    key={mod.key}
+                    className={`p-3 rounded-xl flex items-start gap-2.5 cursor-pointer border transition-colors ${
+                      isEnabled
+                        ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800'
+                        : 'bg-slate-50 dark:bg-slate-800/40 border-slate-200 dark:border-slate-700'
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      className="mt-0.5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                      checked={isEnabled}
+                      onChange={() => toggleModule(mod.key)}
+                    />
+                    <span>
+                      <span className={`font-bold block ${isEnabled ? 'text-emerald-800 dark:text-emerald-200' : 'text-slate-600 dark:text-slate-300'}`}>{mod.label}</span>
+                      <span className="text-[11px] text-slate-400">{mod.description}</span>
+                    </span>
+                  </label>
+                );
+              })}
             </div>
           </div>
         )}

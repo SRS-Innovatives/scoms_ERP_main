@@ -4,6 +4,7 @@
 
 const nodemailer = require('nodemailer');
 const logger = require('./logger');
+const prisma = require('../database/client');
 
 /**
  * Sends an email notification.
@@ -61,10 +62,33 @@ const sendEmailNotification = async ({ to, subject, text, html }) => {
 };
 
 /**
+ * Persists a record of every SMS attempt (real, failed, or simulated) so the
+ * Super Admin SMS dashboard reflects genuine usage instead of hardcoded numbers.
+ * Logging failures are swallowed — they must never break the notification flow itself.
+ */
+const logSms = async ({ to, message, provider, status, institutionId, purpose }) => {
+  try {
+    await prisma.smsLog.create({
+      data: {
+        recipientPhone: to || 'unknown',
+        message,
+        provider,
+        status,
+        institutionId: institutionId || null,
+        purpose: purpose || null,
+      },
+    });
+  } catch (err) {
+    logger.error('❌ Failed to write SmsLog record:', err);
+  }
+};
+
+/**
  * Sends an SMS notification.
  * Falls back to logging the SMS to console in development or if Gateway is unconfigured.
+ * `institutionId`/`purpose` are optional context used purely for usage logging/reporting.
  */
-const sendSMSNotification = async ({ to, message }) => {
+const sendSMSNotification = async ({ to, message, institutionId, purpose }) => {
   const apiKey = process.env.SMS_API_KEY;
   const senderId = process.env.SMS_SENDER_ID || 'SCOMSM';
 
@@ -75,6 +99,7 @@ const sendSMSNotification = async ({ to, message }) => {
     To:      ${to}
     Message: ${message}
     ---------------------------------------------`);
+    await logSms({ to, message, provider: 'Simulated Gateway', status: 'SIMULATED', institutionId, purpose });
     return true;
   }
 
@@ -90,6 +115,7 @@ const sendSMSNotification = async ({ to, message }) => {
     const result = await response.json();
     if (response.ok && result.return === true) {
       logger.info(`📱 SMS successfully sent to ${to}`);
+      await logSms({ to, message, provider: 'Fast2SMS', status: 'SENT', institutionId, purpose });
       return true;
     } else {
       throw new Error(result.message || 'SMS Gateway returned failure');
@@ -101,6 +127,7 @@ const sendSMSNotification = async ({ to, message }) => {
     To:      ${to}
     Message: ${message}
     ---------------------------------------------`);
+    await logSms({ to, message, provider: 'Fast2SMS', status: 'FAILED', institutionId, purpose });
     return false;
   }
 };

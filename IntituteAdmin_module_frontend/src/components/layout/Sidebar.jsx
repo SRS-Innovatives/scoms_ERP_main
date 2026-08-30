@@ -2,10 +2,12 @@ import React, { useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { ChevronDown, ChevronRight, X, Building2 } from 'lucide-react';
 import { navigationConfig } from '../../routes/navigationConfig';
-import { instituteInfo } from '../../data/mockData';
+import { useInstitution } from '../../context/InstitutionContext';
 
 export const Sidebar = ({ isCollapsed, isMobileOpen, onCloseMobile }) => {
   const location = useLocation();
+  const { institution, isModuleEnabled } = useInstitution();
+  const visibleNavigation = navigationConfig.filter((item) => isModuleEnabled(item.key));
   const [openMenus, setOpenMenus] = useState({
     setup: location.pathname.includes('/admin/setup'),
     student: location.pathname.includes('/admin/student'),
@@ -53,7 +55,7 @@ export const Sidebar = ({ isCollapsed, isMobileOpen, onCloseMobile }) => {
             {!isCollapsed && (
               <div className="flex flex-col truncate">
                 <span className="font-extrabold text-sm text-slate-900 dark:text-white tracking-tight truncate">
-                  {instituteInfo.shortName} Admin
+                  {institution?.name || 'SCOMS'} Admin
                 </span>
                 <span className="text-[10px] text-slate-400 font-medium">SCOMS ERP v3.4</span>
               </div>
@@ -70,7 +72,7 @@ export const Sidebar = ({ isCollapsed, isMobileOpen, onCloseMobile }) => {
 
         {/* Navigation Links */}
         <div className="flex-1 overflow-y-auto py-4 px-3 space-y-1">
-          {navigationConfig.map((item) => {
+          {visibleNavigation.map((item) => {
             const hasSub = item.children && item.children.length > 0;
             const isOpen = openMenus[item.key];
             const isChildActive = hasSub && item.children.some((c) => location.pathname === c.path);

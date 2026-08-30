@@ -1,7 +1,10 @@
 // Live REST API Service Wrapper for SCOMS Institute Admin Portal
 // Connects to Institute Admin Backend (Port 5002)
+// NOTE: the backend mounts all tenant routes under /api/v1/admin (see
+// IntituteAdmin_Backend/src/app.js) — this prefix must match that mount exactly.
 
 const BASE_URL = 'http://localhost:5002';
+const API_PREFIX = '/api/v1/admin';
 
 export const apiCall = async (endpoint, options = {}) => {
   const token = localStorage.getItem('scoms_admin_token');
@@ -12,7 +15,7 @@ export const apiCall = async (endpoint, options = {}) => {
   };
 
   try {
-    const res = await fetch(`${BASE_URL}/api/v1${endpoint}`, {
+    const res = await fetch(`${BASE_URL}${API_PREFIX}${endpoint}`, {
       method: options.method || 'GET',
       headers,
       body: options.body ? JSON.stringify(options.body) : undefined,
