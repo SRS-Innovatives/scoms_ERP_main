@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useTheme } from '../../context/ThemeContext';
 import { useStudentAuth } from '../../context/StudentAuthContext';
 import { useNotification } from '../../context/NotificationContext';
-import { mockAnnouncements } from '../../data/mockStudentData';
+import announcementService from '../../services/announcementService';
 import {
   Sun,
   Moon,
@@ -13,7 +13,6 @@ import {
   LogOut,
   Settings,
   Menu,
-  Sparkles,
   QrCode
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
@@ -26,31 +25,36 @@ export const Topbar = ({ sidebarOpen, setSidebarOpen }) => {
 
   const [showNotifications, setShowNotifications] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const [announcements, setAnnouncements] = useState([]);
+
+  useEffect(() => {
+    announcementService.getAll()
+      .then((res) => setAnnouncements((res.data || []).slice(0, 10)))
+      .catch(() => setAnnouncements([]));
+  }, []);
+
+  const initials = student ? `${student.name?.[0] || ''}${student.name?.split(' ')[1]?.[0] || ''}` : '..';
 
   return (
     <header className="sticky top-0 z-30 glass-nav border-b border-slate-200 dark:border-slate-800 transition-colors no-print">
-      <div className="px-4 lg:px-6 h-16 flex items-center justify-between gap-4">
+      <div className="px-4 lg:px-6 h-16 flex items-center justify-between gap-4 min-w-0">
         {/* Left: Sidebar Toggle & Student Title */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 min-w-0">
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="p-2 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+            className="p-2 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors shrink-0"
+            title="Toggle Sidebar"
           >
             <Menu className="w-5 h-5" />
           </button>
 
-          <div className="flex items-center gap-2">
-            <span className="w-8 h-8 rounded-xl bg-gradient-to-tr from-indigo-600 via-purple-600 to-indigo-700 flex items-center justify-center text-white font-black text-sm shadow-md">
-              S
-            </span>
-            <div className="hidden sm:block">
-              <h1 className="text-sm font-extrabold text-slate-900 dark:text-slate-100 leading-none">
-                {student?.institution}
-              </h1>
-              <p className="text-[10px] text-slate-500 dark:text-slate-400">
-                Digital Student Portal • {student?.course} ({student?.semester})
-              </p>
-            </div>
+          <div className="hidden sm:block min-w-0 max-w-[260px]">
+            <h1 className="text-sm font-extrabold text-slate-900 dark:text-slate-100 leading-none truncate">
+              {student?.institution || 'Loading...'}
+            </h1>
+            <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate">
+              {student?.course}{student?.semester ? ` • ${student.semester}` : ''}
+            </p>
           </div>
         </div>
 
@@ -65,7 +69,7 @@ export const Topbar = ({ sidebarOpen, setSidebarOpen }) => {
         </div>
 
         {/* Right Side Actions */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0">
           {/* Digital QR ID Card Quick Link */}
           <button
             onClick={() => navigate('/student/id-card')}
@@ -84,14 +88,16 @@ export const Topbar = ({ sidebarOpen, setSidebarOpen }) => {
             {isDark ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-slate-600" />}
           </button>
 
-          {/* Notifications Dropdown */}
+          {/* Notifications Dropdown — real institution announcements */}
           <div className="relative">
             <button
               onClick={() => setShowNotifications(!showNotifications)}
               className="p-2 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors relative"
             >
               <Bell className="w-4 h-4" />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-rose-500 rounded-full ring-2 ring-white dark:ring-slate-900"></span>
+              {announcements.length > 0 && (
+                <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-rose-500 rounded-full ring-2 ring-white dark:ring-slate-900"></span>
+              )}
             </button>
 
             {showNotifications && (
@@ -99,26 +105,30 @@ export const Topbar = ({ sidebarOpen, setSidebarOpen }) => {
                 <div className="flex items-center justify-between mb-3 border-b border-slate-200 dark:border-slate-800 pb-2">
                   <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100">Campus Alerts & Notices</h4>
                   <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300">
-                    2 Unread
+                    {announcements.length}
                   </span>
                 </div>
                 <div className="space-y-2 max-h-72 overflow-y-auto text-xs">
-                  {mockAnnouncements.map((anc) => (
-                    <div
-                      key={anc.id}
-                      onClick={() => {
-                        info(anc.message, anc.title);
-                        setShowNotifications(false);
-                      }}
-                      className="p-2.5 rounded-xl border border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/60 cursor-pointer transition-all"
-                    >
-                      <div className="flex justify-between items-start">
-                        <h5 className="font-semibold text-slate-800 dark:text-slate-200">{anc.title}</h5>
-                        <span className="text-[10px] text-slate-400">{anc.date}</span>
+                  {announcements.length === 0 ? (
+                    <p className="text-slate-400 text-center py-4">No announcements yet.</p>
+                  ) : (
+                    announcements.map((anc) => (
+                      <div
+                        key={anc.id}
+                        onClick={() => {
+                          info(anc.content, anc.title);
+                          setShowNotifications(false);
+                        }}
+                        className="p-2.5 rounded-xl border border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/60 cursor-pointer transition-all"
+                      >
+                        <div className="flex justify-between items-start">
+                          <h5 className="font-semibold text-slate-800 dark:text-slate-200">{anc.title}</h5>
+                          <span className="text-[10px] text-slate-400">{new Date(anc.createdAt).toLocaleDateString()}</span>
+                        </div>
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-1">{anc.content}</p>
                       </div>
-                      <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-1">{anc.message}</p>
-                    </div>
-                  ))}
+                    ))
+                  )}
                 </div>
               </div>
             )}
@@ -130,14 +140,12 @@ export const Topbar = ({ sidebarOpen, setSidebarOpen }) => {
               onClick={() => setShowProfileMenu(!showProfileMenu)}
               className="flex items-center gap-2.5 p-1 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
             >
-              <img
-                src={student?.photo}
-                alt={student?.name}
-                className="w-8 h-8 rounded-xl object-cover border border-indigo-400"
-              />
-              <div className="hidden lg:block text-left">
-                <p className="text-xs font-bold text-slate-900 dark:text-slate-100 leading-tight">{student?.name}</p>
-                <p className="text-[10px] text-indigo-600 dark:text-indigo-400 font-semibold">{student?.admissionNo}</p>
+              <span className="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold text-xs border border-indigo-400">
+                {initials}
+              </span>
+              <div className="hidden lg:block text-left max-w-[140px]">
+                <p className="text-xs font-bold text-slate-900 dark:text-slate-100 leading-tight truncate">{student?.name}</p>
+                <p className="text-[10px] text-indigo-600 dark:text-indigo-400 font-semibold truncate">{student?.admissionNo}</p>
               </div>
               <ChevronDown className="w-3.5 h-3.5 text-slate-400 hidden lg:block" />
             </button>

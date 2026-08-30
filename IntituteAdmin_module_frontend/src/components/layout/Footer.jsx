@@ -1,12 +1,13 @@
 import React from 'react';
-import { instituteInfo } from '../../data/mockData';
-import { ShieldCheck, Heart } from 'lucide-react';
+import { useInstitution } from '../../context/InstitutionContext';
+import { ShieldCheck } from 'lucide-react';
 
 export const Footer = () => {
+  const { institution } = useInstitution();
   return (
     <footer className="py-4 px-6 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 text-xs text-slate-500 dark:text-slate-400 flex flex-col sm:flex-row items-center justify-between gap-3 no-print mt-auto">
       <div className="flex items-center gap-2">
-        <span className="font-bold text-slate-800 dark:text-slate-200">{instituteInfo.shortName}</span>
+        <span className="font-bold text-slate-800 dark:text-slate-200">{institution?.code || institution?.name || 'SCOMS'}</span>
         <span>© {new Date().getFullYear()} SCOMS ERP Platform. All Rights Reserved.</span>
       </div>
 

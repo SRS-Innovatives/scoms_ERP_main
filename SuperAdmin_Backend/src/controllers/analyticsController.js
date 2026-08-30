@@ -1,7 +1,7 @@
 /**
  * Super Admin Analytics Controller
  */
-const { prisma, sendSuccess } = require('../../../shared');
+const { prisma, sendSuccess, resolveEnabledModules, MODULE_CATALOG } = require('../../../shared');
 
 const getAnalytics = async (req, res, next) => {
   try {
@@ -10,13 +10,15 @@ const getAnalytics = async (req, res, next) => {
       users,
       totalStudents,
       totalStaff,
-      paidInvoices
+      paidInvoices,
+      studentsByInstitution
     ] = await Promise.all([
       prisma.institution.findMany(),
       prisma.user.findMany({ select: { createdAt: true } }),
       prisma.student.count(),
       prisma.staff.count(),
-      prisma.invoice.findMany({ where: { status: 'PAID' }, select: { amount: true, createdAt: true } })
+      prisma.invoice.findMany({ where: { status: 'PAID' }, select: { totalAmount: true, createdAt: true, planName: true, institutionId: true } }),
+      prisma.student.groupBy({ by: ['institutionId'], _count: { _all: true } })
     ]);
 
     // Calculate Institution status breakdown
@@ -81,7 +83,7 @@ const getAnalytics = async (req, res, next) => {
       const cDate = new Date(inv.createdAt);
       revenueTracker.forEach(m => {
         if (cDate.getMonth() === m.monthIndex && cDate.getFullYear() === m.year) {
-          m.value += inv.amount;
+          m.value += inv.totalAmount;
         }
       });
     });
@@ -98,6 +100,49 @@ const getAnalytics = async (req, res, next) => {
       value: stateCounts[state]
     })).sort((a, b) => b.value - a.value);
 
+    // 4b. Full state breakdown table — institutions, active students, revenue per state
+    const studentCountByInstId = {};
+    studentsByInstitution.forEach((row) => { studentCountByInstId[row.institutionId] = row._count._all; });
+    const revenueByInstId = {};
+    paidInvoices.forEach((inv) => { revenueByInstId[inv.institutionId] = (revenueByInstId[inv.institutionId] || 0) + inv.totalAmount; });
+
+    const stateAgg = {};
+    institutions.forEach((inst) => {
+      const state = inst.state || 'Other';
+      if (!stateAgg[state]) stateAgg[state] = { state, institutions: 0, activeStudents: 0, revenue: 0 };
+      stateAgg[state].institutions++;
+      stateAgg[state].activeStudents += studentCountByInstId[inst.id] || 0;
+      stateAgg[state].revenue += revenueByInstId[inst.id] || 0;
+    });
+    const stateBreakdown = Object.values(stateAgg)
+      .sort((a, b) => b.institutions - a.institutions)
+      .map((s, idx) => ({ rank: idx + 1, ...s }));
+
+    // 5. Module Adoption — % of institutions with each optional module enabled
+    const moduleAdoption = MODULE_CATALOG.map((mod) => {
+      const enabledCount = institutions.filter((inst) => resolveEnabledModules(inst.modules).includes(mod.key)).length;
+      return {
+        key: mod.key,
+        label: mod.label,
+        enabledCount,
+        percentage: totalInstitutions > 0 ? Math.round((enabledCount / totalInstitutions) * 100) : 0,
+      };
+    }).sort((a, b) => b.percentage - a.percentage);
+
+    // 6. Revenue by Plan — real breakdown from paid invoices, grouped by planName
+    const totalBillings = paidInvoices.reduce((sum, inv) => sum + inv.totalAmount, 0);
+    const planTotals = {};
+    paidInvoices.forEach((inv) => {
+      const plan = inv.planName || 'Unspecified';
+      planTotals[plan] = (planTotals[plan] || 0) + inv.totalAmount;
+    });
+    const revenueByPlan = Object.entries(planTotals)
+      .map(([plan, amount]) => ({ plan, amount, percentage: totalBillings > 0 ? Math.round((amount / totalBillings) * 100) : 0 }))
+      .sort((a, b) => b.amount - a.amount);
+
+    const currentMonthRevenue = revenueMonthly[revenueMonthly.length - 1]?.value || 0;
+    const avgAccountValue = totalInstitutions > 0 ? Math.round(totalBillings / totalInstitutions) : 0;
+
     const analytics = {
       totalInstitutions,
       activeInstitutions,
@@ -106,12 +151,18 @@ const getAnalytics = async (req, res, next) => {
       totalUsers: users.length,
       totalStudents,
       totalStaff,
-      systemHealth: 99.98,
-      storageUsedGB: 12.5,
+      systemHealth: 99.98, // static placeholder — no uptime-monitoring infrastructure exists yet
+      storageUsedGB: 12.5, // static placeholder — no storage-metering infrastructure exists yet
       institutionGrowth,
       userGrowth,
       revenueMonthly,
-      stateDistribution
+      stateDistribution,
+      stateBreakdown,
+      moduleAdoption,
+      revenueByPlan,
+      totalBillings,
+      currentMonthRevenue,
+      avgAccountValue,
     };
 
     return sendSuccess(res, analytics, 'Analytics retrieved successfully');

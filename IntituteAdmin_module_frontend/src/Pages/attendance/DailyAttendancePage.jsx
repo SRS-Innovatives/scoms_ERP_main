@@ -1,80 +1,91 @@
-import React, { useState } from 'react';
-import DataTable from '../../components/common/DataTable';
-import StatusBadge from '../../components/common/StatusBadge';
-import SMSComposeModal from '../../components/modals/SMSComposeModal';
-import { studentsList } from '../../data/mockData';
+import React, { useState, useEffect, useCallback } from 'react';
+import EmptyState from '../../components/common/EmptyState';
 import { useNotification } from '../../context/NotificationContext';
-import { Check, X, MessageSquare, Save } from 'lucide-react';
+import { Check, X, Clock, Loader2, Calendar } from 'lucide-react';
+import attendanceService from '../../services/attendanceService';
+
+const STATUS_META = {
+  PRESENT: { icon: Check, className: 'bg-emerald-100 text-emerald-700' },
+  LATE: { icon: Clock, className: 'bg-amber-100 text-amber-700' },
+  ABSENT: { icon: X, className: 'bg-rose-100 text-rose-700' },
+  LEAVE: { icon: Clock, className: 'bg-sky-100 text-sky-700' },
+  HALF_DAY: { icon: Clock, className: 'bg-slate-100 text-slate-700' },
+};
 
 export const DailyAttendancePage = () => {
-  const { notifySuccess } = useNotification();
-  const [attendance, setAttendance] = useState(
-    studentsList.map((s) => ({ ...s, isPresent: true }))
-  );
-  const [showSmsModal, setShowSmsModal] = useState(false);
+  const { notifyError } = useNotification();
+  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const [sessions, setSessions] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const toggleAttendance = (id) => {
-    setAttendance((prev) =>
-      prev.map((s) => (s.id === id ? { ...s, isPresent: !s.isPresent } : s))
-    );
-  };
+  const fetchRegister = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await attendanceService.getRegister(date);
+      setSessions(res.data || []);
+    } catch (error) {
+      notifyError(`Failed to load attendance register: ${error.message}`);
+    } finally {
+      setLoading(false);
+    }
+  }, [date, notifyError]);
 
-  const columns = [
-    { header: 'Roll No', key: 'rollNo', render: (val) => <span className="font-mono font-bold text-indigo-600">{val}</span> },
-    { header: 'Student Name', key: 'name', render: (val) => <span className="font-bold text-slate-900 dark:text-white">{val}</span> },
-    { header: 'Course & Section', key: 'course' },
-    {
-      header: 'Today Attendance Status',
-      key: 'isPresent',
-      render: (isPresent, row) => (
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => toggleAttendance(row.id)}
-            className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold transition-all ${
-              isPresent
-                ? 'bg-emerald-600 text-white shadow-xs'
-                : 'bg-rose-600 text-white shadow-xs'
-            }`}
-          >
-            {isPresent ? <Check className="w-3.5 h-3.5" /> : <X className="w-3.5 h-3.5" />}
-            <span>{isPresent ? 'PRESENT' : 'ABSENT'}</span>
-          </button>
-        </div>
-      )
-    },
-    { header: 'Parent Contact (SMS)', key: 'parentPhone', render: (val) => <span className="font-mono text-xs">{val}</span> }
-  ];
-
-  const absentCount = attendance.filter((s) => !s.isPresent).length;
+  useEffect(() => {
+    fetchRegister();
+  }, [fetchRegister]);
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl font-bold text-slate-900 dark:text-white">Daily Student Attendance Register</h1>
-          <p className="text-xs text-slate-500 dark:text-slate-400">Class advisor daily roll call marking & instant absentee alert system</p>
+          <h1 className="text-xl font-bold text-slate-900 dark:text-white">Daily Attendance Register</h1>
+          <p className="text-xs text-slate-500 dark:text-slate-400">Every session recorded by staff, institution-wide. Marking happens on the Staff portal.</p>
         </div>
-
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => setShowSmsModal(true)}
-            className="flex items-center gap-1.5 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-semibold shadow-xs"
-          >
-            <MessageSquare className="w-4 h-4" />
-            <span>Send SMS ({absentCount} Absentees)</span>
-          </button>
-          <button
-            onClick={() => notifySuccess('Daily Attendance Submitted & Locked!')}
-            className="flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold shadow-xs"
-          >
-            <Save className="w-4 h-4" />
-            <span>Submit Attendance</span>
-          </button>
+        <div className="flex items-center gap-2">
+          <Calendar className="w-4 h-4 text-slate-400" />
+          <input
+            type="date"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+            className="px-3 py-2 text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-200"
+          />
         </div>
       </div>
 
-      <DataTable columns={columns} data={attendance} />
-      <SMSComposeModal isOpen={showSmsModal} onClose={() => setShowSmsModal(false)} defaultRecipientType="absentees" />
+      {loading ? (
+        <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-indigo-600" /></div>
+      ) : sessions.length === 0 ? (
+        <EmptyState title="No Attendance Recorded" message={`No staff have taken attendance for ${date} yet.`} />
+      ) : (
+        <div className="space-y-4">
+          {sessions.map((s) => (
+            <div key={s.id} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden">
+              <div className="p-4 bg-slate-50 dark:bg-slate-800/60 flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <h4 className="font-bold text-sm text-slate-900 dark:text-white">
+                    {s.section?.semester?.course?.name} — {s.section?.name} {s.subject?.name ? `· ${s.subject.name}` : ''}
+                  </h4>
+                  <p className="text-xs text-slate-500">Period {s.periodNumber} • Taken by {s.takenBy?.user?.email || 'Staff'}</p>
+                </div>
+                <span className="text-xs font-bold text-slate-600 dark:text-slate-300">
+                  {s.records.filter((r) => r.status === 'PRESENT' || r.status === 'LATE').length} / {s.records.length} Present
+                </span>
+              </div>
+              <div className="p-4 flex flex-wrap gap-2">
+                {s.records.map((r) => {
+                  const meta = STATUS_META[r.status] || STATUS_META.PRESENT;
+                  const Icon = meta.icon;
+                  return (
+                    <span key={r.id} className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold ${meta.className}`}>
+                      <Icon className="w-3 h-3" /> {r.student.firstName} {r.student.lastName} ({r.student.rollNumber})
+                    </span>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 };

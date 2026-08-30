@@ -1,6 +1,7 @@
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import StudentLayout from '../components/layout/StudentLayout';
+import ProtectedRoute from '../components/auth/ProtectedRoute';
 
 // Auth Pages
 import LoginPage from '../pages/auth/LoginPage';
@@ -92,6 +93,7 @@ export const AppRoutes = () => {
       <Route
         path="/*"
         element={
+          <ProtectedRoute>
           <StudentLayout>
             <Routes>
               <Route path="student/dashboard" element={<StudentDashboardPage />} />
@@ -145,6 +147,7 @@ export const AppRoutes = () => {
               <Route path="*" element={<Navigate to="/student/dashboard" replace />} />
             </Routes>
           </StudentLayout>
+          </ProtectedRoute>
         }
       />
     </Routes>

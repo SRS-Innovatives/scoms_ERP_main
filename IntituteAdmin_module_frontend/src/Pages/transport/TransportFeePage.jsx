@@ -1,24 +1,41 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import DataTable from '../../components/common/DataTable';
-import StatusBadge from '../../components/common/StatusBadge';
-import { transportRoutes } from '../../data/mockData';
+import { useNotification } from '../../context/NotificationContext';
+import { Loader2 } from 'lucide-react';
+import transportService from '../../services/transportService';
 
 export const TransportFeePage = () => {
+  const { notifyError } = useNotification();
+  const [routes, setRoutes] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    transportService.getRoutes()
+      .then((res) => setRoutes(res.data || []))
+      .catch((err) => notifyError(`Failed to load transport fee structure: ${err.message}`))
+      .finally(() => setLoading(false));
+  }, [notifyError]);
+
   const columns = [
-    { header: 'Route ID', key: 'id', render: (val) => <span className="font-mono font-bold text-indigo-600">{val}</span> },
-    { header: 'Corridor Name', key: 'routeName' },
-    { header: 'Annual Bus Fee (₹)', key: 'fee', render: (val) => <span className="font-mono font-bold text-emerald-600">₹{val.toLocaleString()}</span> },
-    { header: 'Assigned Students', key: 'assignedStudents', render: (val) => `${val} Bus Pass Holders` }
+    { header: 'Corridor Name', key: 'routeName', render: (val) => <span className="font-bold text-slate-900 dark:text-white">{val}</span> },
+    { header: 'Route', key: 'startPoint', sortable: false, render: (_, row) => `${row.startPoint} → ${row.endPoint}` },
+    { header: 'Monthly Fee (₹)', key: 'monthlyFare', render: (val) => <span className="font-mono font-bold text-emerald-600">₹{val.toLocaleString()}</span> },
+    { header: 'Annual Fee (₹)', key: 'monthlyFare2', sortable: false, render: (_, row) => <span className="font-mono font-bold text-slate-700 dark:text-slate-300">₹{(row.monthlyFare * 12).toLocaleString()}</span> },
+    { header: 'Bus Pass Holders', key: '_count', sortable: false, render: (val) => `${val?.mappings ?? 0} students` },
   ];
+
+  if (loading) {
+    return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-indigo-600" /></div>;
+  }
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-bold text-slate-900 dark:text-white">Transport Fee Structure Setup</h1>
-        <p className="text-xs text-slate-500 dark:text-slate-400">Distance slab-based annual bus fee tariff configuration</p>
+        <h1 className="text-xl font-bold text-slate-900 dark:text-white">Transport Fee Structure</h1>
+        <p className="text-xs text-slate-500 dark:text-slate-400">Route-wise monthly and annual bus fee tariff — edit rates under Route Management</p>
       </div>
 
-      <DataTable columns={columns} data={transportRoutes} />
+      <DataTable columns={columns} data={routes} />
     </div>
   );
 };

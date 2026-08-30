@@ -14,7 +14,8 @@ import {
   Package,
   FileCheck,
   BarChart3,
-  Settings
+  Settings,
+  Briefcase
 } from 'lucide-react';
 
 export const navigationConfig = [
@@ -150,7 +151,9 @@ export const navigationConfig = [
       { key: 'sms-center', title: 'SMS Center (DLT)', path: '/admin/communication/sms-center' },
       { key: 'email-center', title: 'Email Broadcast', path: '/admin/communication/email-center' },
       { key: 'whatsapp', title: 'WhatsApp Notice', path: '/admin/communication/whatsapp' },
-      { key: 'event-notifications', title: 'Event Reminders', path: '/admin/communication/events' }
+      { key: 'event-notifications', title: 'Event Reminders', path: '/admin/communication/events' },
+      { key: 'grievances', title: 'Student Grievances', path: '/admin/communication/grievances' },
+      { key: 'clubs', title: 'Clubs & Societies', path: '/admin/communication/clubs' }
     ]
   },
   {
@@ -215,7 +218,16 @@ export const navigationConfig = [
       { key: 'cert-completion', title: 'Course Completion', path: '/admin/certificates/completion' },
       { key: 'cert-conduct', title: 'Conduct Certificate', path: '/admin/certificates/conduct' },
       { key: 'cert-feepaid', title: 'Fee Paid Certificate', path: '/admin/certificates/feepaid' },
-      { key: 'cert-experience', title: 'Experience Certificate', path: '/admin/certificates/experience' }
+      { key: 'cert-experience', title: 'Experience Certificate', path: '/admin/certificates/experience' },
+      { key: 'cert-requests', title: 'Student Requests', path: '/admin/certificates/requests' }
+    ]
+  },
+  {
+    key: 'placement',
+    title: 'Placement Cell',
+    icon: Briefcase,
+    children: [
+      { key: 'placement-postings', title: 'Job Postings', path: '/admin/placement/postings' }
     ]
   },
   {
@@ -230,7 +242,8 @@ export const navigationConfig = [
       { key: 'rep-exam', title: 'Exam Result Report', path: '/admin/reports/exam-results' },
       { key: 'rep-staff', title: 'Staff Report', path: '/admin/reports/staff' },
       { key: 'rep-transport', title: 'Transport Report', path: '/admin/reports/transport' },
-      { key: 'rep-library', title: 'Library Report', path: '/admin/reports/library' }
+      { key: 'rep-library', title: 'Library Report', path: '/admin/reports/library' },
+      { key: 'rep-feedback', title: 'Faculty Feedback Summary', path: '/admin/reports/feedback' }
     ]
   },
   {

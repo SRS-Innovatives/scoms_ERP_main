@@ -1,21 +1,27 @@
 import React from 'react';
-import { instituteInfo } from '../../data/mockData';
+import { useInstitution } from '../../context/InstitutionContext';
 
 export const PrintHeader = ({ title, subtitle, documentNo }) => {
+  const { institution } = useInstitution();
+  const address = [institution?.address, institution?.city, institution?.state].filter(Boolean).join(', ');
+
   return (
     <div className="w-full pb-4 border-b-2 border-slate-900 mb-6 text-center">
       <div className="flex items-center justify-between gap-4 mb-2">
         <div className="flex items-center gap-3">
           <div className="w-16 h-16 rounded-xl border border-slate-300 overflow-hidden flex items-center justify-center p-1 bg-white">
-            <img src={instituteInfo.logo} alt="Logo" className="w-full h-full object-contain" />
+            {institution?.logo ? (
+              <img src={institution.logo} alt="Logo" className="w-full h-full object-contain" />
+            ) : (
+              <span className="text-lg font-bold text-slate-400">{(institution?.code || institution?.name || 'S').charAt(0)}</span>
+            )}
           </div>
           <div className="text-left">
             <h1 className="text-lg font-bold uppercase tracking-tight text-slate-900 leading-tight">
-              {instituteInfo.name}
+              {institution?.name || 'Institution'}
             </h1>
-            <p className="text-[11px] text-slate-700 font-semibold">{instituteInfo.affiliation}</p>
-            <p className="text-[10px] text-slate-600">{instituteInfo.accreditation}</p>
-            <p className="text-[10px] text-slate-500">{instituteInfo.address}</p>
+            {institution?.affiliation && <p className="text-[11px] text-slate-700 font-semibold">{institution.affiliation}</p>}
+            {address && <p className="text-[10px] text-slate-500">{address}</p>}
           </div>
         </div>
 

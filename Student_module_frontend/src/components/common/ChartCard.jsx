@@ -1,14 +1,8 @@
 import React from 'react';
 
 export const ChartCard = ({ title, subtitle, data = [], height = 180 }) => {
-  const chartData = data.length > 0 ? data : [
-    { label: 'Sem 1', value: 8.2 },
-    { label: 'Sem 2', value: 8.5 },
-    { label: 'Sem 3', value: 8.7 },
-    { label: 'Sem 4', value: 8.92 }
-  ];
-
-  const maxVal = Math.max(...chartData.map(d => d.value)) || 10;
+  // No fake fallback data — an empty `data` array renders a real empty state.
+  const maxVal = data.length > 0 ? (Math.max(...data.map((d) => d.value)) || 10) : 10;
 
   return (
     <div className="glass-card p-5 rounded-2xl border border-slate-200 dark:border-slate-800">
@@ -19,9 +13,14 @@ export const ChartCard = ({ title, subtitle, data = [], height = 180 }) => {
         </div>
       </div>
 
+      {data.length === 0 ? (
+        <div className="flex items-center justify-center text-xs text-slate-400" style={{ height: `${height}px` }}>
+          No data available yet.
+        </div>
+      ) : (
       <div className="relative w-full" style={{ height: `${height}px` }}>
         <div className="absolute inset-0 flex items-end justify-between gap-3 pt-6 pb-6">
-          {chartData.map((item, idx) => {
+          {data.map((item, idx) => {
             const hPct = (item.value / maxVal) * 100;
             return (
               <div key={idx} className="flex-1 flex flex-col items-center h-full justify-end group relative">
@@ -44,6 +43,7 @@ export const ChartCard = ({ title, subtitle, data = [], height = 180 }) => {
           })}
         </div>
       </div>
+      )}
     </div>
   );
 };

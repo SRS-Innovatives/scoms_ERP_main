@@ -1,6 +1,7 @@
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import MainLayout from '../components/layout/MainLayout';
+import ProtectedRoute from '../components/auth/ProtectedRoute';
 
 // Dashboard
 import StaffDashboardPage from '../pages/dashboard/StaffDashboardPage';
@@ -75,6 +76,8 @@ import FreePeriodsPage from '../pages/timetable/FreePeriodsPage';
 import SendAnnouncementPage from '../pages/communication/SendAnnouncementPage';
 import ClassNoticePage from '../pages/communication/ClassNoticePage';
 import ParentMessagePage from '../pages/communication/ParentMessagePage';
+import StudentChatPage from '../pages/communication/StudentChatPage';
+import AppointmentRequestsPage from '../pages/appointments/AppointmentRequestsPage';
 import SmsCenterPage from '../pages/communication/SmsCenterPage';
 import EmailCenterPage from '../pages/communication/EmailCenterPage';
 import MessageHistoryPage from '../pages/communication/MessageHistoryPage';
@@ -84,6 +87,7 @@ import ApplyLeavePage from '../pages/leave/ApplyLeavePage';
 import LeaveHistoryPage from '../pages/leave/LeaveHistoryPage';
 import LeaveBalancePage from '../pages/leave/LeaveBalancePage';
 import LeaveApprovalStatusPage from '../pages/leave/LeaveApprovalStatusPage';
+import StudentLeaveApprovalPage from '../pages/leave/StudentLeaveApprovalPage';
 
 // Events
 import EventDutiesPage from '../pages/events/EventDutiesPage';
@@ -127,16 +131,19 @@ import PrintStudentProgressReport from '../pages/print/PrintStudentProgressRepor
 import PrintParentMeetingRecord from '../pages/print/PrintParentMeetingRecord';
 import PrintDutyAllotmentLetter from '../pages/print/PrintDutyAllotmentLetter';
 import LoginPage from '../pages/auth/LoginPage';
+import ForgotPasswordPage from '../pages/auth/ForgotPasswordPage';
 
 export const AppRoutes = () => {
   return (
     <Routes>
       <Route path="/staff/login" element={<LoginPage />} />
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/staff/forgot-password" element={<ForgotPasswordPage />} />
       <Route path="/" element={<Navigate to="/staff/dashboard" replace />} />
 
       {/* Staff Layout Routes */}
       <Route path="/staff/*" element={
+        <ProtectedRoute>
         <MainLayout>
           <Routes>
             <Route path="dashboard" element={<StaffDashboardPage />} />
@@ -211,6 +218,8 @@ export const AppRoutes = () => {
             <Route path="communication/announcements" element={<SendAnnouncementPage />} />
             <Route path="communication/notices" element={<ClassNoticePage />} />
             <Route path="communication/parent-messages" element={<ParentMessagePage />} />
+            <Route path="communication/student-chat" element={<StudentChatPage />} />
+            <Route path="appointments" element={<AppointmentRequestsPage />} />
             <Route path="communication/sms" element={<SmsCenterPage />} />
             <Route path="communication/email" element={<EmailCenterPage />} />
             <Route path="communication/history" element={<MessageHistoryPage />} />
@@ -220,6 +229,7 @@ export const AppRoutes = () => {
             <Route path="leave/history" element={<LeaveHistoryPage />} />
             <Route path="leave/balance" element={<LeaveBalancePage />} />
             <Route path="leave/status" element={<LeaveApprovalStatusPage />} />
+            <Route path="leave/student-approvals" element={<StudentLeaveApprovalPage />} />
 
             {/* Events */}
             <Route path="events/duties" element={<EventDutiesPage />} />
@@ -266,6 +276,7 @@ export const AppRoutes = () => {
             <Route path="*" element={<Navigate to="/staff/dashboard" replace />} />
           </Routes>
         </MainLayout>
+        </ProtectedRoute>
       } />
     </Routes>
   );

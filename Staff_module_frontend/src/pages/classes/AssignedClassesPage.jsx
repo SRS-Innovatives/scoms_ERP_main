@@ -1,85 +1,82 @@
-import React from 'react';
-import { mockAssignedClasses } from '../../data/mockStaffData';
-import { Users, BookOpen, MapPin, CheckCircle2, ChevronRight } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { Users, BookOpen, ChevronRight, Loader2, LayoutGrid } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useNotification } from '../../context/NotificationContext';
+import attendanceService from '../../services/attendanceService';
 
 export const AssignedClassesPage = () => {
   const navigate = useNavigate();
+  const { error: showError } = useNotification();
+  const [mappings, setMappings] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    attendanceService.getMyClasses()
+      .then((res) => setMappings(res.data || []))
+      .catch((err) => showError(err.message || 'Failed to load assigned classes', 'Load Failed'))
+      .finally(() => setLoading(false));
+  }, [showError]);
+
+  if (loading) {
+    return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-sky-600" /></div>;
+  }
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-lg font-extrabold text-slate-900 dark:text-slate-100">Assigned Classes & Subjects</h2>
-          <p className="text-xs text-slate-500 dark:text-slate-400">Classes where you act as Class Teacher or Subject Lecturer.</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400">Sections and subjects your Institute Admin has assigned you to teach.</p>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-        {mockAssignedClasses.map((cls) => (
-          <div
-            key={cls.id}
-            className="glass-card p-5 rounded-2xl border border-slate-200 dark:border-slate-800 hover:shadow-lg transition-all"
-          >
-            <div className="flex items-start justify-between mb-3">
-              <div>
-                <span className="text-xs font-semibold px-2 py-0.5 rounded bg-sky-100 dark:bg-sky-950 text-sky-700 dark:text-sky-300">
-                  {cls.section} Section
+      {mappings.length === 0 ? (
+        <div className="glass-card p-10 rounded-2xl border border-slate-200 dark:border-slate-800 text-center text-xs text-slate-500 flex flex-col items-center gap-2">
+          <LayoutGrid className="w-8 h-8 text-slate-300" /> No classes assigned yet. Ask your Institute Admin to assign you a subject and section.
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          {mappings.map((m) => (
+            <div key={m.id} className="glass-card p-5 rounded-2xl border border-slate-200 dark:border-slate-800 hover:shadow-lg transition-all">
+              <div className="flex items-start justify-between mb-3">
+                <div>
+                  <span className="text-xs font-semibold px-2 py-0.5 rounded bg-sky-100 dark:bg-sky-950 text-sky-700 dark:text-sky-300">
+                    {m.section?.name}
+                  </span>
+                  <h3 className="text-lg font-extrabold text-slate-900 dark:text-slate-100 mt-1">{m.section?.semester?.course?.name}</h3>
+                </div>
+              </div>
+
+              <p className="text-xs font-bold text-slate-700 dark:text-slate-300 mb-3 flex items-center gap-1.5">
+                <BookOpen className="w-4 h-4 text-sky-500" /> Subject: {m.subject?.name}
+              </p>
+
+              <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 mb-4 pt-2 border-t border-slate-200 dark:border-slate-800">
+                <span className="flex items-center gap-1">
+                  <Users className="w-3.5 h-3.5 text-indigo-500" /> {m.section?._count?.students ?? 0} Enrolled Students
                 </span>
-                <h3 className="text-lg font-extrabold text-slate-900 dark:text-slate-100 mt-1">{cls.name}</h3>
+                <span>{m.section?.semester?.name}</span>
               </div>
-              {cls.isClassTeacher && (
-                <span className="text-[10px] font-bold px-2 py-1 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 flex items-center gap-1">
-                  <CheckCircle2 className="w-3 h-3" /> Class Teacher
-                </span>
-              )}
-            </div>
 
-            <p className="text-xs font-bold text-slate-700 dark:text-slate-300 mb-3 flex items-center gap-1.5">
-              <BookOpen className="w-4 h-4 text-sky-500" /> Subject: {cls.subject}
-            </p>
-
-            <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 mb-4 pt-2 border-t border-slate-200 dark:border-slate-800">
-              <span className="flex items-center gap-1">
-                <Users className="w-3.5 h-3.5 text-indigo-500" /> {cls.studentsCount} Enrolled Students
-              </span>
-              <span className="flex items-center gap-1">
-                <MapPin className="w-3.5 h-3.5 text-rose-500" /> {cls.room}
-              </span>
-            </div>
-
-            {/* Syllabus progress bar */}
-            <div className="mb-4">
-              <div className="flex justify-between text-[11px] font-medium mb-1">
-                <span>Syllabus Covered</span>
-                <span className="font-bold text-slate-900 dark:text-slate-100">{cls.syllabusProgress}%</span>
-              </div>
-              <div className="w-full bg-slate-200 dark:bg-slate-700 h-2 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-sky-500 rounded-full"
-                  style={{ width: `${cls.syllabusProgress}%` }}
-                ></div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => navigate('/staff/attendance/take')}
+                  className="flex-1 py-2 text-xs font-semibold text-white bg-sky-600 hover:bg-sky-700 dark:bg-sky-500 rounded-xl transition-all flex items-center justify-center gap-1"
+                >
+                  <span>Take Attendance</span>
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  onClick={() => navigate('/staff/materials/upload')}
+                  className="px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl transition-all"
+                >
+                  Share Material
+                </button>
               </div>
             </div>
-
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => navigate('/staff/classes/details')}
-                className="flex-1 py-2 text-xs font-semibold text-white bg-sky-600 hover:bg-sky-700 dark:bg-sky-500 rounded-xl transition-all flex items-center justify-center gap-1"
-              >
-                <span>View Class Hub</span>
-                <ChevronRight className="w-3.5 h-3.5" />
-              </button>
-              <button
-                onClick={() => navigate('/staff/attendance/take')}
-                className="px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl transition-all"
-              >
-                Attendance
-              </button>
-            </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 };

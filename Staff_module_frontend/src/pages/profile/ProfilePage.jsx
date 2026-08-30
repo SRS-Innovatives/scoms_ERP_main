@@ -1,26 +1,38 @@
-import React from 'react';
-import { mockStaffProfile } from '../../data/mockStaffData';
-import { User, Mail, Phone, Calendar, Building, Award, Briefcase, CreditCard, ShieldAlert, Edit } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { User, CreditCard, Edit, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useNotification } from '../../context/NotificationContext';
+import profileService from '../../services/profileService';
 
 export const ProfilePage = () => {
   const navigate = useNavigate();
+  const { error: showError } = useNotification();
+  const [staff, setStaff] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    profileService.getMyProfile()
+      .then((res) => setStaff(res.data))
+      .catch((err) => showError(err.message || 'Failed to load profile', 'Load Failed'))
+      .finally(() => setLoading(false));
+  }, [showError]);
+
+  if (loading || !staff) {
+    return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-sky-600" /></div>;
+  }
 
   return (
     <div className="space-y-6">
-      {/* Top Banner */}
       <div className="glass-card p-6 rounded-3xl border border-slate-200 dark:border-slate-800 flex flex-col md:flex-row items-center justify-between gap-6">
         <div className="flex flex-col sm:flex-row items-center gap-5 text-center sm:text-left">
-          <img
-            src={mockStaffProfile.avatar}
-            alt={mockStaffProfile.name}
-            className="w-24 h-24 rounded-3xl object-cover border-4 border-sky-500/30 shadow-lg"
-          />
+          <div className="w-24 h-24 rounded-3xl bg-sky-600 text-white flex items-center justify-center text-3xl font-black border-4 border-sky-500/30 shadow-lg shrink-0">
+            {staff.firstName?.[0]}{staff.lastName?.[0]}
+          </div>
           <div>
-            <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100">{mockStaffProfile.name}</h2>
-            <p className="text-xs font-semibold text-sky-600 dark:text-sky-400 mt-0.5">{mockStaffProfile.designation}</p>
+            <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100">{staff.firstName} {staff.lastName}</h2>
+            <p className="text-xs font-semibold text-sky-600 dark:text-sky-400 mt-0.5">{staff.designation}</p>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-              Dept: {mockStaffProfile.department} • Employee ID: <span className="font-mono font-bold text-slate-700 dark:text-slate-300">{mockStaffProfile.id}</span>
+              Dept: {staff.department?.name || '—'} • Employee ID: <span className="font-mono font-bold text-slate-700 dark:text-slate-300">{staff.employeeCode}</span>
             </p>
           </div>
         </div>
@@ -33,65 +45,32 @@ export const ProfilePage = () => {
         </button>
       </div>
 
-      {/* Grid info */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Personal & Contact Info */}
         <div className="glass-card p-5 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-4">
           <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100 border-b border-slate-200 dark:border-slate-800 pb-2 flex items-center gap-2">
             <User className="w-4 h-4 text-sky-500" /> Personal & Contact Details
           </h3>
 
           <div className="grid grid-cols-2 gap-4 text-xs">
-            <div>
-              <span className="text-slate-500 dark:text-slate-400 block">Email Address</span>
-              <span className="font-semibold text-slate-800 dark:text-slate-200">{mockStaffProfile.email}</span>
-            </div>
-            <div>
-              <span className="text-slate-500 dark:text-slate-400 block">Phone Number</span>
-              <span className="font-semibold text-slate-800 dark:text-slate-200">{mockStaffProfile.phone}</span>
-            </div>
-            <div>
-              <span className="text-slate-500 dark:text-slate-400 block">Date of Birth</span>
-              <span className="font-semibold text-slate-800 dark:text-slate-200">{mockStaffProfile.dob}</span>
-            </div>
-            <div>
-              <span className="text-slate-500 dark:text-slate-400 block">Blood Group</span>
-              <span className="font-semibold text-slate-800 dark:text-slate-200">{mockStaffProfile.bloodGroup}</span>
-            </div>
-            <div>
-              <span className="text-slate-500 dark:text-slate-400 block">Date of Joining</span>
-              <span className="font-semibold text-slate-800 dark:text-slate-200">{mockStaffProfile.joiningDate}</span>
-            </div>
-            <div>
-              <span className="text-slate-500 dark:text-slate-400 block">Total Experience</span>
-              <span className="font-semibold text-slate-800 dark:text-slate-200">{mockStaffProfile.experienceYears} Years</span>
-            </div>
+            <div><span className="text-slate-500 dark:text-slate-400 block">Email Address</span><span className="font-semibold text-slate-800 dark:text-slate-200">{staff.user?.email}</span></div>
+            <div><span className="text-slate-500 dark:text-slate-400 block">Phone Number</span><span className="font-semibold text-slate-800 dark:text-slate-200">{staff.user?.mobile || '—'}</span></div>
+            <div><span className="text-slate-500 dark:text-slate-400 block">Date of Birth</span><span className="font-semibold text-slate-800 dark:text-slate-200">{staff.dob ? new Date(staff.dob).toLocaleDateString('en-IN') : '—'}</span></div>
+            <div><span className="text-slate-500 dark:text-slate-400 block">Blood Group</span><span className="font-semibold text-slate-800 dark:text-slate-200">{staff.bloodGroup || '—'}</span></div>
+            <div><span className="text-slate-500 dark:text-slate-400 block">Date of Joining</span><span className="font-semibold text-slate-800 dark:text-slate-200">{new Date(staff.joiningDate).toLocaleDateString('en-IN')}</span></div>
+            <div><span className="text-slate-500 dark:text-slate-400 block">Experience</span><span className="font-semibold text-slate-800 dark:text-slate-200">{staff.experience || '—'}</span></div>
           </div>
         </div>
 
-        {/* Bank & Emergency Details */}
         <div className="glass-card p-5 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-4">
           <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100 border-b border-slate-200 dark:border-slate-800 pb-2 flex items-center gap-2">
             <CreditCard className="w-4 h-4 text-emerald-500" /> Bank & Financial Details
           </h3>
 
           <div className="grid grid-cols-2 gap-4 text-xs">
-            <div>
-              <span className="text-slate-500 dark:text-slate-400 block">Bank Name</span>
-              <span className="font-semibold text-slate-800 dark:text-slate-200">{mockStaffProfile.bankDetails.bankName}</span>
-            </div>
-            <div>
-              <span className="text-slate-500 dark:text-slate-400 block">Account Number</span>
-              <span className="font-mono font-semibold text-slate-800 dark:text-slate-200">{mockStaffProfile.bankDetails.accountNumber}</span>
-            </div>
-            <div>
-              <span className="text-slate-500 dark:text-slate-400 block">IFSC Code</span>
-              <span className="font-mono font-semibold text-slate-800 dark:text-slate-200">{mockStaffProfile.bankDetails.ifscCode}</span>
-            </div>
-            <div>
-              <span className="text-slate-500 dark:text-slate-400 block">PAN Number</span>
-              <span className="font-mono font-semibold text-slate-800 dark:text-slate-200">{mockStaffProfile.bankDetails.panNumber}</span>
-            </div>
+            <div><span className="text-slate-500 dark:text-slate-400 block">Bank Name</span><span className="font-semibold text-slate-800 dark:text-slate-200">{staff.bankName || '—'}</span></div>
+            <div><span className="text-slate-500 dark:text-slate-400 block">Account Number</span><span className="font-mono font-semibold text-slate-800 dark:text-slate-200">{staff.bankAccountNumber || '—'}</span></div>
+            <div><span className="text-slate-500 dark:text-slate-400 block">IFSC Code</span><span className="font-mono font-semibold text-slate-800 dark:text-slate-200">{staff.bankIfscCode || '—'}</span></div>
+            <div><span className="text-slate-500 dark:text-slate-400 block">PAN Number</span><span className="font-mono font-semibold text-slate-800 dark:text-slate-200">{staff.panNumber || '—'}</span></div>
           </div>
         </div>
       </div>

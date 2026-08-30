@@ -6,7 +6,7 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const apiRoutes = require('./routes/apiRoutes');
-const { errorHandler } = require('../../shared');
+const { errorHandler, getHealthPayload } = require('../../shared');
 
 const app = express();
 
@@ -15,8 +15,8 @@ app.use(cors());
 app.use(express.json());
 
 // Base Route
-app.get('/health', (req, res) => {
-  res.json({ status: 'OK', service: 'SCOMS Super Admin Backend', timestamp: new Date() });
+app.get('/health', async (req, res) => {
+  res.json(await getHealthPayload('SCOMS Super Admin Backend'));
 });
 
 // API Routes Mounted at Versioned Endpoint

@@ -1,13 +1,40 @@
-import React from 'react';
-import { BookOpen, Percent } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { BookOpen, Loader2 } from 'lucide-react';
+import attendanceService from '../../services/attendanceService';
+import { useNotification } from '../../context/NotificationContext';
 
 export const SubjectAttendancePage = () => {
-  const subjects = [
-    { name: "Class 12-A Physics Theory", taken: 34, total: 36, percentage: "94.4%" },
-    { name: "Class 12-A Physics Lab", taken: 18, total: 18, percentage: "100%" },
-    { name: "Class 11-B Applied Physics", taken: 28, total: 30, percentage: "93.3%" },
-    { name: "Class 10-A Physics Core", taken: 30, total: 32, percentage: "93.7%" }
-  ];
+  const { error: showError } = useNotification();
+  const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    Promise.all([attendanceService.getMyClasses(), attendanceService.getHistory()])
+      .then(([classesRes, historyRes]) => {
+        const mappings = classesRes.data || [];
+        const history = historyRes.data || [];
+
+        const computed = mappings.map((m) => {
+          const sessions = history.filter((h) => h.section === m.section?.name && h.subject === m.subject?.name);
+          const totalStudents = sessions.reduce((sum, s) => sum + s.totalStudents, 0);
+          const totalPresent = sessions.reduce((sum, s) => sum + s.presentCount, 0);
+          const avgPercent = totalStudents > 0 ? Math.round((totalPresent / totalStudents) * 100) : null;
+          return {
+            id: m.id,
+            name: `${m.section?.semester?.course?.name || ''} — ${m.section?.name} (${m.subject?.name})`,
+            sessionsConducted: sessions.length,
+            avgPercent,
+          };
+        });
+        setRows(computed);
+      })
+      .catch((err) => showError(err.message || 'Failed to load subject attendance stats', 'Load Failed'))
+      .finally(() => setLoading(false));
+  }, [showError]);
+
+  if (loading) {
+    return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-indigo-600" /></div>;
+  }
 
   return (
     <div className="glass-card p-6 rounded-2xl border border-slate-200 dark:border-slate-800">
@@ -15,19 +42,25 @@ export const SubjectAttendancePage = () => {
         <BookOpen className="w-5 h-5 text-sky-500" /> Subject-wise Attendance Statistics
       </h3>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {subjects.map((sub, idx) => (
-          <div key={idx} className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 flex items-center justify-between">
-            <div>
-              <h4 className="text-sm font-bold text-slate-900 dark:text-slate-100">{sub.name}</h4>
-              <p className="text-xs text-slate-500 mt-0.5">Classes Conducted: {sub.taken} / {sub.total}</p>
+      {rows.length === 0 ? (
+        <p className="text-xs text-slate-500 text-center py-8">No assigned classes yet.</p>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {rows.map((r) => (
+            <div key={r.id} className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 flex items-center justify-between">
+              <div>
+                <h4 className="text-sm font-bold text-slate-900 dark:text-slate-100">{r.name}</h4>
+                <p className="text-xs text-slate-500 mt-0.5">Sessions Conducted: {r.sessionsConducted}</p>
+              </div>
+              <div className="text-right">
+                <span className="text-base font-extrabold text-emerald-600 dark:text-emerald-400">
+                  {r.avgPercent !== null ? `${r.avgPercent}%` : 'No data'}
+                </span>
+              </div>
             </div>
-            <div className="text-right">
-              <span className="text-base font-extrabold text-emerald-600 dark:text-emerald-400">{sub.percentage}</span>
-            </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 };

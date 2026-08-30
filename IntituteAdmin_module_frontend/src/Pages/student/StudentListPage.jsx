@@ -1,19 +1,47 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import DataTable from '../../components/common/DataTable';
 import SearchFilterBar from '../../components/common/SearchFilterBar';
 import StatusBadge from '../../components/common/StatusBadge';
 import StudentCard from '../../components/common/StudentCard';
-import { studentsList as initialStudents } from '../../data/mockData';
+import EmptyState from '../../components/common/EmptyState';
 import { useNotification } from '../../context/NotificationContext';
 import { useNavigate } from 'react-router-dom';
-import { Grid, List, Plus, CreditCard, FileText } from 'lucide-react';
+import { Grid, List, Plus, CreditCard, Users, Loader2 } from 'lucide-react';
+import studentService from '../../services/studentService';
 
 export const StudentListPage = () => {
-  const { notifySuccess } = useNotification();
+  const { notifyError } = useNotification();
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
-  const [viewMode, setViewMode] = useState('table'); // 'table' | 'grid'
-  const [students] = useState(initialStudents);
+  const [viewMode, setViewMode] = useState('table');
+  const [students, setStudents] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const load = useCallback(() => {
+    setLoading(true);
+    studentService.getAll({ search })
+      .then((res) => setStudents(res.data || []))
+      .catch((err) => notifyError(`Failed to load students: ${err.message}`))
+      .finally(() => setLoading(false));
+  }, [search, notifyError]);
+
+  useEffect(() => {
+    const timer = setTimeout(load, 300); // debounce search
+    return () => clearTimeout(timer);
+  }, [load]);
+
+  // Map real fields to the shape StudentCard/DataTable expect.
+  const mapped = students.map((s) => ({
+    id: s.id,
+    name: `${s.firstName} ${s.lastName}`,
+    photo: s.user?.avatar,
+    rollNo: s.rollNumber || '—',
+    regNo: s.registerNumber || s.admissionNumber,
+    course: `${s.course?.name || '—'} / ${s.department?.name || '—'}`,
+    yearSem: `${s.section?.semester?.name || '—'} - ${s.section?.name || '—'}`,
+    scholarship: s.scholarship,
+    feeStatus: s.feeStatus,
+  }));
 
   const columns = [
     {
@@ -21,7 +49,13 @@ export const StudentListPage = () => {
       key: 'name',
       render: (val, row) => (
         <div className="flex items-center gap-3">
-          <img src={row.photo} alt={val} className="w-9 h-9 rounded-full object-cover border border-slate-200" />
+          {row.photo ? (
+            <img src={row.photo} alt={val} className="w-9 h-9 rounded-full object-cover border border-slate-200" />
+          ) : (
+            <div className="w-9 h-9 rounded-full bg-indigo-100 dark:bg-indigo-950 flex items-center justify-center text-indigo-600 font-bold text-xs">
+              {val.charAt(0)}
+            </div>
+          )}
           <div>
             <p className="font-bold text-slate-900 dark:text-white leading-tight">{val}</p>
             <p className="text-[10px] text-slate-400 font-mono">Reg: {row.regNo}</p>
@@ -32,23 +66,22 @@ export const StudentListPage = () => {
     { header: 'Roll No', key: 'rollNo', render: (val) => <span className="font-mono font-bold text-indigo-600 dark:text-indigo-400">{val}</span> },
     { header: 'Course & Dept', key: 'course' },
     { header: 'Year / Sem', key: 'yearSem' },
-    { header: 'Aadhaar No', key: 'aadhaarNo', render: (val) => <span className="font-mono text-xs">{val}</span> },
     { header: 'Scholarship', key: 'scholarship', render: (val) => <span className="text-xs font-medium text-slate-700 dark:text-slate-300">{val}</span> },
     { header: 'Fee Status', key: 'feeStatus', render: (val) => <StatusBadge status={val} /> },
     {
       header: 'Actions',
       key: 'id',
       sortable: false,
-      render: (_, row) => (
+      render: (id) => (
         <div className="flex items-center gap-2">
           <button
-            onClick={() => navigate('/admin/student/profile')}
+            onClick={() => navigate(`/admin/student/profile?id=${id}`)}
             className="px-2.5 py-1 bg-indigo-50 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 rounded-lg text-xs font-semibold hover:bg-indigo-100"
           >
             Profile
           </button>
           <button
-            onClick={() => navigate('/admin/student/id-card')}
+            onClick={() => navigate(`/admin/student/id-card?id=${id}`)}
             className="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
             title="ID Card"
           >
@@ -58,13 +91,6 @@ export const StudentListPage = () => {
       )
     }
   ];
-
-  const filtered = students.filter(
-    (s) =>
-      s.name.toLowerCase().includes(search.toLowerCase()) ||
-      s.rollNo.toLowerCase().includes(search.toLowerCase()) ||
-      s.regNo.toLowerCase().includes(search.toLowerCase())
-  );
 
   return (
     <div className="space-y-6">
@@ -104,28 +130,22 @@ export const StudentListPage = () => {
         searchQuery={search}
         onSearchChange={setSearch}
         placeholder="Search student by name, roll no, reg no..."
-        filters={[
-          {
-            key: 'fee',
-            label: 'Fee Status',
-            options: [
-              { label: 'Paid', value: 'Paid' },
-              { label: 'Pending', value: 'Pending' }
-            ]
-          }
-        ]}
       />
 
-      {viewMode === 'table' ? (
-        <DataTable columns={columns} data={filtered} />
+      {loading ? (
+        <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-indigo-600" /></div>
+      ) : mapped.length === 0 ? (
+        <EmptyState title="No Students Found" description="No students match your search, or none have been admitted yet." icon={Users} />
+      ) : viewMode === 'table' ? (
+        <DataTable columns={columns} data={mapped} />
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filtered.map((s) => (
+          {mapped.map((s) => (
             <StudentCard
               key={s.id}
               student={s}
-              onViewDetails={() => navigate('/admin/student/profile')}
-              onPrintCard={() => navigate('/admin/student/id-card')}
+              onViewDetails={() => navigate(`/admin/student/profile?id=${s.id}`)}
+              onPrintCard={() => navigate(`/admin/student/id-card?id=${s.id}`)}
             />
           ))}
         </div>

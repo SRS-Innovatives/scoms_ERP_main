@@ -91,6 +91,8 @@ import SMSCenterPage from '../pages/communication/SMSCenterPage';
 import EmailCenterPage from '../pages/communication/EmailCenterPage';
 import WhatsAppNoticePage from '../pages/communication/WhatsAppNoticePage';
 import EventNotificationsPage from '../pages/communication/EventNotificationsPage';
+import GrievanceManagementPage from '../pages/communication/GrievanceManagementPage';
+import ClubManagementPage from '../pages/communication/ClubManagementPage';
 
 // Library
 import BookMasterPage from '../pages/library/BookMasterPage';
@@ -129,6 +131,8 @@ import TransferCertificatesPage from '../pages/certificates/TransferCertificates
 import BonafideCertificatesPage from '../pages/certificates/BonafideCertificatesPage';
 import CourseCompletionPage from '../pages/certificates/CourseCompletionPage';
 import ConductCertificatesPage from '../pages/certificates/ConductCertificatesPage';
+import CertificateRequestsPage from '../pages/certificates/CertificateRequestsPage';
+import PlacementPostingsPage from '../pages/placement/PlacementPostingsPage';
 import FeePaidCertificatesPage from '../pages/certificates/FeePaidCertificatesPage';
 import ExperienceCertificatesPage from '../pages/certificates/ExperienceCertificatesPage';
 
@@ -141,6 +145,7 @@ import ExamResultReportPage from '../pages/reports/ExamResultReportPage';
 import StaffReportPage from '../pages/reports/StaffReportPage';
 import TransportReportPage from '../pages/reports/TransportReportPage';
 import LibraryReportPage from '../pages/reports/LibraryReportPage';
+import FeedbackSummaryPage from '../pages/reports/FeedbackSummaryPage';
 
 // Settings
 import UserRolesPage from '../pages/settings/UserRolesPage';
@@ -152,12 +157,14 @@ import ThemeSettingsPage from '../pages/settings/ThemeSettingsPage';
 import BackupRestorePage from '../pages/settings/BackupRestorePage';
 import AuditLogsPage from '../pages/settings/AuditLogsPage';
 import LoginPage from '../Pages/auth/LoginPage';
+import ForgotPasswordPage from '../Pages/auth/ForgotPasswordPage';
 
 export const AppRoutes = () => {
   return (
     <Routes>
       <Route path="/admin/login" element={<LoginPage />} />
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/admin/forgot-password" element={<ForgotPasswordPage />} />
       <Route path="/" element={<Navigate to="/admin/dashboard" replace />} />
       <Route path="/admin" element={<MainLayout />}>
         <Route index element={<Navigate to="/admin/dashboard" replace />} />
@@ -248,6 +255,8 @@ export const AppRoutes = () => {
         <Route path="communication/email-center" element={<EmailCenterPage />} />
         <Route path="communication/whatsapp" element={<WhatsAppNoticePage />} />
         <Route path="communication/events" element={<EventNotificationsPage />} />
+        <Route path="communication/grievances" element={<GrievanceManagementPage />} />
+        <Route path="communication/clubs" element={<ClubManagementPage />} />
 
         {/* Library */}
         <Route path="library/books" element={<BookMasterPage />} />
@@ -286,6 +295,8 @@ export const AppRoutes = () => {
         <Route path="certificates/bonafide" element={<BonafideCertificatesPage />} />
         <Route path="certificates/completion" element={<CourseCompletionPage />} />
         <Route path="certificates/conduct" element={<ConductCertificatesPage />} />
+        <Route path="certificates/requests" element={<CertificateRequestsPage />} />
+        <Route path="placement/postings" element={<PlacementPostingsPage />} />
         <Route path="certificates/feepaid" element={<FeePaidCertificatesPage />} />
         <Route path="certificates/experience" element={<ExperienceCertificatesPage />} />
 
@@ -298,6 +309,7 @@ export const AppRoutes = () => {
         <Route path="reports/staff" element={<StaffReportPage />} />
         <Route path="reports/transport" element={<TransportReportPage />} />
         <Route path="reports/library" element={<LibraryReportPage />} />
+        <Route path="reports/feedback" element={<FeedbackSummaryPage />} />
 
         {/* Settings */}
         <Route path="settings/roles" element={<UserRolesPage />} />

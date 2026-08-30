@@ -32,10 +32,16 @@ const generateCertificateNumber = (certType = 'TC', count = 1) => {
   return `CERT/${certType}/${year}/${seq}`;
 };
 
+const generateGatePassNumber = (count = 1) => {
+  const seq = String(count).padStart(5, '0');
+  return `GP-${seq}`;
+};
+
 module.exports = {
   generateAdmissionNumber,
   generateEmployeeCode,
   generateReceiptNumber,
   generateChallanNumber,
   generateCertificateNumber,
+  generateGatePassNumber,
 };

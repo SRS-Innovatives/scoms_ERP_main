@@ -1,27 +1,69 @@
-import React, { useState } from 'react';
-import FileUpload from '../../components/common/FileUpload';
+import React, { useState, useEffect } from 'react';
 import { useNotification } from '../../context/NotificationContext';
-import { PlusCircle, Save } from 'lucide-react';
+import { PlusCircle, Save, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import assignmentService from '../../services/assignmentService';
 
 export const CreateAssignmentPage = () => {
-  const { success } = useNotification();
+  const { success, error: showError } = useNotification();
   const navigate = useNavigate();
+  const [classes, setClasses] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
 
   const [formData, setFormData] = useState({
     title: '',
-    class: 'Class 12-A',
-    subject: 'Physics',
+    classKey: '',
     dueDate: '',
-    maxMarks: 25,
+    totalMarks: 25,
     description: ''
   });
 
-  const handleSubmit = (e) => {
+  useEffect(() => {
+    assignmentService.getMyClasses()
+      .then((res) => {
+        const data = res.data || [];
+        setClasses(data);
+        if (data.length > 0) setFormData((prev) => ({ ...prev, classKey: `${data[0].subjectId}|${data[0].sectionId}` }));
+      })
+      .catch((err) => showError(err.message || 'Failed to load your assigned classes', 'Load Failed'))
+      .finally(() => setLoading(false));
+  }, [showError]);
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    success(`Assignment "${formData.title}" created and published to ${formData.class}!`, 'Assignment Published');
-    navigate('/staff/assignments/list');
+    if (!formData.classKey) return;
+    const [subjectId, sectionId] = formData.classKey.split('|');
+    setSubmitting(true);
+    try {
+      const res = await assignmentService.createAssignment({
+        title: formData.title,
+        subjectId,
+        sectionId,
+        dueDate: formData.dueDate,
+        totalMarks: formData.totalMarks,
+        description: formData.description,
+      });
+      success(`Assignment "${formData.title}" created and published to ${res.data.className}!`, 'Assignment Published');
+      navigate('/staff/assignments/list');
+    } catch (err) {
+      showError(err.message || 'Failed to create assignment', 'Publish Failed');
+    } finally {
+      setSubmitting(false);
+    }
   };
+
+  if (loading) {
+    return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-sky-600" /></div>;
+  }
+
+  if (classes.length === 0) {
+    return (
+      <div className="glass-card p-8 rounded-2xl border border-slate-200 dark:border-slate-800 max-w-3xl text-center text-xs text-slate-500">
+        You aren't assigned to teach any subject/section yet. Ask your Institute Admin to assign you before creating assignments.
+      </div>
+    );
+  }
 
   return (
     <div className="glass-card p-6 rounded-2xl border border-slate-200 dark:border-slate-800 max-w-3xl">
@@ -42,30 +84,19 @@ export const CreateAssignmentPage = () => {
           />
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Target Class</label>
+            <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Target Class & Subject</label>
             <select
-              value={formData.class}
-              onChange={(e) => setFormData({ ...formData, class: e.target.value })}
+              value={formData.classKey}
+              onChange={(e) => setFormData({ ...formData, classKey: e.target.value })}
               className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-200"
             >
-              <option value="Class 12-A">Class 12-A</option>
-              <option value="Class 11-B">Class 11-B</option>
-              <option value="Class 10-A">Class 10-A</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Subject</label>
-            <select
-              value={formData.subject}
-              onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
-              className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-200"
-            >
-              <option value="Physics">Physics</option>
-              <option value="Physics Lab">Physics Lab</option>
-              <option value="Applied Physics">Applied Physics</option>
+              {classes.map((c) => (
+                <option key={`${c.subjectId}|${c.sectionId}`} value={`${c.subjectId}|${c.sectionId}`}>
+                  {c.className} — {c.subjectName}
+                </option>
+              ))}
             </select>
           </div>
 
@@ -73,8 +104,8 @@ export const CreateAssignmentPage = () => {
             <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Max Marks</label>
             <input
               type="number"
-              value={formData.maxMarks}
-              onChange={(e) => setFormData({ ...formData, maxMarks: e.target.value })}
+              value={formData.totalMarks}
+              onChange={(e) => setFormData({ ...formData, totalMarks: e.target.value })}
               className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-200"
             />
           </div>
@@ -102,14 +133,13 @@ export const CreateAssignmentPage = () => {
           ></textarea>
         </div>
 
-        <FileUpload label="Attach Question Paper / Reference Resource (Optional PDF)" />
-
         <div className="flex justify-end pt-3">
           <button
             type="submit"
-            className="flex items-center gap-1.5 px-6 py-2.5 font-bold text-white bg-sky-600 hover:bg-sky-700 rounded-xl shadow-md transition-all"
+            disabled={submitting}
+            className="flex items-center gap-1.5 px-6 py-2.5 font-bold text-white bg-sky-600 hover:bg-sky-700 rounded-xl shadow-md transition-all disabled:opacity-50"
           >
-            <Save className="w-4 h-4" /> Publish Assignment
+            <Save className="w-4 h-4" /> {submitting ? 'Publishing...' : 'Publish Assignment'}
           </button>
         </div>
       </form>

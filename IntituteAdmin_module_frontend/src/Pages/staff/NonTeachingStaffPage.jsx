@@ -1,35 +1,40 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import DataTable from '../../components/common/DataTable';
 import SearchFilterBar from '../../components/common/SearchFilterBar';
 import StatusBadge from '../../components/common/StatusBadge';
-import { staffList } from '../../data/mockData';
+import EmptyState from '../../components/common/EmptyState';
+import { useNotification } from '../../context/NotificationContext';
 import { useNavigate } from 'react-router-dom';
-import { Plus } from 'lucide-react';
+import { Plus, Briefcase } from 'lucide-react';
+import staffService from '../../services/staffService';
 
 export const NonTeachingStaffPage = () => {
   const navigate = useNavigate();
+  const { notifyError } = useNotification();
   const [search, setSearch] = useState('');
-  const nonTeaching = staffList.filter((s) => s.type === 'Non-Teaching');
+  const [nonTeaching, setNonTeaching] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchAll = useCallback(() => {
+    setLoading(true);
+    staffService.getAll('NON_TEACHING')
+      .then((res) => setNonTeaching(res.data || []))
+      .catch((err) => notifyError(`Failed to load non-teaching staff: ${err.message}`))
+      .finally(() => setLoading(false));
+  }, [notifyError]);
+
+  useEffect(() => { fetchAll(); }, [fetchAll]);
+
+  const filtered = nonTeaching.filter((s) => `${s.firstName} ${s.lastName}`.toLowerCase().includes(search.toLowerCase()) || s.employeeCode.toLowerCase().includes(search.toLowerCase()));
 
   const columns = [
-    {
-      header: 'Staff Name',
-      key: 'name',
-      render: (val, row) => (
-        <div className="flex items-center gap-3">
-          <img src={row.photo} alt={val} className="w-8 h-8 rounded-full object-cover border" />
-          <div>
-            <p className="font-bold text-slate-900 dark:text-white leading-tight">{val}</p>
-            <p className="text-[10px] text-slate-400 font-mono">ID: {row.empId}</p>
-          </div>
-        </div>
-      )
-    },
-    { header: 'Role / Designation', key: 'role', render: (val) => <span className="font-bold text-indigo-600">{val}</span> },
-    { header: 'Department', key: 'dept' },
-    { header: 'Qualification', key: 'qualification' },
-    { header: 'Monthly Salary', key: 'salary', render: (val) => <span className="font-mono font-bold">₹{val.toLocaleString()}</span> },
-    { header: 'Status', key: 'status', render: (val) => <StatusBadge status={val} /> }
+    { header: 'Staff Name', key: 'firstName', sortable: false, render: (_, row) => <span className="font-bold text-slate-900 dark:text-white">{row.firstName} {row.lastName}</span> },
+    { header: 'Emp ID', key: 'employeeCode', render: (val) => <span className="font-mono text-indigo-600">{val}</span> },
+    { header: 'Role / Designation', key: 'designation', render: (val) => <span className="font-bold text-indigo-600">{val}</span> },
+    { header: 'Department', key: 'department', sortable: false, render: (val) => val?.name || '—' },
+    { header: 'Qualification', key: 'qualification', render: (val) => val || '—' },
+    { header: 'Monthly Salary', key: 'salary', sortable: false, render: (val) => val ? <span className="font-mono font-bold">₹{(val.basicPay + val.hra + val.da + val.otherAllowances - val.deductions).toLocaleString()}</span> : '—' },
+    { header: 'Status', key: 'status', render: (val) => <StatusBadge status={val} /> },
   ];
 
   return (
@@ -47,7 +52,12 @@ export const NonTeachingStaffPage = () => {
       </div>
 
       <SearchFilterBar searchQuery={search} onSearchChange={setSearch} placeholder="Search non-teaching staff..." />
-      <DataTable columns={columns} data={nonTeaching} />
+
+      {!loading && filtered.length === 0 ? (
+        <EmptyState title="No Non-Teaching Staff Yet" description="Register the first non-teaching staff member." actionLabel="Add Non-Teaching Staff" onAction={() => navigate('/admin/staff/registration')} icon={Briefcase} />
+      ) : (
+        <DataTable columns={columns} data={filtered} loading={loading} />
+      )}
     </div>
   );
 };

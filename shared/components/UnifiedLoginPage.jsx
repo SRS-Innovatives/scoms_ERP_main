@@ -16,7 +16,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 
-const MODULE_ROLES = [
+export const MODULE_ROLES = [
   {
     id: 'SUPER_ADMIN',
     name: 'Super Admin',
@@ -38,6 +38,7 @@ const MODULE_ROLES = [
     },
     redirectUrl: '/super-admin/dashboard',
     apiPrefix: '/api/v1/super-admin',
+    forgotPasswordUrl: '/super-admin/forgot-password',
   },
   {
     id: 'INSTITUTE_ADMIN',
@@ -60,6 +61,7 @@ const MODULE_ROLES = [
     },
     redirectUrl: '/admin/dashboard',
     apiPrefix: '/api/v1/admin',
+    forgotPasswordUrl: '/admin/forgot-password',
   },
   {
     id: 'STAFF',
@@ -82,6 +84,7 @@ const MODULE_ROLES = [
     },
     redirectUrl: '/staff/dashboard',
     apiPrefix: '/api/v1/staff',
+    forgotPasswordUrl: '/staff/forgot-password',
   },
   {
     id: 'STUDENT',
@@ -104,6 +107,7 @@ const MODULE_ROLES = [
     },
     redirectUrl: '/student/dashboard',
     apiPrefix: '/api/v1/student',
+    forgotPasswordUrl: '/student/forgot-password',
   },
 ];
 
@@ -353,9 +357,13 @@ export const UnifiedLoginPage = ({ defaultRole = 'INSTITUTE_ADMIN', onCustomLogi
             <div>
               <div className="flex items-center justify-between mb-1.5">
                 <label className="block text-sm font-medium text-slate-700">Password</label>
-                <a href="#forgot" className="text-sm font-medium text-indigo-600 hover:text-indigo-700 transition-colors">
+                <button
+                  type="button"
+                  onClick={() => navigate(activeModule.forgotPasswordUrl)}
+                  className="text-sm font-medium text-indigo-600 hover:text-indigo-700 transition-colors"
+                >
                   Forgot password?
-                </a>
+                </button>
               </div>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">

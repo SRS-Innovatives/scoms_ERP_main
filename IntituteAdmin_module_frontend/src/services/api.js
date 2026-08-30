@@ -8,8 +8,11 @@ const API_PREFIX = '/api/v1/admin';
 
 export const apiCall = async (endpoint, options = {}) => {
   const token = localStorage.getItem('scoms_admin_token');
+  const isFormData = typeof FormData !== 'undefined' && options.body instanceof FormData;
+
   const headers = {
-    'Content-Type': 'application/json',
+    // Let the browser set the multipart boundary itself for FormData bodies
+    ...(!isFormData && { 'Content-Type': 'application/json' }),
     ...(token && { Authorization: `Bearer ${token}` }),
     ...options.headers,
   };
@@ -18,21 +21,27 @@ export const apiCall = async (endpoint, options = {}) => {
     const res = await fetch(`${BASE_URL}${API_PREFIX}${endpoint}`, {
       method: options.method || 'GET',
       headers,
-      body: options.body ? JSON.stringify(options.body) : undefined,
+      body: options.body ? (isFormData ? options.body : JSON.stringify(options.body)) : undefined,
     });
 
-    const result = await res.json();
-    
-    if (res.ok) {
-      return { status: res.status, data: result.data || result };
-    } else {
-      if (res.status === 401) {
-        // Handle token expiration globally
-        localStorage.removeItem('scoms_admin_token');
-        window.location.href = '/login';
-      }
-      throw new Error(result.message || 'API Error');
+    if (res.status === 401) {
+      localStorage.removeItem('scoms_admin_token');
+      window.location.href = '/login';
+      throw new Error('Session expired. Please log in again.');
     }
+
+    // Binary responses (e.g. generated Excel templates) — return the raw blob, not parsed JSON
+    if (options.responseType === 'blob') {
+      if (!res.ok) throw new Error(`Download failed with status ${res.status}`);
+      return { status: res.status, blob: await res.blob() };
+    }
+
+    const result = await res.json();
+
+    if (res.ok) {
+      return { status: res.status, data: result.data ?? result };
+    }
+    throw new Error(result.message || 'API Error');
   } catch (err) {
     console.error(`[SCOMS API Error] ${endpoint}:`, err.message);
     throw err;

@@ -1,9 +1,10 @@
-import { mockStudentSubjects, mockTodaySchedule } from '../data/mockStudentData';
-import { apiCall } from './api';
+// Student Profile Service — /api/v1/student/profile
+import apiCall from './api';
 
 export const studentService = {
-  getSubjects: async () => apiCall('/api/student/subjects', { mockResponse: mockStudentSubjects }),
-  getSchedule: async () => apiCall('/api/student/schedule', { mockResponse: mockTodaySchedule })
+  getProfile: async () => apiCall('/profile'),
+  updateProfile: async (payload) => apiCall('/profile', { method: 'PATCH', body: payload }),
+  getMySubjects: async () => apiCall('/subjects'),
 };
 
 export default studentService;

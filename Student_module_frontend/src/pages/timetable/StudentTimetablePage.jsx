@@ -1,113 +1,104 @@
-import React, { useState } from 'react';
-import PageHeader from '../../components/common/PageHeader';
-import { mockTodaySchedule } from '../../data/mockStudentData';
-import { Clock, Video, MapPin, User } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Clock, MapPin, Loader2 } from 'lucide-react';
+import timetableService from '../../services/timetableService';
+
+const DAYS = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
+const DAY_LABELS = { MONDAY: 'Monday', TUESDAY: 'Tuesday', WEDNESDAY: 'Wednesday', THURSDAY: 'Thursday', FRIDAY: 'Friday', SATURDAY: 'Saturday' };
+const DAY_NAMES = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
+
+const staffDisplayName = (s) => {
+  if (!s?.user?.email) return s?.employeeCode || '';
+  return s.user.email.split('@')[0].split(/[._-]/).map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+};
 
 export const StudentTimetablePage = () => {
   const [viewMode, setViewMode] = useState('Daily');
+  const [entries, setEntries] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  const weeklySchedule = [
-    { day: "Monday", slots: ["CS8401 (OS)", "CS8402 (DSA)", "CS8403 (DBMS)", "CS8405 (Web Lab)"] },
-    { day: "Tuesday", slots: ["CS8404 (SE)", "CS8401 (OS)", "CS8402 (DSA)", "CS8403 (DBMS)"] },
-    { day: "Wednesday", slots: ["CS8403 (DBMS)", "CS8405 (Web Lab)", "CS8401 (OS)", "CS8404 (SE)"] },
-    { day: "Thursday", slots: ["CS8402 (DSA)", "CS8404 (SE)", "CS8401 (OS)", "CS8403 (DBMS)"] },
-    { day: "Friday", slots: ["CS8405 (Web Lab)", "CS8402 (DSA)", "CS8404 (SE)", "CS8401 (OS)"] }
-  ];
+  useEffect(() => {
+    timetableService.getTimetable()
+      .then((res) => setEntries(res.data || []))
+      .catch((err) => setError(err.message || 'Failed to load timetable'))
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) {
+    return <div className="flex justify-center py-20"><Loader2 className="w-7 h-7 animate-spin text-indigo-600" /></div>;
+  }
+
+  if (error) {
+    return <div className="glass-card p-8 rounded-3xl border border-rose-200 dark:border-rose-900 text-center text-xs text-rose-600 dark:text-rose-400">{error}</div>;
+  }
+
+  const today = DAY_NAMES[new Date().getDay()];
+  const todayEntries = entries.filter((e) => e.dayOfWeek === today).sort((a, b) => a.period - b.period);
+  const maxPeriod = Math.max(1, ...entries.map((e) => e.period));
+  const periods = Array.from({ length: maxPeriod }, (_, i) => i + 1);
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-black text-slate-900 dark:text-slate-100">My Class Timetable</h1>
-          <p className="text-xs text-slate-500 mt-1">Semester 4 Class Schedule & Virtual Room Links</p>
+          <p className="text-xs text-slate-500 mt-1">Your section's real, published schedule</p>
         </div>
         <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl text-xs">
-          <button
-            onClick={() => setViewMode('Daily')}
-            className={`px-3 py-1.5 font-bold rounded-lg transition-all ${
-              viewMode === 'Daily' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600 dark:text-slate-300'
-            }`}
-          >
+          <button onClick={() => setViewMode('Daily')} className={`px-3 py-1.5 font-bold rounded-lg transition-all ${viewMode === 'Daily' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600 dark:text-slate-300'}`}>
             Today Schedule
           </button>
-          <button
-            onClick={() => setViewMode('Weekly')}
-            className={`px-3 py-1.5 font-bold rounded-lg transition-all ${
-              viewMode === 'Weekly' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600 dark:text-slate-300'
-            }`}
-          >
+          <button onClick={() => setViewMode('Weekly')} className={`px-3 py-1.5 font-bold rounded-lg transition-all ${viewMode === 'Weekly' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600 dark:text-slate-300'}`}>
             Weekly Master Grid
           </button>
         </div>
       </div>
 
-      {viewMode === 'Daily' ? (
+      {entries.length === 0 ? (
+        <div className="glass-card p-10 rounded-3xl border border-dashed border-slate-300 dark:border-slate-800 text-center text-xs text-slate-500">
+          Your institution hasn't published a timetable for your section yet.
+        </div>
+      ) : viewMode === 'Daily' ? (
         <div className="space-y-4">
-          {mockTodaySchedule.map((cls) => {
-            const isCurrent = cls.status === 'In Progress';
-            return (
-              <div
-                key={cls.period}
-                className={`glass-card p-5 rounded-3xl border transition-all ${
-                  isCurrent
-                    ? 'border-indigo-500 ring-2 ring-indigo-500/20 bg-indigo-50/50 dark:bg-indigo-950/30'
-                    : 'border-slate-200 dark:border-slate-800'
-                }`}
-              >
+          {todayEntries.length === 0 ? (
+            <div className="glass-card p-10 rounded-3xl border border-dashed border-slate-300 dark:border-slate-800 text-center text-xs text-slate-500">No classes scheduled today.</div>
+          ) : (
+            todayEntries.map((cls) => (
+              <div key={cls.id} className="glass-card p-5 rounded-3xl border border-slate-200 dark:border-slate-800">
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                   <div className="flex items-start gap-4">
-                    <div className={`px-3.5 py-2 rounded-2xl font-black text-sm ${isCurrent ? 'bg-indigo-600 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300'}`}>
-                      P{cls.period}
-                    </div>
+                    <div className="px-3.5 py-2 rounded-2xl font-black text-sm bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">P{cls.period}</div>
                     <div>
-                      <div className="flex items-center gap-2">
-                        <h3 className="font-bold text-base text-slate-900 dark:text-slate-100">{cls.subject}</h3>
-                        <span className="font-mono text-xs text-indigo-600 font-bold px-2 py-0.5 rounded bg-indigo-50 dark:bg-indigo-950">
-                          {cls.code}
-                        </span>
-                        {isCurrent && <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500 text-white animate-pulse">LIVE NOW</span>}
-                      </div>
-                      <p className="text-xs text-slate-500 mt-1">Teacher: <span className="font-semibold text-slate-800 dark:text-slate-200">{cls.teacher}</span> • Room: {cls.room}</p>
+                      <h3 className="font-bold text-base text-slate-900 dark:text-slate-100">{cls.subject?.name || cls.label || 'Free Period'}</h3>
+                      {cls.staff && <p className="text-xs text-slate-500 mt-1">Teacher: <span className="font-semibold text-slate-800 dark:text-slate-200">{staffDisplayName(cls.staff)}</span></p>}
                       <p className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 mt-0.5 flex items-center gap-1">
                         <Clock className="w-3.5 h-3.5" /> {cls.startTime} - {cls.endTime}
+                        {cls.roomNumber && <span className="flex items-center gap-1 ml-2"><MapPin className="w-3.5 h-3.5" /> {cls.roomNumber}</span>}
                       </p>
                     </div>
                   </div>
-
-                  {cls.onlineLink && (
-                    <a
-                      href={cls.onlineLink}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-xs flex items-center gap-1.5"
-                    >
-                      <Video className="w-4 h-4" /> Join Online Class
-                    </a>
-                  )}
                 </div>
               </div>
-            );
-          })}
+            ))
+          )}
         </div>
       ) : (
         <div className="glass-card p-6 rounded-3xl border border-slate-200 dark:border-slate-800 overflow-x-auto">
           <table className="w-full text-left text-xs">
             <thead className="bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold uppercase text-[11px]">
               <tr>
-                <th className="p-3">Day</th>
-                <th className="p-3">09:30 - 10:30</th>
-                <th className="p-3">10:30 - 11:30</th>
-                <th className="p-3">11:45 - 12:45</th>
-                <th className="p-3">01:30 - 03:30</th>
+                <th className="p-3">Period</th>
+                {DAYS.map((d) => <th key={d} className="p-3">{DAY_LABELS[d]}</th>)}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
-              {weeklySchedule.map((row) => (
-                <tr key={row.day} className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
-                  <td className="p-3 font-bold text-slate-900 dark:text-slate-100">{row.day}</td>
-                  {row.slots.map((s, idx) => (
-                    <td key={idx} className="p-3 font-semibold text-indigo-600 dark:text-indigo-400">{s}</td>
-                  ))}
+              {periods.map((p) => (
+                <tr key={p} className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
+                  <td className="p-3 font-bold text-slate-900 dark:text-slate-100">P{p}</td>
+                  {DAYS.map((d) => {
+                    const e = entries.find((x) => x.dayOfWeek === d && x.period === p);
+                    return <td key={d} className="p-3 font-semibold text-indigo-600 dark:text-indigo-400">{e ? (e.subject?.name || e.label) : '—'}</td>;
+                  })}
                 </tr>
               ))}
             </tbody>

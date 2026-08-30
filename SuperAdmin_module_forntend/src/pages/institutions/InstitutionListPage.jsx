@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import DataTable from '../../components/common/DataTable';
 import PageHeader from '../../components/common/PageHeader';
 import StatusBadge from '../../components/common/StatusBadge';
+import ConfirmDialog from '../../components/modals/ConfirmDialog';
 import { useNotification } from '../../context/NotificationContext';
 import { Eye, Edit, ShieldAlert, CheckCircle, Trash2, Building2, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -9,9 +10,11 @@ import institutionService from '../../services/institutionService';
 
 export const InstitutionListPage = () => {
   const navigate = useNavigate();
-  const { success, warning } = useNotification();
+  const { success, error: showError } = useNotification();
   const [institutions, setInstitutions] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [statusTarget, setStatusTarget] = useState(null); // { id, name, nextStatus }
+  const [updatingStatus, setUpdatingStatus] = useState(false);
 
   useEffect(() => {
     fetchInstitutions();
@@ -28,6 +31,29 @@ export const InstitutionListPage = () => {
       console.error("Failed to fetch institutions", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const openStatusConfirm = (row) => {
+    const nextStatus = row.status === 'ACTIVE' ? 'SUSPENDED' : 'ACTIVE';
+    setStatusTarget({ id: row.id, name: row.name, currentStatus: row.status, nextStatus });
+  };
+
+  const handleConfirmStatusChange = async () => {
+    if (!statusTarget) return;
+    setUpdatingStatus(true);
+    try {
+      const res = await institutionService.updateInstitutionStatus(statusTarget.id, statusTarget.nextStatus);
+      setInstitutions((prev) => prev.map((i) => (i.id === statusTarget.id ? { ...i, status: res.data.status } : i)));
+      success(
+        `${statusTarget.name} is now ${statusTarget.nextStatus === 'ACTIVE' ? 'Active' : 'Suspended'}.`,
+        'Status Updated'
+      );
+      setStatusTarget(null);
+    } catch (error) {
+      showError(error.message || 'Failed to update institution status', 'Update Failed');
+    } finally {
+      setUpdatingStatus(false);
     }
   };
 
@@ -85,13 +111,23 @@ export const InstitutionListPage = () => {
           >
             <Eye className="w-4 h-4" />
           </button>
-          <button
-            onClick={() => warning(`Status update toggled for ${row.name}`, 'Institution Status')}
-            title="Toggle Status"
-            className="p-1.5 text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/50 rounded-lg transition-colors"
-          >
-            <ShieldAlert className="w-4 h-4" />
-          </button>
+          {row.status === 'ACTIVE' ? (
+            <button
+              onClick={() => openStatusConfirm(row)}
+              title="Suspend Institution"
+              className="p-1.5 text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/50 rounded-lg transition-colors"
+            >
+              <ShieldAlert className="w-4 h-4" />
+            </button>
+          ) : (
+            <button
+              onClick={() => openStatusConfirm(row)}
+              title="Activate Institution"
+              className="p-1.5 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/50 rounded-lg transition-colors"
+            >
+              <CheckCircle className="w-4 h-4" />
+            </button>
+          )}
         </div>
       )
     }
@@ -124,6 +160,20 @@ export const InstitutionListPage = () => {
           onExport={() => success('Exported institution master dataset to Excel.', 'Export Ready')}
         />
       )}
+
+      <ConfirmDialog
+        isOpen={!!statusTarget}
+        title={statusTarget?.nextStatus === 'ACTIVE' ? 'Activate Institution' : 'Suspend Institution'}
+        message={
+          statusTarget?.nextStatus === 'ACTIVE'
+            ? `Reactivate "${statusTarget?.name}"? Its admin, staff, and students will regain access immediately.`
+            : `Suspend "${statusTarget?.name}"? Its admin, staff, and students will immediately lose access to the portal.`
+        }
+        confirmText={updatingStatus ? 'Updating...' : statusTarget?.nextStatus === 'ACTIVE' ? 'Activate' : 'Suspend'}
+        type={statusTarget?.nextStatus === 'ACTIVE' ? 'info' : 'warning'}
+        onConfirm={handleConfirmStatusChange}
+        onCancel={() => setStatusTarget(null)}
+      />
     </div>
   );
 };

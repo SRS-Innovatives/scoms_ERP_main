@@ -1,8 +1,9 @@
-import { mockAssignments } from '../data/mockStudentData';
-import { apiCall } from './api';
+// Assignment Service — /api/v1/student/assignments/*
+import apiCall from './api';
 
 export const assignmentService = {
-  getAssignments: async () => apiCall('/api/student/assignments', { mockResponse: mockAssignments })
+  getAssignments: async () => apiCall('/assignments'),
+  submit: async (payload) => apiCall('/assignments/submit', { method: 'POST', body: payload }),
 };
 
 export default assignmentService;

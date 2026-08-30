@@ -1,8 +1,9 @@
 import React from 'react';
 import { Printer, Download } from 'lucide-react';
-import { instituteInfo } from '../../data/mockData';
+import { useInstitution } from '../../context/InstitutionContext';
 
 export const ChallanTemplate = ({ challanData }) => {
+  const { institution } = useInstitution();
   const data = challanData || {
     challanNo: "CHLN/2025/849201",
     issueDate: "2025-08-05",
@@ -11,11 +12,11 @@ export const ChallanTemplate = ({ challanData }) => {
     rollNo: "21CS102",
     regNo: "311521104002",
     course: "B.E. Computer Science & Engineering - 3rd Year",
-    bankName: instituteInfo.bankDetails.bankName,
-    branch: instituteInfo.bankDetails.branch,
-    accountName: instituteInfo.bankDetails.accountName,
-    accountNo: instituteInfo.bankDetails.accountNumber,
-    ifscCode: instituteInfo.bankDetails.ifscCode,
+    bankName: 'Bank details not configured',
+    branch: '—',
+    accountName: '—',
+    accountNo: '—',
+    ifscCode: '—',
     items: [
       { feeHead: "Tuition Fee (Balance Instalment)", amount: 21500 },
       { feeHead: "Semester Exam Fee", amount: 3500 }
@@ -46,7 +47,7 @@ export const ChallanTemplate = ({ challanData }) => {
                 </div>
 
                 <div className="text-center mb-3">
-                  <h3 className="font-bold uppercase text-slate-900 text-xs leading-tight">{instituteInfo.shortName}</h3>
+                  <h3 className="font-bold uppercase text-slate-900 text-xs leading-tight">{institution?.code || institution?.name || 'Institution'}</h3>
                   <p className="text-[10px] text-slate-600 font-semibold">{data.bankName}</p>
                   <p className="text-[9px] text-slate-500">{data.branch}</p>
                 </div>

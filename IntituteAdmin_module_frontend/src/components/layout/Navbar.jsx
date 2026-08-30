@@ -17,16 +17,16 @@ import {
   CheckCircle,
   AlertCircle
 } from 'lucide-react';
-import { instituteInfo } from '../../data/mockData';
+import { useInstitution } from '../../context/InstitutionContext';
 
 export const Navbar = ({ onToggleSidebar, onToggleMobile }) => {
   const navigate = useNavigate();
   const { theme, toggleTheme } = useTheme();
   const { notifyInfo } = useNotification();
+  const { institution } = useInstitution();
   const [showNotifications, setShowNotifications] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
-  const [showInstituteMenu, setShowInstituteMenu] = useState(false);
-  const [selectedInstitute, setSelectedInstitute] = useState(instituteInfo.shortName);
+  const selectedInstitute = institution?.code || institution?.name || 'SCOMS';
 
   const notificationsList = [
     { id: 1, title: 'Fee Payment Received', desc: 'REC/2025/04921 - Rs 46,000 paid by Kavitha R.', time: '5 mins ago', type: 'success' },
@@ -66,49 +66,10 @@ export const Navbar = ({ onToggleSidebar, onToggleMobile }) => {
 
       {/* Right Actions */}
       <div className="flex items-center gap-3">
-        {/* Institute Switcher */}
-        <div className="relative hidden sm:block">
-          <button
-            onClick={() => setShowInstituteMenu(!showInstituteMenu)}
-            className="flex items-center gap-2 px-3 py-1.5 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
-          >
-            <Building className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
-            <span>{selectedInstitute}</span>
-            <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
-          </button>
-
-          {showInstituteMenu && (
-            <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl p-2 text-xs z-50 animate-scale-up">
-              <p className="px-3 py-1 text-[10px] uppercase font-bold text-slate-400">Switch Institution</p>
-              <button
-                onClick={() => {
-                  setSelectedInstitute('SRCET (Engineering)');
-                  setShowInstituteMenu(false);
-                }}
-                className="w-full text-left px-3 py-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 font-medium"
-              >
-                SRCET (Engineering & Tech)
-              </button>
-              <button
-                onClick={() => {
-                  setSelectedInstitute('SRCAS (Arts & Science)');
-                  setShowInstituteMenu(false);
-                }}
-                className="w-full text-left px-3 py-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 font-medium"
-              >
-                SRCAS (Arts & Science College)
-              </button>
-              <button
-                onClick={() => {
-                  setSelectedInstitute('SRK Public School (CBSE)');
-                  setShowInstituteMenu(false);
-                }}
-                className="w-full text-left px-3 py-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 font-medium"
-              >
-                SRK Public School (CBSE)
-              </button>
-            </div>
-          )}
+        {/* Institution Badge — an Institute Admin account belongs to exactly one tenant institution, so this is informational, not a switcher */}
+        <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-300">
+          <Building className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+          <span>{selectedInstitute}</span>
         </div>
 
         {/* Theme Toggle */}
