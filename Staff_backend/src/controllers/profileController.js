@@ -21,7 +21,7 @@ const getMyProfile = async (req, res, next) => {
     const staff = await prisma.staff.findUnique({
       where: { id: req.user.staffId },
       include: {
-        user: { select: { email: true, mobile: true, role: true } },
+        user: { select: { email: true, mobile: true, role: true, avatar: true } },
         department: true,
         salary: true,
         qualifications: { orderBy: { yearOfPassing: 'desc' } },
@@ -37,10 +37,19 @@ const getMyProfile = async (req, res, next) => {
 
 const updateMyProfile = async (req, res, next) => {
   try {
-    const { phone, altPhone, dob, bloodGroup, bankName, bankAccountNumber, bankIfscCode, bankAccountName, panNumber, emergencyContactName, emergencyContactRelation, emergencyContactPhone, emergencyContactAddress } = req.body;
+    const { phone, avatar, altPhone, dob, bloodGroup, bankName, bankAccountNumber, bankIfscCode, bankAccountName, panNumber, emergencyContactName, emergencyContactRelation, emergencyContactPhone, emergencyContactAddress } = req.body;
 
-    if (phone) {
-      await prisma.user.update({ where: { id: req.user.id }, data: { mobile: phone } });
+    if (phone || avatar !== undefined) {
+      if (avatar !== undefined && avatar !== '' && !/^data:image\/(png|jpeg|jpg);base64,/.test(avatar)) {
+        throw new ValidationError('Profile photo must be a PNG or JPEG image');
+      }
+      await prisma.user.update({
+        where: { id: req.user.id },
+        data: {
+          ...(phone && { mobile: phone }),
+          ...(avatar !== undefined && { avatar: avatar === '' ? null : avatar }),
+        },
+      });
     }
 
     const staff = await prisma.staff.update({

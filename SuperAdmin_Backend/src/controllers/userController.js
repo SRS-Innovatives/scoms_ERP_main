@@ -5,17 +5,32 @@ const { prisma, sendSuccess, sendPaginated, ValidationError } = require('../../.
 
 const getUsers = async (req, res, next) => {
   try {
-    const { page = 1, limit = 100, search = '' } = req.query; // Increase default limit to 100 for better view in lists
+    const { page = 1, limit = 100, search = '', role = '', group = '' } = req.query; // Increase default limit to 100 for better view in lists
     const skip = (page - 1) * limit;
 
-    const where = search
-      ? {
-          OR: [
-            { email: { contains: search, mode: 'insensitive' } },
-            { mobile: { contains: search, mode: 'insensitive' } },
-          ],
-        }
-      : {};
+    // `group` gives dashboard KPI cards a click-through without the frontend needing to
+    // know every individual role enum value. "staff" mirrors what prisma.staff.count()
+    // counts on the dashboard — every role with a Staff record — explicitly excluding
+    // STUDENT/PARENT (no Staff row) and SUPER_ADMIN/PLATFORM_ADMIN (platform, not tenant staff).
+    const STAFF_ROLES = [
+      'INSTITUTE_ADMIN', 'PRINCIPAL', 'VICE_PRINCIPAL', 'HOD', 'TEACHER', 'STAFF',
+      'ACCOUNTANT', 'LIBRARIAN', 'TRANSPORT_MANAGER', 'HOSTEL_WARDEN', 'EXAM_ADMIN', 'PLACEMENT_OFFICER',
+    ];
+    const GROUP_ROLE_FILTERS = {
+      staff: { in: STAFF_ROLES },
+      student: 'STUDENT',
+    };
+
+    const where = {
+      ...(search && {
+        OR: [
+          { email: { contains: search, mode: 'insensitive' } },
+          { mobile: { contains: search, mode: 'insensitive' } },
+        ],
+      }),
+      ...(role && { role }),
+      ...(group && GROUP_ROLE_FILTERS[group] && { role: GROUP_ROLE_FILTERS[group] }),
+    };
 
     const [users, total] = await Promise.all([
       prisma.user.findMany({

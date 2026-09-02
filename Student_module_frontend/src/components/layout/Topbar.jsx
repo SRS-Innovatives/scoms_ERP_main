@@ -140,9 +140,13 @@ export const Topbar = ({ sidebarOpen, setSidebarOpen }) => {
               onClick={() => setShowProfileMenu(!showProfileMenu)}
               className="flex items-center gap-2.5 p-1 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
             >
-              <span className="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold text-xs border border-indigo-400">
-                {initials}
-              </span>
+              {student?.photo ? (
+                <img src={student.photo} alt={student?.name} className="w-8 h-8 rounded-xl object-cover border border-indigo-400" />
+              ) : (
+                <span className="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold text-xs border border-indigo-400">
+                  {initials}
+                </span>
+              )}
               <div className="hidden lg:block text-left max-w-[140px]">
                 <p className="text-xs font-bold text-slate-900 dark:text-slate-100 leading-tight truncate">{student?.name}</p>
                 <p className="text-[10px] text-indigo-600 dark:text-indigo-400 font-semibold truncate">{student?.admissionNo}</p>

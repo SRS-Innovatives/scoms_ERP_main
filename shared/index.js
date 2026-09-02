@@ -26,6 +26,8 @@ const { sendEmailNotification, sendSMSNotification, sendWhatsAppNotification } =
 const paymentGateway = require('./utils/paymentGateway');
 const { formatClassLabel } = require('./utils/classLabel');
 const { getHealthPayload } = require('./utils/health');
+const reportEngine = require('./reportEngine');
+const certificateEngine = require('./certificateEngine');
 
 module.exports = {
   ROLES,
@@ -52,6 +54,8 @@ module.exports = {
   paymentGateway,
   formatClassLabel,
   getHealthPayload,
+  reportEngine,
+  certificateEngine,
   ROLE_PERMISSIONS,
   hasPermission,
   requireAuth,

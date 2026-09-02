@@ -15,6 +15,7 @@ const {
   hashPassword,
   sendEmailNotification,
   sendSMSNotification,
+  generateEmployeeCode,
 } = require('../../../shared');
 
 const computeGross = (salary) => {
@@ -104,7 +105,6 @@ const createStaff = async (req, res, next) => {
       lastName,
       email,
       phone,
-      employeeCode,
       designation,
       departmentId,
       qualification,
@@ -116,11 +116,14 @@ const createStaff = async (req, res, next) => {
     } = req.body;
 
     const result = await prisma.$transaction(async (tx) => {
-      // 1. Validate employee code
-      const existingStaff = await tx.staff.findUnique({
-        where: { institutionId_employeeCode: { institutionId: req.institutionId, employeeCode } }
-      });
-      if (existingStaff) throw new Error('Employee code already exists');
+      // 1. Generate the employee code (sequential, tenant-scoped, embeds this
+      //    institution's own code — e.g. "DPIS/EMP/2026/0001") — never client-supplied,
+      //    so it's always well-formed and always traceable to this institution.
+      const [staffCount, institution] = await Promise.all([
+        tx.staff.count({ where: { institutionId: req.institutionId } }),
+        tx.institution.findUnique({ where: { id: req.institutionId }, select: { code: true } }),
+      ]);
+      const employeeCode = generateEmployeeCode(institution?.code, staffCount + 1);
 
       // 2. Validate email if provided
       if (email) {
@@ -146,6 +149,7 @@ const createStaff = async (req, res, next) => {
           email,
           mobile: phone,
           employeeCode,
+          userCode: employeeCode, // the staff member's professional platform ID is their employee code — never two IDs for one person
           password: hashedPassword,
           role: role || 'TEACHER',
         }
@@ -192,8 +196,8 @@ const createStaff = async (req, res, next) => {
       sendEmailNotification({
         to: email,
         subject: 'Welcome to SCOMS - Your Staff Account Credentials',
-        text: `Dear ${firstName} ${lastName},\n\nWelcome to SCOMS! Your staff account has been successfully created. Here are your login credentials:\n\nLogin URL: http://localhost:5175/login\nEmployee Code: ${employeeCode}\nEmail: ${email}\nTemporary Password: ${staffPlainPassword}\nRole: ${staffRole}\n\nPlease change your password after logging in.\n\nBest Regards,\nInstitution Administration`,
-        html: `<p>Dear ${firstName} ${lastName},</p><p>Welcome to SCOMS! Your staff account has been successfully created. Here are your login credentials:</p><ul><li><b>Login URL:</b> <a href="http://localhost:5175/login">http://localhost:5175/login</a></li><li><b>Employee Code:</b> ${employeeCode}</li><li><b>Email:</b> ${email}</li><li><b>Temporary Password:</b> ${staffPlainPassword}</li><li><b>Role:</b> ${staffRole}</li></ul><p>Please change your password after logging in.</p><p>Best Regards,<br>Institution Administration</p>`,
+        text: `Dear ${firstName} ${lastName},\n\nWelcome to SCOMS! Your staff account has been successfully created. Here are your login credentials:\n\nLogin URL: http://localhost:5175/login\nEmployee Code: ${result.employeeCode}\nEmail: ${email}\nTemporary Password: ${staffPlainPassword}\nRole: ${staffRole}\n\nPlease change your password after logging in.\n\nBest Regards,\nInstitution Administration`,
+        html: `<p>Dear ${firstName} ${lastName},</p><p>Welcome to SCOMS! Your staff account has been successfully created. Here are your login credentials:</p><ul><li><b>Login URL:</b> <a href="http://localhost:5175/login">http://localhost:5175/login</a></li><li><b>Employee Code:</b> ${result.employeeCode}</li><li><b>Email:</b> ${email}</li><li><b>Temporary Password:</b> ${staffPlainPassword}</li><li><b>Role:</b> ${staffRole}</li></ul><p>Please change your password after logging in.</p><p>Best Regards,<br>Institution Administration</p>`,
         institutionId: req.institutionId,
         purpose: 'WELCOME_CREDENTIALS'
       }).catch(err => console.error('Error sending staff welcome email:', err));
@@ -201,7 +205,7 @@ const createStaff = async (req, res, next) => {
     if (phone) {
       sendSMSNotification({
         to: phone,
-        message: `Welcome to SCOMS! Your staff account is active. Login at http://localhost:5175/login. User: ${employeeCode || email}, Temp Pass: ${staffPlainPassword}`,
+        message: `Welcome to SCOMS! Your staff account is active. Login at http://localhost:5175/login. User: ${result.employeeCode || email}, Temp Pass: ${staffPlainPassword}`,
         institutionId: req.institutionId,
         purpose: 'WELCOME_CREDENTIALS'
       }).catch(err => console.error('Error sending staff welcome SMS:', err));

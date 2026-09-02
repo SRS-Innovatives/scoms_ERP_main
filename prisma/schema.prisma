@@ -58,58 +58,65 @@ model Institution {
   deletedAt          DateTime?
 
   // Relations
-  users               User[]
-  academicYears       AcademicYear[]
-  departments         Department[]
-  courses             Course[]
-  students            Student[]
-  staff               Staff[]
-  attendanceSessions  AttendanceSession[]
-  leaveRequests       LeaveRequest[]
-  timetables          Timetable[]
-  assignments         Assignment[]
-  materials           StudyMaterial[]
-  questionBanks       QuestionBank[]
-  exams               Exam[]
-  feeStructures       FeeStructure[]
-  feePayments         FeePayment[]
-  feeReceipts         FeeReceipt[]
-  feeChallans         FeeChallan[]
-  feeRefunds          FeeRefund[]
-  books               Book[]
-  vehicles            Vehicle[]
-  routes              TransportRoute[]
-  hostels             Hostel[]
-  certificates        Certificate[]
-  announcements       Announcement[]
-  notifications       Notification[]
-  events              Event[]
-  clubs               Club[]
-  grievances          Grievance[]
-  auditLogs           AuditLog[]
-  subscriptions       Subscription[]
-  invoices            Invoice[]
-  supportTickets      SupportTicket[]
-  aiUsageLogs         AiUsageLog[]
-  smsLogs             SmsLog[]
-  smsWallet           InstitutionSmsWallet?
-  smsAllocations      SmsAllocation[]
-  emailLogs           EmailLog[]
-  emailWallet         InstitutionEmailWallet?
-  emailAllocations    EmailAllocation[]
-  whatsappLogs        WhatsappLog[]
-  whatsappWallet      InstitutionWhatsappWallet?
-  whatsappAllocations WhatsappAllocation[]
-  vendors             Vendor[]
-  assets              Asset[]
-  computerLabs        ComputerLab[]
-  stockItems          StockItem[]
-  purchaseOrders      PurchaseOrder[]
-  settings            InstitutionSettings?
-  studentAchievements StudentAchievement[]
-  appointments        Appointment[]
-  jobPostings         JobPosting[]
-  parentMeetingNotes  ParentMeetingNote[]
+  users                           User[]
+  academicYears                   AcademicYear[]
+  departments                     Department[]
+  courses                         Course[]
+  students                        Student[]
+  staff                           Staff[]
+  attendanceSessions              AttendanceSession[]
+  leaveRequests                   LeaveRequest[]
+  timetables                      Timetable[]
+  assignments                     Assignment[]
+  materials                       StudyMaterial[]
+  questionBanks                   QuestionBank[]
+  exams                           Exam[]
+  feeStructures                   FeeStructure[]
+  feePayments                     FeePayment[]
+  feeReceipts                     FeeReceipt[]
+  feeChallans                     FeeChallan[]
+  feeRefunds                      FeeRefund[]
+  books                           Book[]
+  vehicles                        Vehicle[]
+  routes                          TransportRoute[]
+  hostels                         Hostel[]
+  certificates                    Certificate[]
+  announcements                   Announcement[]
+  notifications                   Notification[]
+  events                          Event[]
+  clubs                           Club[]
+  grievances                      Grievance[]
+  auditLogs                       AuditLog[]
+  subscriptions                   Subscription[]
+  invoices                        Invoice[]
+  supportTickets                  SupportTicket[]
+  aiUsageLogs                     AiUsageLog[]
+  smsLogs                         SmsLog[]
+  smsWallet                       InstitutionSmsWallet?
+  smsAllocations                  SmsAllocation[]
+  emailLogs                       EmailLog[]
+  emailWallet                     InstitutionEmailWallet?
+  emailAllocations                EmailAllocation[]
+  whatsappLogs                    WhatsappLog[]
+  whatsappWallet                  InstitutionWhatsappWallet?
+  whatsappAllocations             WhatsappAllocation[]
+  vendors                         Vendor[]
+  assets                          Asset[]
+  computerLabs                    ComputerLab[]
+  stockItems                      StockItem[]
+  purchaseOrders                  PurchaseOrder[]
+  settings                        InstitutionSettings?
+  studentAchievements             StudentAchievement[]
+  appointments                    Appointment[]
+  jobPostings                     JobPosting[]
+  parentMeetingNotes              ParentMeetingNote[]
+  institutionReports              InstitutionReport[]
+  reportRuns                      ReportRun[]
+  savedReports                    SavedReport[]
+  reportRequests                  ReportRequest[]
+  institutionCertificateTemplates InstitutionCertificateTemplate[]
+  feeCategories                   FeeCategory[]
+  feeHeads                        FeeHead[]
 
   @@index([code])
   @@index([status])
@@ -152,6 +159,7 @@ model User {
   mobile          String?
   admissionNumber String?
   employeeCode    String?
+  userCode        String?    @unique // professional, human-readable identity — e.g. "DPIS-STU-00002"; mirrors admissionNumber/employeeCode for Student/Staff, freshly generated for every other role
   password        String
   role            RoleType   @default(STUDENT)
   status          UserStatus @default(ACTIVE)
@@ -162,15 +170,18 @@ model User {
   deletedAt       DateTime?
 
   // Relations
-  institution       Institution?       @relation(fields: [institutionId], references: [id])
-  student           Student?
-  staff             Staff?
-  parent            Parent?
-  refreshTokens     RefreshToken[]
-  auditLogs         AuditLog[]
-  sentMessages      Message[]          @relation("SentMessages")
-  announcements     Announcement[]
-  passwordResetOtps PasswordResetOtp[]
+  institution           Institution?       @relation(fields: [institutionId], references: [id])
+  student               Student?
+  staff                 Staff?
+  parent                Parent?
+  refreshTokens         RefreshToken[]
+  auditLogs             AuditLog[]
+  sentMessages          Message[]          @relation("SentMessages")
+  announcements         Announcement[]
+  passwordResetOtps     PasswordResetOtp[]
+  savedReports          SavedReport[]
+  reportRequestsMade    ReportRequest[]    @relation("ReportRequestedBy")
+  reportRequestsHandled ReportRequest[]    @relation("ReportRequestAssignedTo")
 
   @@unique([email])
   @@unique([mobile])
@@ -387,6 +398,7 @@ model Student {
   equipmentIssues     EquipmentIssue[]
 
   @@unique([institutionId, admissionNumber])
+  @@unique([sectionId, rollNumber]) // roll numbers are assigned per-class; NULLs (no section/no roll yet) never collide
   @@index([institutionId, sectionId])
 }
 
@@ -797,44 +809,159 @@ enum FeeCategoryType {
   OTHER_FEE
 }
 
-model FeeStructure {
-  id             String          @id @default(uuid())
-  institutionId  String
-  academicYearId String
-  courseId       String?
-  name           String // e.g. "Annual Fee B.Tech 2026"
-  category       FeeCategoryType @default(TUITION_FEE)
-  totalAmount    Float
-  dueDate        DateTime
-  lateFeePerDay  Float           @default(0)
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
+enum FeeStructureStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
 
-  institution  Institution            @relation(fields: [institutionId], references: [id])
-  academicYear AcademicYear           @relation(fields: [academicYearId], references: [id])
-  course       Course?                @relation(fields: [courseId], references: [id])
-  assignments  StudentFeeAssignment[]
+/// Layer 1 — institution-defined fee categories (e.g. Academic, Administrative, Facilities).
+/// Unlimited, custom per institution — never hardcoded in frontend code.
+model FeeCategory {
+  id            String   @id @default(uuid())
+  institutionId String
+  name          String
+  code          String
+  description   String?
+  sortOrder     Int      @default(0)
+  createdAt     DateTime @default(now())
+
+  institution Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  feeHeads    FeeHead[]
+
+  @@unique([institutionId, code])
+}
+
+/// Layer 1 — institution-defined fee heads (Tuition, Transport, Hostel, ...). Unlimited,
+/// custom per institution — this is the metadata that replaces hardcoded fee-type columns.
+model FeeHead {
+  id                String   @id @default(uuid())
+  institutionId     String
+  categoryId        String?
+  name              String
+  code              String
+  description       String?
+  mandatory         Boolean  @default(true)
+  active            Boolean  @default(true)
+  taxApplicable     Boolean  @default(false)
+  lateFeeApplicable Boolean  @default(false)
+  createdById       String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  institution    Institution        @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  category       FeeCategory?       @relation(fields: [categoryId], references: [id])
+  structureItems FeeStructureItem[]
+  studentItems   StudentFeeItem[]
+
+  @@unique([institutionId, code])
+}
+
+model FeeStructure {
+  id                String             @id @default(uuid())
+  institutionId     String
+  academicYearId    String
+  courseId          String?
+  sectionId         String?
+  name              String // e.g. "Annual Fee B.Tech 2026"
+  category          FeeCategoryType    @default(TUITION_FEE) // deprecated single-category tag — kept for legacy rows; FeeStructureItem→FeeHead is now the source of truth
+  totalAmount       Float // cached sum of item amounts once published; kept in sync by the builder
+  dueDate           DateTime
+  lateFeePerDay     Float              @default(0)
+  frequency         String             @default("ANNUAL") // ONE_TIME, MONTHLY, QUARTERLY, HALF_YEARLY, ANNUAL, SEMESTER, INSTALLMENT, CUSTOM
+  status            FeeStructureStatus @default(DRAFT)
+  version           Int                @default(1)
+  parentStructureId String?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  institution     Institution            @relation(fields: [institutionId], references: [id])
+  academicYear    AcademicYear           @relation(fields: [academicYearId], references: [id])
+  course          Course?                @relation(fields: [courseId], references: [id])
+  parentStructure FeeStructure?          @relation("StructureVersions", fields: [parentStructureId], references: [id])
+  versions        FeeStructure[]         @relation("StructureVersions")
+  items           FeeStructureItem[]
+  assignments     StudentFeeAssignment[]
+
+  @@index([institutionId, status])
+}
+
+/// One fee-head line item within a structure — e.g. "Tuition Fee: ₹30,000 Annual" — the
+/// piece the old single-totalAmount FeeStructure was missing.
+model FeeStructureItem {
+  id             String    @id @default(uuid())
+  feeStructureId String
+  feeHeadId      String
+  amount         Float
+  frequency      String    @default("ANNUAL")
+  dueDate        DateTime?
+  mandatory      Boolean   @default(true)
+  sortOrder      Int       @default(0)
+
+  feeStructure FeeStructure @relation(fields: [feeStructureId], references: [id], onDelete: Cascade)
+  feeHead      FeeHead      @relation(fields: [feeHeadId], references: [id])
+
+  @@unique([feeStructureId, feeHeadId])
 }
 
 model StudentFeeAssignment {
-  id              String   @id @default(uuid())
-  feeStructureId  String
-  studentId       String
-  totalAmount     Float
-  discountAmount  Float    @default(0)
-  scholarshipName String? // e.g. "First Generation Graduate (FGG)"
-  scholarshipRef  String? // Govt sanction / reference number
-  paidAmount      Float    @default(0)
-  dueAmount       Float
-  status          String   @default("PENDING") // PENDING, PARTIAL, PAID
-  createdAt       DateTime @default(now())
+  id               String   @id @default(uuid())
+  feeStructureId   String
+  studentId        String
+  structureVersion Int      @default(1) // snapshot of FeeStructure.version at assignment time
+  totalAmount      Float
+  discountAmount   Float    @default(0)
+  scholarshipName  String? // e.g. "First Generation Graduate (FGG)"
+  scholarshipRef   String? // Govt sanction / reference number
+  paidAmount       Float    @default(0)
+  dueAmount        Float
+  status           String   @default("PENDING") // PENDING, PARTIAL, PAID
+  createdAt        DateTime @default(now())
 
   feeStructure FeeStructure     @relation(fields: [feeStructureId], references: [id])
   student      Student          @relation(fields: [studentId], references: [id])
   payments     FeePayment[]
   installments FeeInstallment[]
+  items        StudentFeeItem[]
 
   @@unique([feeStructureId, studentId])
+}
+
+/// The per-student, per-fee-head breakdown — snapshotted from FeeStructureItem at
+/// assignment time, so it stays historically accurate even if the fee head is later renamed
+/// or the structure is edited. This is what the Student Fee Page (section 9) renders.
+model StudentFeeItem {
+  id                     String   @id @default(uuid())
+  studentFeeAssignmentId String
+  feeHeadId              String
+  feeHeadName            String // snapshot of FeeHead.name at assignment time
+  amount                 Float
+  discountAmount         Float    @default(0)
+  paidAmount             Float    @default(0)
+  dueAmount              Float
+  status                 String   @default("PENDING") // PENDING, PARTIAL, PAID
+  createdAt              DateTime @default(now())
+
+  studentFeeAssignment StudentFeeAssignment @relation(fields: [studentFeeAssignmentId], references: [id], onDelete: Cascade)
+  feeHead              FeeHead              @relation(fields: [feeHeadId], references: [id])
+  allocations          PaymentAllocation[]
+
+  @@index([studentFeeAssignmentId])
+}
+
+/// Splits one FeePayment across the multiple fee-head items it actually paid off — never a
+/// single unstructured payment for a multi-head transaction.
+model PaymentAllocation {
+  id               String @id @default(uuid())
+  feePaymentId     String
+  studentFeeItemId String
+  amount           Float
+
+  feePayment     FeePayment     @relation(fields: [feePaymentId], references: [id], onDelete: Cascade)
+  studentFeeItem StudentFeeItem @relation(fields: [studentFeeItemId], references: [id])
+
+  @@index([feePaymentId])
+  @@index([studentFeeItemId])
 }
 
 model FeeInstallment {
@@ -880,6 +1007,7 @@ model FeePayment {
   studentId              String
   studentFeeAssignmentId String
   installmentId          String?
+  idempotencyKey         String?       @unique // dedupes a retried/duplicate gateway webhook or double-submit
   amountPaid             Float
   paymentMode            PaymentMode   @default(CASH)
   paymentStatus          PaymentStatus @default(SUCCESS)
@@ -896,18 +1024,21 @@ model FeePayment {
   studentFeeAssignment StudentFeeAssignment @relation(fields: [studentFeeAssignmentId], references: [id])
   installment          FeeInstallment?      @relation(fields: [installmentId], references: [id])
   receipt              FeeReceipt?
+  allocations          PaymentAllocation[]
 
   @@index([institutionId, studentId])
 }
 
 model FeeReceipt {
-  id            String   @id @default(uuid())
-  receiptNumber String   @unique
+  id            String    @id @default(uuid())
+  receiptNumber String    @unique
   institutionId String
   studentId     String
-  paymentId     String   @unique
+  paymentId     String    @unique
   amount        Float
-  issuedAt      DateTime @default(now())
+  printCount    Int       @default(0) // 0 = never printed; incremented on every print/reprint
+  lastPrintedAt DateTime?
+  issuedAt      DateTime  @default(now())
 
   institution Institution @relation(fields: [institutionId], references: [id])
   student     Student     @relation(fields: [studentId], references: [id])
@@ -1117,16 +1248,19 @@ model Certificate {
   id            String   @id @default(uuid())
   institutionId String
   studentId     String?
+  templateId    String? // which CertificateTemplate rendered this — null for pre-engine legacy rows
   type          String   @default("BONAFIDE") // BONAFIDE, TC, CONDUCT, COMPLETION, FEEPAID
   certificateNo String   @unique
   title         String
   issuedToName  String
   details       Json? // ad-hoc per-type fields (dateOfLeaving, reasonForLeaving, conduct, etc.)
+  renderedBody  String? // the actual wording snapshot at issuance time — stays fixed even if the template is edited later
   pdfUrl        String?
   createdAt     DateTime @default(now())
 
-  institution Institution @relation(fields: [institutionId], references: [id])
-  student     Student?    @relation(fields: [studentId], references: [id])
+  institution Institution          @relation(fields: [institutionId], references: [id])
+  student     Student?             @relation(fields: [studentId], references: [id])
+  template    CertificateTemplate? @relation(fields: [templateId], references: [id])
 }
 
 model Announcement {
@@ -1852,4 +1986,332 @@ model PurchaseOrder {
 
   institution Institution @relation(fields: [institutionId], references: [id])
   vendor      Vendor      @relation(fields: [vendorId], references: [id])
+}
+
+// ------------------------------------------------------
+// 20. DYNAMIC REPORT ENGINE
+//
+// Three layers, matching the runtime architecture:
+//   1. Catalog       — Report (+ ReportFilter, ReportColumn): what reports exist at all.
+//   2. Configuration — InstitutionReport: which of those an institution can see/use, and how.
+//   3. Engine        — implemented in code (shared/reportEngine), reads this metadata plus
+//                       a per-report backend handler to build, run and export the report.
+// ------------------------------------------------------
+
+enum ReportCategory {
+  STUDENT
+  STAFF
+  ACADEMIC
+  ATTENDANCE
+  EXAMINATION
+  FEES
+  FINANCE
+  LIBRARY
+  HOSTEL
+  TRANSPORT
+  ADMISSION
+  COMMUNICATION
+  ADMINISTRATION
+  ANALYTICS
+  CUSTOM
+}
+
+enum ReportStatus {
+  ACTIVE
+  DRAFT
+  ARCHIVED
+}
+
+enum ReportVisibility {
+  SYSTEM // ships with SCOMS, available to every institution by default
+  INSTITUTION // a custom report built for one specific institution
+}
+
+enum FilterInputType {
+  TEXT
+  NUMBER
+  DATE
+  DATE_RANGE
+  SELECT
+  MULTI_SELECT
+  SEARCH_SELECT
+  CHECKBOX
+  RADIO
+  BOOLEAN
+  ACADEMIC_YEAR
+  DEPARTMENT
+  COURSE
+  SEMESTER
+  SECTION
+  SUBJECT
+  STUDENT
+  STAFF
+  PAYMENT_MODE
+  STATUS
+}
+
+enum ReportRunStatus {
+  SUCCESS
+  FAILED
+  RUNNING
+}
+
+enum ReportRequestStatus {
+  REQUESTED
+  UNDER_REVIEW
+  APPROVED
+  IN_DEVELOPMENT
+  READY
+  REJECTED
+}
+
+/// Layer 1 — Report Catalog: "what reports exist in SCOMS?"
+model Report {
+  id             String           @id @default(uuid())
+  code           String           @unique // e.g. STUDENT_LIST — also the handler registry key
+  name           String
+  description    String?
+  category       ReportCategory
+  module         String? // free-text grouping label, e.g. "Academics"
+  icon           String? // lucide-react icon name, resolved client-side
+  status         ReportStatus     @default(ACTIVE)
+  visibility     ReportVisibility @default(SYSTEM)
+  version        Int              @default(1)
+  allowedRoles   Json? // RoleType[] as JSON, e.g. ["INSTITUTE_ADMIN","ACCOUNTANT"] — null = institute-admin only
+  allowedFormats Json? // e.g. ["PREVIEW","PDF","EXCEL","CSV","PRINT"] — null = all formats
+  handlerKey     String // key into the backend ReportRegistry; defaults to `code`
+  createdById    String?
+  updatedById    String?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  filters            ReportFilter[]
+  columns            ReportColumn[]
+  institutionReports InstitutionReport[]
+  runs               ReportRun[]
+  savedReports       SavedReport[]
+
+  @@index([category])
+  @@index([status])
+}
+
+/// One dynamic filter field belonging to a report — the frontend renders its whole form
+/// from this list, never from hardcoded JSX per report.
+model ReportFilter {
+  id           String          @id @default(uuid())
+  reportId     String
+  fieldKey     String
+  label        String
+  inputType    FilterInputType
+  dataType     String          @default("string") // string, number, date, boolean
+  required     Boolean         @default(false)
+  defaultValue String?
+  placeholder  String?
+  options      Json? // static option list, when not resolved dynamically from `source`
+  source       String? // e.g. "ACADEMIC_YEAR" — resolved server-side, scoped to the caller's institution
+  dependsOn    String? // fieldKey of the parent filter this one cascades from
+  sortOrder    Int             @default(0)
+
+  report Report @relation(fields: [reportId], references: [id], onDelete: Cascade)
+
+  @@index([reportId])
+}
+
+/// One output column belonging to a report — the result table is rendered generically from
+/// whatever columns the report's handler + this configuration produce.
+model ReportColumn {
+  id          String  @id @default(uuid())
+  reportId    String
+  fieldKey    String
+  label       String
+  dataType    String  @default("string")
+  visible     Boolean @default(true)
+  sortable    Boolean @default(true)
+  width       Int?
+  format      String? // e.g. "currency", "date", "percentage"
+  aggregation String? // COUNT, SUM, AVG, MIN, MAX, PERCENTAGE — included in the totals row
+  sortOrder   Int     @default(0)
+
+  report Report @relation(fields: [reportId], references: [id], onDelete: Cascade)
+
+  @@index([reportId])
+}
+
+/// Layer 2 — Report Configuration: "which institution can use this report, and how?"
+model InstitutionReport {
+  id             String   @id @default(uuid())
+  institutionId  String
+  reportId       String
+  enabled        Boolean  @default(true)
+  displayName    String? // overrides Report.name for this institution, if set
+  description    String?
+  sortOrder      Int      @default(0)
+  allowedRoles   Json? // overrides Report.allowedRoles for this institution, if set
+  allowedFormats Json?
+  configuration  Json? // institution-level template customization (logo/footer toggles, etc.)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  institution Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  report      Report      @relation(fields: [reportId], references: [id], onDelete: Cascade)
+
+  @@unique([institutionId, reportId])
+  @@index([institutionId])
+}
+
+/// Report History — every generate/export attempt, successful or not.
+model ReportRun {
+  id            String          @id @default(uuid())
+  institutionId String
+  reportId      String
+  generatedById String?
+  filters       Json?
+  format        String          @default("PREVIEW")
+  status        ReportRunStatus @default(SUCCESS)
+  rowCount      Int?
+  errorMessage  String?
+  startedAt     DateTime        @default(now())
+  completedAt   DateTime?
+
+  institution Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  report      Report      @relation(fields: [reportId], references: [id], onDelete: Cascade)
+
+  @@index([institutionId, reportId])
+  @@index([startedAt])
+}
+
+/// A user's saved filter preset for one report, for one-click re-generation later.
+model SavedReport {
+  id            String   @id @default(uuid())
+  institutionId String
+  reportId      String
+  userId        String
+  name          String
+  filters       Json?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  institution Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  report      Report      @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([institutionId, reportId])
+}
+
+/// Institution → Super Admin workflow for reports that don't exist in the catalog yet.
+model ReportRequest {
+  id            String              @id @default(uuid())
+  institutionId String
+  requestedById String
+  title         String
+  category      ReportCategory
+  description   String
+  requirements  String?
+  sampleFileUrl String?
+  priority      String              @default("MEDIUM") // LOW, MEDIUM, HIGH
+  status        ReportRequestStatus @default(REQUESTED)
+  assignedToId  String?
+  adminRemarks  String?
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+
+  institution Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  requestedBy User        @relation("ReportRequestedBy", fields: [requestedById], references: [id])
+  assignedTo  User?       @relation("ReportRequestAssignedTo", fields: [assignedToId], references: [id])
+
+  @@index([institutionId])
+  @@index([status])
+}
+
+// ------------------------------------------------------
+// 21. DYNAMIC CERTIFICATE ENGINE
+//
+// Same three-layer shape as the Report Engine:
+//   1. Catalog       — CertificateTemplate (+ CertificateField): what certificate types exist.
+//   2. Configuration — InstitutionCertificateTemplate: each institution's own wording,
+//                       header, signatory and branding toggles for a template.
+//   3. Engine        — shared/certificateEngine: merges 1+2, substitutes real student data
+//                       into the wording, and issues a real Certificate row.
+// ------------------------------------------------------
+
+enum CertificateStatus {
+  ACTIVE
+  DRAFT
+  ARCHIVED
+}
+
+enum CertificateVisibility {
+  SYSTEM // ships with SCOMS, available to every institution by default
+  INSTITUTION // a custom certificate type built for one specific institution
+}
+
+/// Layer 1 — Certificate Catalog: "what certificate types exist in SCOMS?"
+model CertificateTemplate {
+  id           String                @id @default(uuid())
+  code         String                @unique // e.g. BONAFIDE, TC, CONDUCT, COMPLETION, FEEPAID
+  name         String
+  description  String?
+  category     String?
+  icon         String?
+  status       CertificateStatus     @default(ACTIVE)
+  visibility   CertificateVisibility @default(SYSTEM)
+  version      Int                   @default(1)
+  headerTitle  String // default heading printed on the certificate, e.g. "BONAFIDE CERTIFICATE"
+  bodyTemplate String // the certificate wording with {{fieldKey}} placeholders
+  footerNote   String? // small print under the body, e.g. purpose disclaimer
+  createdById  String?
+  updatedById  String?
+  createdAt    DateTime              @default(now())
+  updatedAt    DateTime              @updatedAt
+
+  fields               CertificateField[]
+  institutionTemplates InstitutionCertificateTemplate[]
+  certificates         Certificate[]
+
+  @@index([status])
+}
+
+/// One placeholder used by a template's wording — the frontend renders a field for it only
+/// when its source is MANUAL (collected at generation time); STUDENT/PARENT/INSTITUTION/
+/// SYSTEM fields are resolved automatically by the engine from real records.
+model CertificateField {
+  id           String  @id @default(uuid())
+  templateId   String
+  fieldKey     String // matches a {{fieldKey}} placeholder in bodyTemplate
+  label        String
+  source       String  @default("STUDENT") // STUDENT, PARENT, INSTITUTION, MANUAL, SYSTEM
+  inputType    String  @default("TEXT") // TEXT, DATE, SELECT, TEXTAREA — only used when source = MANUAL
+  required     Boolean @default(false)
+  options      Json?
+  defaultValue String?
+  sortOrder    Int     @default(0)
+
+  template CertificateTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  @@index([templateId])
+}
+
+/// Layer 2 — Certificate Configuration: "how does this institution issue this certificate?"
+model InstitutionCertificateTemplate {
+  id                   String   @id @default(uuid())
+  institutionId        String
+  templateId           String
+  enabled              Boolean  @default(true)
+  customHeaderTitle    String? // overrides Template.headerTitle for this institution, if set
+  customBodyTemplate   String? // overrides Template.bodyTemplate for this institution, if set
+  customFooterNote     String?
+  showLogo             Boolean  @default(true)
+  showSeal             Boolean  @default(true)
+  showSignature        Boolean  @default(true)
+  signatoryName        String?
+  signatoryDesignation String?
+  issuePlace           String?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  institution Institution         @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  template    CertificateTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  @@unique([institutionId, templateId])
+  @@index([institutionId])
 }

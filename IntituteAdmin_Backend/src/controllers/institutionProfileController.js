@@ -6,7 +6,7 @@
  */
 const { prisma, sendSuccess } = require('../../../shared');
 
-const EDITABLE_FIELDS = ['email', 'phone', 'website', 'address', 'city', 'district', 'state', 'pincode', 'affiliation', 'board', 'university', 'principalName', 'establishedYear'];
+const EDITABLE_FIELDS = ['email', 'phone', 'website', 'address', 'city', 'district', 'state', 'pincode', 'affiliation', 'board', 'university', 'principalName', 'establishedYear', 'logo'];
 
 const updateProfile = async (req, res, next) => {
   try {

@@ -1,10 +1,11 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import FormInput from '../../components/common/FormInput';
 import { useNotification } from '../../context/NotificationContext';
-import { User, Save, Loader2 } from 'lucide-react';
+import { User, Save, Loader2, Camera } from 'lucide-react';
 import studentService from '../../services/studentService';
 
 const EMPTY_FORM = { email: '', phone: '', address: '', city: '', state: '', pincode: '' };
+const MAX_PHOTO_BYTES = 2 * 1024 * 1024; // 2MB
 
 export const MyProfilePage = () => {
   const { success, error: showError } = useNotification();
@@ -13,6 +14,8 @@ export const MyProfilePage = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [formData, setFormData] = useState(EMPTY_FORM);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef(null);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -49,6 +52,36 @@ export const MyProfilePage = () => {
     }
   };
 
+  const handlePhotoSelect = (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    if (!['image/png', 'image/jpeg'].includes(file.type)) {
+      showError('Profile photo must be a PNG or JPEG image.');
+      return;
+    }
+    if (file.size > MAX_PHOTO_BYTES) {
+      showError('Photo must be 2MB or smaller.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = async () => {
+      setUploading(true);
+      try {
+        const res = await studentService.updateProfile({ avatar: reader.result });
+        setProfile(res.data);
+        success('Profile photo updated.');
+      } catch (err) {
+        showError(err.message || 'Failed to upload photo.');
+      } finally {
+        setUploading(false);
+      }
+    };
+    reader.onerror = () => showError('Failed to read the selected file.');
+    reader.readAsDataURL(file);
+  };
+
   if (loading) {
     return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-indigo-600" /></div>;
   }
@@ -62,8 +95,24 @@ export const MyProfilePage = () => {
     <div className="space-y-6 max-w-4xl mx-auto">
       {/* Header Profile Summary */}
       <div className="glass-card p-6 rounded-3xl border border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row items-center gap-6">
-        <div className="w-24 h-24 rounded-3xl bg-indigo-100 dark:bg-indigo-950 border-4 border-indigo-500 shadow-md flex items-center justify-center text-indigo-600 dark:text-indigo-300">
-          <User className="w-10 h-10" />
+        <div className="relative shrink-0">
+          {profile.user?.avatar ? (
+            <img src={profile.user.avatar} alt={fullName} className="w-24 h-24 rounded-3xl object-cover border-4 border-indigo-500 shadow-md" />
+          ) : (
+            <div className="w-24 h-24 rounded-3xl bg-indigo-100 dark:bg-indigo-950 border-4 border-indigo-500 shadow-md flex items-center justify-center text-indigo-600 dark:text-indigo-300">
+              <User className="w-10 h-10" />
+            </div>
+          )}
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploading}
+            title="Change photo"
+            className="absolute -bottom-1.5 -right-1.5 w-8 h-8 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white flex items-center justify-center shadow-md disabled:opacity-50"
+          >
+            {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Camera className="w-4 h-4" />}
+          </button>
+          <input ref={fileInputRef} type="file" accept="image/png,image/jpeg" onChange={handlePhotoSelect} className="hidden" />
         </div>
         <div className="text-center sm:text-left space-y-1">
           <div className="flex items-center justify-center sm:justify-start gap-2">

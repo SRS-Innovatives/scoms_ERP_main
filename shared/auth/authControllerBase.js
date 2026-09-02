@@ -84,6 +84,8 @@ const handleGetMe = async (req, res, next) => {
         mobile: true,
         admissionNumber: true,
         employeeCode: true,
+        userCode: true,
+        avatar: true,
         role: true,
         status: true,
         institutionId: true,
@@ -182,6 +184,29 @@ const handleChangePassword = async (req, res, next) => {
   }
 };
 
+/** Lets any authenticated user (any role, any portal) upload/replace or remove their own
+ * profile photo — shared across all four backends so the behavior is identical everywhere.
+ * `avatar` is a base64 data URI (client-converted, same pattern as the institution logo);
+ * pass an empty string to remove the current photo. */
+const handleUpdateProfile = async (req, res, next) => {
+  try {
+    const { avatar } = req.body;
+    if (avatar !== undefined && avatar !== '' && !/^data:image\/(png|jpeg|jpg);base64,/.test(avatar)) {
+      throw new BusinessRuleError('Profile photo must be a PNG or JPEG image');
+    }
+
+    const user = await prisma.user.update({
+      where: { id: req.user.id },
+      data: { avatar: avatar === '' ? null : avatar },
+      select: { id: true, avatar: true },
+    });
+
+    return sendSuccess(res, user, 'Profile photo updated successfully');
+  } catch (err) {
+    next(err);
+  }
+};
+
 const { handleUnifiedLogin } = require('./unifiedAuth');
 
 module.exports = {
@@ -189,5 +214,6 @@ module.exports = {
   handleLogout,
   handleGetMe,
   handleChangePassword,
+  handleUpdateProfile,
   handleUnifiedLogin,
 };

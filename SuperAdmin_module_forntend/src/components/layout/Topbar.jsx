@@ -128,11 +128,17 @@ export const Topbar = ({ sidebarOpen, setSidebarOpen }) => {
               onClick={() => setShowProfileMenu(!showProfileMenu)}
               className="flex items-center gap-2.5 p-1 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
             >
-              <img
-                src={user?.avatar}
-                alt={user?.name}
-                className="w-8 h-8 rounded-xl object-cover border border-indigo-300 dark:border-indigo-700"
-              />
+              {user?.avatar ? (
+                <img
+                  src={user.avatar}
+                  alt={user?.name}
+                  className="w-8 h-8 rounded-xl object-cover border border-indigo-300 dark:border-indigo-700"
+                />
+              ) : (
+                <div className="w-8 h-8 rounded-xl border border-indigo-300 dark:border-indigo-700 bg-indigo-50 dark:bg-indigo-950 flex items-center justify-center text-[11px] font-bold text-indigo-500">
+                  {user?.name?.[0] || 'U'}
+                </div>
+              )}
               <div className="hidden lg:block text-left">
                 <p className="text-xs font-bold text-slate-900 dark:text-slate-100 leading-tight">{user?.name}</p>
                 <p className="text-[10px] text-indigo-600 dark:text-indigo-400 font-semibold">{user?.role}</p>

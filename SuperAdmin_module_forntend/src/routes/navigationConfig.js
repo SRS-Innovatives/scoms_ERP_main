@@ -10,7 +10,8 @@ import {
   Bot,
   ShieldAlert,
   Server,
-  Settings
+  Settings,
+  FileBarChart
 } from 'lucide-react';
 
 export const navigationConfig = [
@@ -29,6 +30,16 @@ export const navigationConfig = [
       { key: 'onboarding-wizard', title: 'Institution Onboarding', path: '/super-admin/institutions/new' },
       { key: 'institution-modules', title: 'Institution Modules', path: '/super-admin/institutions/modules' },
       { key: 'institution-activity', title: 'Institution Activity', path: '/super-admin/institutions/activity' }
+    ]
+  },
+  {
+    key: 'reports',
+    title: 'Report Engine',
+    icon: FileBarChart,
+    children: [
+      { key: 'reports-catalog', title: 'Report Catalog', path: '/super-admin/reports' },
+      { key: 'reports-assignment', title: 'Institution Assignment', path: '/super-admin/reports/assignment' },
+      { key: 'reports-requests', title: 'Custom Report Requests', path: '/super-admin/reports/requests' }
     ]
   },
   {

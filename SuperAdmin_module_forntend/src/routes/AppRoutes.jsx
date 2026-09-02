@@ -11,6 +11,9 @@ import SuperAdminDashboardPage from '../pages/dashboard/SuperAdminDashboardPage'
 
 // Institution Pages
 import InstitutionListPage from '../pages/institutions/InstitutionListPage';
+import ReportManagementPage from '../pages/reports/ReportManagementPage';
+import InstitutionReportAssignmentPage from '../pages/reports/InstitutionReportAssignmentPage';
+import ReportRequestReviewPage from '../pages/reports/ReportRequestReviewPage';
 import OnboardingWizardPage from '../pages/institutions/OnboardingWizardPage';
 import InstitutionDetailPage from '../pages/institutions/InstitutionDetailPage';
 import InstitutionModuleAccessPage from '../pages/institutions/InstitutionModuleAccessPage';
@@ -98,6 +101,11 @@ export const AppRoutes = () => {
               <Route path="institutions/modules" element={<InstitutionModuleAccessPage />} />
               <Route path="institutions/activity" element={<InstitutionActivityPage />} />
               <Route path="institutions/:id" element={<InstitutionDetailPage />} />
+
+              {/* Dynamic Report Engine Management */}
+              <Route path="reports" element={<ReportManagementPage />} />
+              <Route path="reports/assignment" element={<InstitutionReportAssignmentPage />} />
+              <Route path="reports/requests" element={<ReportRequestReviewPage />} />
 
               {/* Subscriptions */}
               <Route path="plans" element={<PlansListPage />} />

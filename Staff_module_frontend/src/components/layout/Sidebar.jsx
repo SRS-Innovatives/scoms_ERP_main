@@ -7,7 +7,7 @@ import { ChevronDown, ChevronRight, Search, Sparkles, X } from 'lucide-react';
 
 export const Sidebar = ({ isOpen, setIsOpen }) => {
   const location = useLocation();
-  const { isModuleEnabled } = useInstitution();
+  const { institution, isModuleEnabled } = useInstitution();
   const { profile } = useAuth();
   const visibleNavigation = navigationConfig.filter((item) => isModuleEnabled(item.key));
   const [openMenus, setOpenMenus] = useState(() => {
@@ -53,12 +53,16 @@ export const Sidebar = ({ isOpen, setIsOpen }) => {
         {/* Header Branding */}
         <div className={`h-16 flex items-center border-b border-slate-200 dark:border-slate-800 shrink-0 ${isOpen ? 'justify-between px-5' : 'justify-center px-2'}`}>
           <div className={`flex items-center gap-3 min-w-0 ${isOpen ? '' : 'justify-center'}`}>
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-sky-600 to-indigo-600 flex items-center justify-center text-white font-black text-lg shadow-md shrink-0">
-              S
-            </div>
+            {institution?.logo ? (
+              <img src={institution.logo} alt={institution.name} className="w-9 h-9 rounded-xl object-cover shadow-md shrink-0" />
+            ) : (
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-sky-600 to-indigo-600 flex items-center justify-center text-white font-black text-lg shadow-md shrink-0">
+                {institution?.code?.[0] || institution?.name?.[0] || 'S'}
+              </div>
+            )}
             {isOpen && (
               <div className="min-w-0">
-                <h2 className="text-sm font-black text-slate-900 dark:text-slate-100 tracking-tight truncate">SCOMS ERP</h2>
+                <h2 className="text-sm font-black text-slate-900 dark:text-slate-100 tracking-tight truncate">{institution?.name || 'Loading...'}</h2>
                 <span className="text-[10px] font-bold text-sky-600 dark:text-sky-400 uppercase tracking-widest">Staff Portal</span>
               </div>
             )}

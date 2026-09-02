@@ -10,6 +10,7 @@ const {
   sendPaginated,
   hashPassword,
   generateAdmissionNumber,
+  generateUserCode,
   ROLES,
   sendEmailNotification,
   sendSMSNotification,
@@ -98,11 +99,13 @@ const admitStudentWithinTx = async (tx, institutionId, actingUserId, data) => {
     if (!section) throw new NotFoundError('Invalid section or access denied');
   }
 
-  // 2. Generate admission number (sequential, tenant-scoped)
-  const count = await tx.student.count({ where: { institutionId } });
-  const year = new Date().getFullYear();
-  const paddedCount = String(count + 1).padStart(6, '0');
-  const admissionNumber = `SCOMS/${year}/${paddedCount}`;
+  // 2. Generate admission number (sequential, tenant-scoped, embeds this institution's own
+  //    code so the ID is traceable to it on sight — e.g. "DPIS/STU/2026/000001")
+  const [count, institution] = await Promise.all([
+    tx.student.count({ where: { institutionId } }),
+    tx.institution.findUnique({ where: { id: institutionId }, select: { code: true } }),
+  ]);
+  const admissionNumber = generateAdmissionNumber(institution?.code, count + 1);
 
   // 3. Create User Login
   const hashedPassword = await hashPassword(password || 'Student@123');
@@ -112,6 +115,7 @@ const admitStudentWithinTx = async (tx, institutionId, actingUserId, data) => {
       email,
       mobile: phone,
       admissionNumber,
+      userCode: admissionNumber, // the student's professional platform ID is their admission number — never two IDs for one person
       password: hashedPassword,
       role: ROLES.STUDENT,
       status: 'ACTIVE',
@@ -146,11 +150,14 @@ const admitStudentWithinTx = async (tx, institutionId, actingUserId, data) => {
   // 5. Create Parent User (optional)
   if (fatherName || motherName || guardianName) {
     const parentPassword = await hashPassword('Parent@123');
+    const parentCount = await tx.user.count({ where: { institutionId, role: ROLES.PARENT } });
+    const parentUserCode = generateUserCode(institution?.code, ROLES.PARENT, parentCount + 1);
     const parentUser = await tx.user.create({
       data: {
         institutionId,
         email: parentEmail || `parent.${admissionNumber.replace(/\//g, '')}@scoms.edu.in`,
         mobile: parentPhone,
+        userCode: parentUserCode,
         password: parentPassword,
         role: ROLES.PARENT,
         status: 'ACTIVE',

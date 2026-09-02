@@ -17,7 +17,6 @@ export const StaffRegistrationPage = () => {
     departmentId: '',
     email: '',
     phone: '',
-    employeeCode: '',
     designation: '',
     qualification: '',
     experience: '',
@@ -50,7 +49,7 @@ export const StaffRegistrationPage = () => {
         method: 'POST',
         body: payload
       });
-      notifySuccess(`Faculty / Staff registered successfully! Emp ID: ${res.data.employeeCode} assigned.`, 'Staff Registered');
+      notifySuccess(`Faculty / Staff registered successfully! Employee Code ${res.data.employeeCode} was auto-assigned.`, 'Staff Registered');
       navigate('/admin/staff/list');
     } catch (err) {
       notifyError(`Failed to register staff: ${err.message}`);
@@ -61,7 +60,7 @@ export const StaffRegistrationPage = () => {
     <form onSubmit={handleSubmit} className="space-y-6 max-w-4xl mx-auto">
       <div>
         <h1 className="text-xl font-bold text-slate-900 dark:text-white">Staff Registration Form</h1>
-        <p className="text-xs text-slate-500 dark:text-slate-400">Onboard Teaching Faculty & Non-Teaching Administrative Staff</p>
+        <p className="text-xs text-slate-500 dark:text-slate-400">Onboard Teaching Faculty & Non-Teaching Administrative Staff — an Employee Code is generated automatically on save.</p>
       </div>
 
       <FormSection title="1. Employee Personal Details" icon={User}>
@@ -106,17 +105,6 @@ export const StaffRegistrationPage = () => {
               placeholder="e.g. Associate Professor"
               value={formData.designation}
               onChange={(e) => setFormData({ ...formData, designation: e.target.value })}
-              className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border rounded-lg font-medium"
-            />
-          </div>
-          <div>
-            <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Employee Code *</label>
-            <input
-              type="text"
-              required
-              placeholder="e.g. EMP123"
-              value={formData.employeeCode}
-              onChange={(e) => setFormData({ ...formData, employeeCode: e.target.value })}
               className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border rounded-lg font-medium"
             />
           </div>

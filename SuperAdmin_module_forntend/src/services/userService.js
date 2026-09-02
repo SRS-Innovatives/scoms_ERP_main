@@ -1,8 +1,9 @@
 import { apiCall } from './api';
 
 export const userService = {
-  getUsers: async () => {
-    return apiCall('/api/v1/super-admin/users');
+  getUsers: async (params = {}) => {
+    const query = new URLSearchParams(params).toString();
+    return apiCall(`/api/v1/super-admin/users${query ? `?${query}` : ''}`);
   },
 
   getRoles: async () => {

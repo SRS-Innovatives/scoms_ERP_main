@@ -118,99 +118,127 @@ export const SuperAdminDashboardPage = () => {
           Platform KPIs & Key Metrics
         </h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatCard
-            title="Total Institutions"
-            value={totalInst}
-            subtitle="Schools, Colleges, Univs"
-            icon={Building2}
-            color="indigo"
-            onClick={() => navigate('/super-admin/institutions')}
-          />
-          <StatCard
-            title="Active Institutions"
-            value={activeInst}
-            subtitle="Paying Subscriptions"
-            icon={Building2}
-            color="emerald"
-            badgeText={activePercentage}
-            onClick={() => navigate('/super-admin/institutions')}
-          />
-          <StatCard
-            title="Trial Institutions"
-            value={trialInst}
-            subtitle="Trial Accounts Active"
-            icon={Clock}
-            color="amber"
-            onClick={() => navigate('/super-admin/subscriptions/trials')}
-          />
-          <StatCard
-            title="Suspended Institutions"
-            value={suspendedInst}
-            subtitle="Clean Compliance"
-            icon={Building2}
-            color="rose"
-            onClick={() => navigate('/super-admin/institutions')}
-          />
-          <StatCard
-            title="Total Users"
-            value={totalUsers}
-            subtitle="Across All Portals"
-            icon={Users}
-            color="sky"
-            onClick={() => navigate('/super-admin/users')}
-          />
-          <StatCard
-            title="Total Students"
-            value={totalStudents}
-            subtitle="Enrolled Students"
-            icon={GraduationCap}
-            color="purple"
-          />
-          <StatCard
-            title="Total Staff"
-            value={totalStaff}
-            subtitle="Teaching & Non-Teaching"
-            icon={Briefcase}
-            color="indigo"
-          />
-          <StatCard
-            title="Total Revenue"
-            value={totalRevenue}
-            subtitle="Lifetime Platform Earnings"
-            icon={DollarSign}
-            color="emerald"
-            onClick={() => navigate('/super-admin/invoices')}
-          />
-          <StatCard
-            title="Monthly Recurring (MRR)"
-            value={mrr}
-            subtitle="Current Month Collections"
-            icon={TrendingUp}
-            color="emerald"
-          />
-          <StatCard
-            title="Pending Payments"
-            value={pendingRevenue}
-            subtitle={`${billingStats?.overdueInvoices || 0} Overdue Invoices`}
-            icon={Receipt}
-            color="amber"
-          />
-          <StatCard
-            title="Support Tickets"
-            value={`${openTicketsCount} Open`}
-            subtitle="Open or In Progress"
-            icon={LifeBuoy}
-            color="indigo"
-            onClick={() => navigate('/super-admin/tickets')}
-          />
-          <StatCard
-            title="System Health"
-            value={systemHealth}
-            subtitle="All Gateways Operational"
-            icon={Activity}
-            color="emerald"
-            onClick={() => navigate('/super-admin/system-health')}
-          />
+          <div className="animate-fade-up" style={{ '--delay': '0ms' }}>
+            <StatCard
+              title="Total Institutions"
+              value={totalInst}
+              subtitle="Schools, Colleges, Univs"
+              icon={Building2}
+              color="indigo"
+              onClick={() => navigate('/super-admin/institutions')}
+            />
+          </div>
+          <div className="animate-fade-up" style={{ '--delay': '40ms' }}>
+            <StatCard
+              title="Active Institutions"
+              value={activeInst}
+              subtitle="Paying Subscriptions"
+              icon={Building2}
+              color="emerald"
+              badgeText={activePercentage}
+              onClick={() => navigate('/super-admin/institutions')}
+            />
+          </div>
+          <div className="animate-fade-up" style={{ '--delay': '80ms' }}>
+            <StatCard
+              title="Trial Institutions"
+              value={trialInst}
+              subtitle="Trial Accounts Active"
+              icon={Clock}
+              color="amber"
+              onClick={() => navigate('/super-admin/subscriptions/trials')}
+            />
+          </div>
+          <div className="animate-fade-up" style={{ '--delay': '120ms' }}>
+            <StatCard
+              title="Suspended Institutions"
+              value={suspendedInst}
+              subtitle="Clean Compliance"
+              icon={Building2}
+              color="rose"
+              onClick={() => navigate('/super-admin/institutions')}
+            />
+          </div>
+          <div className="animate-fade-up" style={{ '--delay': '160ms' }}>
+            <StatCard
+              title="Total Users"
+              value={totalUsers}
+              subtitle="Across All Portals"
+              icon={Users}
+              color="sky"
+              onClick={() => navigate('/super-admin/users')}
+            />
+          </div>
+          <div className="animate-fade-up" style={{ '--delay': '200ms' }}>
+            <StatCard
+              title="Total Students"
+              value={totalStudents}
+              subtitle="Enrolled Students"
+              icon={GraduationCap}
+              color="purple"
+              onClick={() => navigate('/super-admin/users?group=student')}
+            />
+          </div>
+          <div className="animate-fade-up" style={{ '--delay': '240ms' }}>
+            <StatCard
+              title="Total Staff"
+              value={totalStaff}
+              subtitle="Teaching & Non-Teaching"
+              icon={Briefcase}
+              color="indigo"
+              onClick={() => navigate('/super-admin/users?group=staff')}
+            />
+          </div>
+          <div className="animate-fade-up" style={{ '--delay': '280ms' }}>
+            <StatCard
+              title="Total Revenue"
+              value={totalRevenue}
+              subtitle="Lifetime Platform Earnings"
+              icon={DollarSign}
+              color="emerald"
+              onClick={() => navigate('/super-admin/invoices')}
+            />
+          </div>
+          <div className="animate-fade-up" style={{ '--delay': '320ms' }}>
+            <StatCard
+              title="Monthly Recurring (MRR)"
+              value={mrr}
+              subtitle="Current Month Collections"
+              icon={TrendingUp}
+              color="emerald"
+              onClick={() => navigate('/super-admin/subscriptions')}
+            />
+          </div>
+          <div className="animate-fade-up" style={{ '--delay': '360ms' }}>
+            <StatCard
+              title="Pending Payments"
+              value={pendingRevenue}
+              subtitle={`${billingStats?.overdueInvoices || 0} Overdue Invoices`}
+              icon={Receipt}
+              color="amber"
+              onClick={() => navigate('/super-admin/invoices')}
+            />
+          </div>
+          <div className="animate-fade-up" style={{ '--delay': '400ms' }}>
+            <StatCard
+              title="Support Tickets"
+              value={`${openTicketsCount} Open`}
+              subtitle="Open or In Progress"
+              icon={LifeBuoy}
+              color="indigo"
+              onClick={() => navigate('/super-admin/tickets')}
+            />
+          </div>
+          <div className="animate-fade-up" style={{ '--delay': '440ms' }}>
+            <StatCard
+              title="System Health"
+              value={systemHealth}
+              subtitle="All Gateways Operational"
+              icon={Activity}
+              color="emerald"
+              onClick={() => navigate('/super-admin/system-health')}
+            />
+          </div>
         </div>
       </div>
 
@@ -220,30 +248,38 @@ export const SuperAdminDashboardPage = () => {
           Platform Analytics & Growth Trajectories
         </h3>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <ChartCard
-            title="Institution Growth Trajectory"
-            subtitle="Monthly onboarded institutions"
-            data={analytics?.institutionGrowth || []}
-            height={200}
-          />
-          <ChartCard
-            title="Platform User Growth"
-            subtitle="Active student, staff & admin accounts"
-            data={analytics?.userGrowth || []}
-            height={200}
-          />
-          <ChartCard
-            title="Monthly Recurring Revenue (INR ₹)"
-            subtitle="SaaS subscription collections"
-            data={analytics?.revenueMonthly || []}
-            height={200}
-          />
-          <ChartCard
-            title="State-wise Distribution Ranking"
-            subtitle="By institution state location"
-            data={analytics?.stateDistribution || []}
-            height={200}
-          />
+          <div className="animate-fade-up" style={{ '--delay': '0ms' }}>
+            <ChartCard
+              title="Institution Growth Trajectory"
+              subtitle="Monthly onboarded institutions"
+              data={analytics?.institutionGrowth || []}
+              height={200}
+            />
+          </div>
+          <div className="animate-fade-up" style={{ '--delay': '80ms' }}>
+            <ChartCard
+              title="Platform User Growth"
+              subtitle="Active student, staff & admin accounts"
+              data={analytics?.userGrowth || []}
+              height={200}
+            />
+          </div>
+          <div className="animate-fade-up" style={{ '--delay': '160ms' }}>
+            <ChartCard
+              title="Monthly Recurring Revenue (INR ₹)"
+              subtitle="SaaS subscription collections"
+              data={analytics?.revenueMonthly || []}
+              height={200}
+            />
+          </div>
+          <div className="animate-fade-up" style={{ '--delay': '240ms' }}>
+            <ChartCard
+              title="State-wise Distribution Ranking"
+              subtitle="By institution state location"
+              data={analytics?.stateDistribution || []}
+              height={200}
+            />
+          </div>
         </div>
       </div>
     </div>
