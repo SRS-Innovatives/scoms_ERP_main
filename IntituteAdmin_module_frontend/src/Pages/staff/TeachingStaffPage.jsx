@@ -1,38 +1,74 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import DataTable from '../../components/common/DataTable';
 import SearchFilterBar from '../../components/common/SearchFilterBar';
 import StaffCard from '../../components/common/StaffCard';
 import StatusBadge from '../../components/common/StatusBadge';
-import { staffList } from '../../data/mockData';
+import EmptyState from '../../components/common/EmptyState';
+import { useNotification } from '../../context/NotificationContext';
 import { useNavigate } from 'react-router-dom';
-import { Grid, List, Plus } from 'lucide-react';
+import { Grid, List, Plus, GraduationCap } from 'lucide-react';
+import staffService from '../../services/staffService';
+
+const initialsAvatar = (name) => {
+  const initials = (name || '?').split(' ').filter(Boolean).map((w) => w[0]).slice(0, 2).join('').toUpperCase();
+  const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='64' height='64'><rect width='64' height='64' fill='%234f46e5'/><text x='50%25' y='50%25' font-family='sans-serif' font-size='24' fill='white' text-anchor='middle' dy='.35em'>${initials}</text></svg>`;
+  return `data:image/svg+xml,${svg}`;
+};
+
+const toCardShape = (s) => ({
+  id: s.id,
+  name: `${s.firstName} ${s.lastName}`.trim(),
+  photo: initialsAvatar(`${s.firstName} ${s.lastName}`),
+  role: s.designation,
+  dept: s.department?.name || '—',
+  empId: s.employeeCode,
+  experience: s.experience || '—',
+  phone: s.user?.mobile || '—',
+  qualification: s.qualification || '—',
+  status: s.status,
+});
 
 export const TeachingStaffPage = () => {
   const navigate = useNavigate();
+  const { notifyError } = useNotification();
   const [search, setSearch] = useState('');
   const [viewMode, setViewMode] = useState('table');
-  const teaching = staffList.filter((s) => s.type === 'Teaching');
+  const [teaching, setTeaching] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchAll = useCallback(() => {
+    setLoading(true);
+    staffService.getAll('TEACHING')
+      .then((res) => setTeaching(res.data || []))
+      .catch((err) => notifyError(`Failed to load teaching faculty: ${err.message}`))
+      .finally(() => setLoading(false));
+  }, [notifyError]);
+
+  useEffect(() => { fetchAll(); }, [fetchAll]);
+
+  const filtered = teaching.filter((s) => `${s.firstName} ${s.lastName}`.toLowerCase().includes(search.toLowerCase()) || s.employeeCode.toLowerCase().includes(search.toLowerCase()));
 
   const columns = [
     {
       header: 'Faculty Name',
-      key: 'name',
-      render: (val, row) => (
+      key: 'firstName',
+      sortable: false,
+      render: (_, row) => (
         <div className="flex items-center gap-3">
-          <img src={row.photo} alt={val} className="w-8 h-8 rounded-full object-cover border" />
+          <img src={initialsAvatar(`${row.firstName} ${row.lastName}`)} alt="" className="w-8 h-8 rounded-full object-cover border" />
           <div>
-            <p className="font-bold text-slate-900 dark:text-white leading-tight">{val}</p>
-            <p className="text-[10px] text-slate-400 font-mono">ID: {row.empId}</p>
+            <p className="font-bold text-slate-900 dark:text-white leading-tight">{row.firstName} {row.lastName}</p>
+            <p className="text-[10px] text-slate-400 font-mono">ID: {row.employeeCode}</p>
           </div>
         </div>
-      )
+      ),
     },
-    { header: 'Designation / Role', key: 'role', render: (val) => <span className="font-bold text-indigo-600 dark:text-indigo-400">{val}</span> },
-    { header: 'Department', key: 'dept' },
-    { header: 'Highest Qualification', key: 'qualification', render: (val) => <span className="font-medium text-slate-700 dark:text-slate-300">{val}</span> },
-    { header: 'Experience', key: 'experience', render: (val) => <span className="font-mono">{val}</span> },
-    { header: 'Gross Salary', key: 'salary', render: (val) => <span className="font-mono font-bold">₹{val.toLocaleString()}</span> },
-    { header: 'Status', key: 'status', render: (val) => <StatusBadge status={val} /> }
+    { header: 'Designation / Role', key: 'designation', render: (val) => <span className="font-bold text-indigo-600 dark:text-indigo-400">{val}</span> },
+    { header: 'Department', key: 'department', sortable: false, render: (val) => val?.name || '—' },
+    { header: 'Highest Qualification', key: 'qualification', render: (val) => <span className="font-medium text-slate-700 dark:text-slate-300">{val || '—'}</span> },
+    { header: 'Experience', key: 'experience', render: (val) => <span className="font-mono">{val || '—'}</span> },
+    { header: 'Gross Salary', key: 'salary', sortable: false, render: (val) => val ? <span className="font-mono font-bold">₹{(val.basicPay + val.hra + val.da + val.otherAllowances - val.deductions).toLocaleString()}</span> : '—' },
+    { header: 'Status', key: 'status', render: (val) => <StatusBadge status={val} /> },
   ];
 
   return (
@@ -57,9 +93,14 @@ export const TeachingStaffPage = () => {
       </div>
 
       <SearchFilterBar searchQuery={search} onSearchChange={setSearch} placeholder="Search teaching faculty..." />
-      {viewMode === 'table' ? <DataTable columns={columns} data={teaching} /> : (
+
+      {!loading && filtered.length === 0 ? (
+        <EmptyState title="No Teaching Faculty Yet" description="Register the first teaching staff member." actionLabel="Add Teaching Staff" onAction={() => navigate('/admin/staff/registration')} icon={GraduationCap} />
+      ) : viewMode === 'table' ? (
+        <DataTable columns={columns} data={filtered} loading={loading} />
+      ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {teaching.map((st) => <StaffCard key={st.id} staff={st} onViewDetails={() => navigate('/admin/staff/profile')} />)}
+          {filtered.map(toCardShape).map((st) => <StaffCard key={st.id} staff={st} onViewDetails={() => navigate(`/admin/staff/profile?id=${st.id}`)} />)}
         </div>
       )}
     </div>

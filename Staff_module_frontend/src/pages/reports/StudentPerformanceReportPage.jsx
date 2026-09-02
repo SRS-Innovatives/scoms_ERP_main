@@ -1,8 +1,8 @@
 import React from 'react';
-import AttendanceReportPage from './AttendanceReportPage';
+import SubjectPerformancePage from '../performance/SubjectPerformancePage';
 
 export const StudentPerformanceReportPage = () => {
-  return <AttendanceReportPage />;
+  return <SubjectPerformancePage />;
 };
 
 export default StudentPerformanceReportPage;

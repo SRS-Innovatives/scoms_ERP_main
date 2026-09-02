@@ -1,53 +1,59 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import SummaryCard from '../../components/common/SummaryCard';
 import ChartCard from '../../components/common/ChartCard';
 import DataTable from '../../components/common/DataTable';
 import StatusBadge from '../../components/common/StatusBadge';
 import SMSComposeModal from '../../components/modals/SMSComposeModal';
-import {
-  dashboardStats,
-  chartData,
-  studentsList,
-  feeTransactions,
-  announcements
-} from '../../data/mockData';
+import dashboardService from '../../services/dashboardService';
+import { useNotification } from '../../context/NotificationContext';
 import {
   Users,
   GraduationCap,
   CheckCircle,
   CreditCard,
-  TrendingUp,
-  Award,
-  BookOpen,
-  UserPlus,
-  Send,
-  Plus,
   ArrowRight,
   Sparkles,
-  MessageSquare
+  MessageSquare,
+  UserPlus
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 export const DashboardPage = () => {
   const navigate = useNavigate();
+  const { error: showError } = useNotification();
   const [showSmsModal, setShowSmsModal] = useState(false);
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  const fetchDashboard = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await dashboardService.getDashboard();
+      setData(res.data);
+    } catch (err) {
+      showError(err.message || 'Failed to load dashboard data', 'Load Failed');
+    } finally {
+      setLoading(false);
+    }
+  }, [showError]);
+
+  useEffect(() => {
+    fetchDashboard();
+  }, [fetchDashboard]);
 
   const studentColumns = [
     {
       header: 'Student',
       key: 'name',
       render: (val, row) => (
-        <div className="flex items-center gap-3">
-          <img src={row.photo} alt={val} className="w-8 h-8 rounded-full object-cover border border-slate-200" />
-          <div>
-            <p className="font-bold text-slate-900 dark:text-white leading-tight">{val}</p>
-            <p className="text-[10px] text-slate-400 font-mono">Roll: {row.rollNo}</p>
-          </div>
+        <div>
+          <p className="font-bold text-slate-900 dark:text-white leading-tight">{val}</p>
+          <p className="text-[10px] text-slate-400 font-mono">Roll: {row.rollNo || '—'}</p>
         </div>
       )
     },
-    { header: 'Course & Dept', key: 'course' },
-    { header: 'Sem / Sec', key: 'yearSem' },
+    { header: 'Course', key: 'course' },
+    { header: 'Section', key: 'section' },
     {
       header: 'Fee Status',
       key: 'feeStatus',
@@ -56,9 +62,22 @@ export const DashboardPage = () => {
     {
       header: 'Contact',
       key: 'phone',
-      render: (val) => <span className="font-medium">{val}</span>
+      render: (val) => <span className="font-medium">{val || '—'}</span>
     }
   ];
+
+  if (loading || !data) {
+    return (
+      <div className="flex flex-col items-center justify-center py-24 gap-3">
+        <div className="w-9 h-9 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" />
+        <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+          {loading ? 'Loading dashboard...' : 'No dashboard data available.'}
+        </p>
+      </div>
+    );
+  }
+
+  const departmentChartData = data.departmentDistribution.map((d) => ({ name: d.department, count: d.count }));
 
   return (
     <div className="space-y-8 animate-fade-in">
@@ -68,13 +87,15 @@ export const DashboardPage = () => {
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="space-y-2 max-w-xl">
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 backdrop-blur-md text-xs font-semibold text-indigo-100 border border-white/20">
-              <Sparkles className="w-3.5 h-3.5 text-amber-300" /> SCOMS Institute Admin Portal 2025-26
+              <Sparkles className="w-3.5 h-3.5 text-amber-300" /> SCOMS Institute Admin Portal
             </span>
             <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
-              Welcome back, Principal Dr. S. K. Rajan 👋
+              Welcome back 👋
             </h1>
             <p className="text-xs sm:text-sm text-indigo-100/90 leading-relaxed">
-              Here is your daily operational summary for Sri Ramakrishna College. You have <span className="font-bold text-amber-300">48 absent students</span> and <span className="font-bold text-white">₹18.45 Lakhs</span> pending fees today.
+              Here is your daily operational summary for <span className="font-bold">{data.institution?.name}</span>. You have{' '}
+              <span className="font-bold text-amber-300">{data.totalStudents - data.todayAttendance.present} absent students</span> and{' '}
+              <span className="font-bold text-white">₹{(data.pendingFees.amount / 100000).toFixed(2)} Lakhs</span> pending fees today.
             </p>
           </div>
 
@@ -108,38 +129,30 @@ export const DashboardPage = () => {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <SummaryCard
           title="Total Enrolled Students"
-          value={dashboardStats.totalStudents.toLocaleString()}
-          subtitle="Across 18 Branches"
+          value={data.totalStudents.toLocaleString()}
+          subtitle={`Across ${data.totalDepartments} Departments`}
           icon={GraduationCap}
-          trend="+12% YoY"
-          trendType="up"
           color="indigo"
         />
         <SummaryCard
           title="Teaching & Non-Teaching Staff"
-          value={dashboardStats.totalStaff}
-          subtitle="42 Professors, 36 Assoc Prof"
+          value={data.totalStaff}
+          subtitle="Total registered staff"
           icon={Users}
-          trend="100% Present"
-          trendType="up"
           color="sky"
         />
         <SummaryCard
           title="Today's Attendance Rate"
-          value={`${dashboardStats.todayAttendance}%`}
-          subtitle="3,270 / 3,450 Present"
+          value={`${data.todayAttendance.rate}%`}
+          subtitle={`${data.todayAttendance.present} / ${data.todayAttendance.total} Present`}
           icon={CheckCircle}
-          trend="-1.2% vs yesterday"
-          trendType="down"
           color="emerald"
         />
         <SummaryCard
           title="Pending Fee Outstanding"
-          value={`₹${(dashboardStats.pendingFees / 100000).toFixed(2)} L`}
-          subtitle="142 Students Overdue"
+          value={`₹${(data.pendingFees.amount / 100000).toFixed(2)} L`}
+          subtitle={`${data.pendingFees.studentsOverdue} Students Overdue`}
           icon={CreditCard}
-          trend="Due in 15 Days"
-          trendType="down"
           color="rose"
         />
       </div>
@@ -149,18 +162,18 @@ export const DashboardPage = () => {
         <div className="lg:col-span-2">
           <ChartCard
             title="Monthly Fee Collection Trend (INR)"
-            subtitle="Academic Year 2025-26 Fee Head Receipts"
+            subtitle={`Calendar Year ${new Date().getFullYear()} Fee Receipts`}
             type="bar"
-            data={chartData.monthlyCollection}
+            data={data.monthlyCollection}
             height={260}
           />
         </div>
         <div>
           <ChartCard
             title="Department Student Distribution"
-            subtitle="Current Active Batch Breakdown"
+            subtitle="Current Active Enrollment Breakdown"
             type="pie"
-            data={chartData.departmentStudents}
+            data={departmentChartData}
             height={260}
           />
         </div>
@@ -172,7 +185,7 @@ export const DashboardPage = () => {
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-base font-bold text-slate-900 dark:text-white">Recent Student Directory</h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400">Newly registered students for Even Semester 2025-26</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">Newly registered students</p>
             </div>
             <button
               onClick={() => navigate('/admin/student/list')}
@@ -182,7 +195,7 @@ export const DashboardPage = () => {
               <ArrowRight className="w-3.5 h-3.5" />
             </button>
           </div>
-          <DataTable columns={studentColumns} data={studentsList.slice(0, 4)} pageSize={4} />
+          <DataTable columns={studentColumns} data={data.recentStudents} pageSize={5} />
         </div>
 
         {/* Institutional Circulars & Notice Feed */}
@@ -198,18 +211,22 @@ export const DashboardPage = () => {
           </div>
 
           <div className="space-y-3">
-            {announcements.map((item) => (
-              <div key={item.id} className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="px-2 py-0.5 rounded text-[9px] font-bold uppercase bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300">
-                    {item.category}
-                  </span>
-                  <span className="text-[10px] text-slate-400 font-mono">{item.publishDate}</span>
+            {data.announcements.length === 0 ? (
+              <p className="text-xs text-slate-400 text-center py-6">No announcements posted yet.</p>
+            ) : (
+              data.announcements.map((item) => (
+                <div key={item.id} className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="px-2 py-0.5 rounded text-[9px] font-bold uppercase bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300">
+                      {item.targetRole}
+                    </span>
+                    <span className="text-[10px] text-slate-400 font-mono">{new Date(item.createdAt).toLocaleDateString('en-IN')}</span>
+                  </div>
+                  <h4 className="text-xs font-bold text-slate-900 dark:text-white leading-tight mb-1">{item.title}</h4>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-2 leading-relaxed">{item.content}</p>
                 </div>
-                <h4 className="text-xs font-bold text-slate-900 dark:text-white leading-tight mb-1">{item.title}</h4>
-                <p className="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-2 leading-relaxed">{item.content}</p>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </div>
       </div>

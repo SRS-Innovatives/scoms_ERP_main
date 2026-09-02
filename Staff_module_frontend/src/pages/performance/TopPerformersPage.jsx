@@ -1,10 +1,29 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import StudentTable from '../../components/common/StudentTable';
-import { mockStudentsList } from '../../data/mockStaffData';
-import { Award } from 'lucide-react';
+import examService from '../../services/examService';
+import { useNotification } from '../../context/NotificationContext';
+import { Award, Loader2 } from 'lucide-react';
 
 export const TopPerformersPage = () => {
-  const toppers = mockStudentsList.filter(s => s.lastMarks >= 85);
+  const { error: showError } = useNotification();
+  const [students, setStudents] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    examService.getStudentPerformance()
+      .then((res) => setStudents(res.data || []))
+      .catch((err) => showError(err.message || 'Failed to load student performance', 'Load Failed'))
+      .finally(() => setLoading(false));
+  }, [showError]);
+
+  if (loading) {
+    return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-emerald-600" /></div>;
+  }
+
+  const toppers = students
+    .filter((s) => s.avgMarksPercent !== null && s.avgMarksPercent >= 85)
+    .sort((a, b) => b.avgMarksPercent - a.avgMarksPercent)
+    .map((s) => ({ ...s, attendancePercent: s.attendancePercent ?? 0, lastMarks: s.avgMarksPercent }));
 
   return (
     <div className="space-y-4">
@@ -12,8 +31,15 @@ export const TopPerformersPage = () => {
         <Award className="w-5 h-5" />
         <h2 className="text-lg font-bold">Class Rankers & Top Performers</h2>
       </div>
-      <p className="text-xs text-slate-500">Students scoring above 85% in recent Physics assessments.</p>
-      <StudentTable students={toppers} />
+      <p className="text-xs text-slate-500">Students averaging 85% or above across your recorded assessments.</p>
+
+      {toppers.length === 0 ? (
+        <div className="glass-card p-8 rounded-2xl border border-slate-200 dark:border-slate-800 text-center text-xs text-slate-500">
+          No students have reached 85% average yet — this will populate as marks are entered.
+        </div>
+      ) : (
+        <StudentTable students={toppers} />
+      )}
     </div>
   );
 };

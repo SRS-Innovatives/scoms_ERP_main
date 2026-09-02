@@ -1,8 +1,8 @@
 import React from 'react';
-import SubjectAnalysisPage from '../examination/SubjectAnalysisPage';
+import RankListPage from '../examination/RankListPage';
 
 export const ExamResultReportPage = () => {
-  return <SubjectAnalysisPage />;
+  return <RankListPage />;
 };
 
 export default ExamResultReportPage;

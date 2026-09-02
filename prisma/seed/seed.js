@@ -184,6 +184,8 @@ async function main() {
       userId: teacherUser.id,
       institutionId: demoSchool.id,
       employeeCode: 'EMP-2025-0001',
+      firstName: 'Meera',
+      lastName: 'Krishnan',
       departmentId: deptScience.id,
       designation: 'Senior PGT Physics Teacher',
       qualification: 'M.Sc Physics, B.Ed',

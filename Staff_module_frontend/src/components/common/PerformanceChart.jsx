@@ -1,16 +1,8 @@
 import React from 'react';
 
-export const PerformanceChart = ({ title, type = 'bar', data = [], height = 200 }) => {
-  // SVG based chart component for zero-dependency high visual appeal
-  const days = data.length > 0 ? data : [
-    { label: 'Mon', value: 92, target: 88 },
-    { label: 'Tue', value: 96, target: 88 },
-    { label: 'Wed', value: 89, target: 88 },
-    { label: 'Thu', value: 94, target: 88 },
-    { label: 'Fri', value: 91, target: 88 },
-    { label: 'Sat', value: 85, target: 88 }
-  ];
-
+export const PerformanceChart = ({ title, type = 'bar', data = [], height = 200, periodLabel = 'This Week' }) => {
+  // SVG based chart component for zero-dependency high visual appeal.
+  // No fake fallback data — an empty `data` array renders a real empty state.
   const maxValue = 100;
 
   return (
@@ -18,14 +10,19 @@ export const PerformanceChart = ({ title, type = 'bar', data = [], height = 200 
       <div className="flex items-center justify-between mb-4">
         <h4 className="text-sm font-bold text-slate-900 dark:text-slate-100">{title}</h4>
         <span className="text-[11px] font-medium px-2 py-0.5 rounded bg-sky-50 dark:bg-sky-950/60 text-sky-600 dark:text-sky-400 border border-sky-200 dark:border-sky-800">
-          This Week
+          {periodLabel}
         </span>
       </div>
 
+      {data.length === 0 ? (
+        <div className="flex items-center justify-center text-xs text-slate-400" style={{ height: `${height}px` }}>
+          No data available yet.
+        </div>
+      ) : (
       <div className="relative w-full" style={{ height: `${height}px` }}>
         {/* Chart Bars */}
         <div className="absolute inset-0 flex items-end justify-between gap-2 pt-6 pb-6">
-          {days.map((item, idx) => {
+          {data.map((item, idx) => {
             const heightPercent = (item.value / maxValue) * 100;
             return (
               <div key={idx} className="flex-1 flex flex-col items-center h-full justify-end group relative">
@@ -51,6 +48,7 @@ export const PerformanceChart = ({ title, type = 'bar', data = [], height = 200 
           })}
         </div>
       </div>
+      )}
     </div>
   );
 };

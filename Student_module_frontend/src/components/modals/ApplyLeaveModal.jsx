@@ -4,19 +4,32 @@ import FormInput from '../common/FormInput';
 import Select from '../common/Select';
 import FileUpload from '../common/FileUpload';
 import { useNotification } from '../../context/NotificationContext';
-import { Calendar } from 'lucide-react';
+import leaveService from '../../services/leaveService';
 
-export const ApplyLeaveModal = ({ isOpen, onClose }) => {
-  const { success } = useNotification();
-  const [leaveType, setLeaveType] = useState('Medical Leave');
-  const [fromDate, setFromDate] = useState('2026-08-20');
-  const [toDate, setToDate] = useState('2026-08-21');
+export const ApplyLeaveModal = ({ isOpen, onClose, onSubmitted }) => {
+  const { success, error: showError } = useNotification();
+  const [leaveType, setLeaveType] = useState('MEDICAL');
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
   const [reason, setReason] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    success('Leave request submitted to Class Teacher Dr. Malathi S. for approval.', 'Leave Submitted');
-    onClose();
+    setSubmitting(true);
+    try {
+      await leaveService.apply({ type: leaveType, startDate: fromDate, endDate: toDate, reason });
+      success('Leave request submitted to your Class Teacher for approval.', 'Leave Submitted');
+      setFromDate('');
+      setToDate('');
+      setReason('');
+      onSubmitted && onSubmitted();
+      onClose();
+    } catch (err) {
+      showError(err.message || 'Failed to submit leave request', 'Submission Failed');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -27,9 +40,9 @@ export const ApplyLeaveModal = ({ isOpen, onClose }) => {
           value={leaveType}
           onChange={setLeaveType}
           options={[
-            { value: 'Medical Leave', label: 'Medical Leave' },
-            { value: 'Casual Leave', label: 'Casual / Personal Leave' },
-            { value: 'On Duty (OD)', label: 'On Duty (OD) - Sports / Symposium' }
+            { value: 'MEDICAL', label: 'Medical Leave' },
+            { value: 'CASUAL', label: 'Casual / Personal Leave' },
+            { value: 'DUTY', label: 'On Duty (OD) - Sports / Symposium' },
           ]}
         />
 
@@ -50,14 +63,14 @@ export const ApplyLeaveModal = ({ isOpen, onClose }) => {
           ></textarea>
         </div>
 
-        <FileUpload label="Upload Doctor Certificate / OD Approval PDF" />
+        <FileUpload label="Doctor Certificate / OD Approval (not yet stored — describe it in the reason above)" />
 
         <div className="flex justify-end gap-2 pt-2 border-t">
           <button type="button" onClick={onClose} className="px-4 py-2 font-semibold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 rounded-xl">
             Cancel
           </button>
-          <button type="submit" className="px-5 py-2 font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-xs">
-            Submit Leave Request
+          <button type="submit" disabled={submitting} className="px-5 py-2 font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-xs disabled:opacity-50">
+            {submitting ? 'Submitting...' : 'Submit Leave Request'}
           </button>
         </div>
       </form>

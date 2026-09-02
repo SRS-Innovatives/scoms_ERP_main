@@ -141,6 +141,8 @@ export const navigationConfig = [
       { key: 'send-announcement', title: 'Send Announcement', path: '/staff/communication/announcements' },
       { key: 'class-notice', title: 'Class Notice Board', path: '/staff/communication/notices' },
       { key: 'parent-message', title: 'Parent Messaging', path: '/staff/communication/parent-messages' },
+      { key: 'student-chat', title: 'Student Chat', path: '/staff/communication/student-chat' },
+      { key: 'appointment-requests', title: 'Appointment Requests', path: '/staff/appointments' },
       { key: 'sms-center', title: 'SMS Broadcast Center', path: '/staff/communication/sms' },
       { key: 'email-center', title: 'Email Broadcast Center', path: '/staff/communication/email' },
       { key: 'message-history', title: 'Message History', path: '/staff/communication/history' }
@@ -154,7 +156,8 @@ export const navigationConfig = [
       { key: 'apply-leave', title: 'Apply Leave', path: '/staff/leave/apply' },
       { key: 'leave-history', title: 'Leave History', path: '/staff/leave/history' },
       { key: 'leave-balance', title: 'Leave Balance', path: '/staff/leave/balance' },
-      { key: 'leave-status', title: 'Leave Approval Status', path: '/staff/leave/status' }
+      { key: 'leave-status', title: 'Leave Approval Status', path: '/staff/leave/status' },
+      { key: 'student-leave-approvals', title: 'Student Leave Approvals', path: '/staff/leave/student-approvals' }
     ]
   },
   {

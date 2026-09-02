@@ -29,8 +29,8 @@ export const navigationConfig = [
     children: [
       { key: 'acad-overview', title: 'Academic Overview', path: '/student/academics' },
       { key: 'subjects', title: 'My Subjects', path: '/student/subjects' },
-      { key: 'attendance', title: 'Attendance', path: '/student/attendance' },
-      { key: 'timetable', title: 'Timetable', path: '/student/timetable' },
+      { key: 'attendance', title: 'Attendance', path: '/student/attendance', module: 'attendance' },
+      { key: 'timetable', title: 'Timetable', path: '/student/timetable', module: 'timetable' },
       { key: 'assignments', title: 'Assignments', path: '/student/assignments', badge: '1 Due' },
       { key: 'materials', title: 'Study Materials', path: '/student/materials' },
       { key: 'question-bank', title: 'Question Bank', path: '/student/question-bank' },
@@ -42,15 +42,16 @@ export const navigationConfig = [
     title: 'Examinations',
     icon: FileCheck,
     children: [
-      { key: 'exam-schedule', title: 'Exam Schedule', path: '/student/exams' },
-      { key: 'results', title: 'Semester Results', path: '/student/results' },
-      { key: 'performance', title: 'Performance Analytics', path: '/student/performance' }
+      { key: 'exam-schedule', title: 'Exam Schedule', path: '/student/exams', module: 'examination' },
+      { key: 'results', title: 'Semester Results', path: '/student/results', module: 'examination' },
+      { key: 'performance', title: 'Performance Analytics', path: '/student/performance', module: 'examination' }
     ]
   },
   {
     key: 'fees',
     title: 'Fees & Payments',
     icon: CreditCard,
+    module: 'fee',
     children: [
       { key: 'fee-overview', title: 'Fee Overview', path: '/student/fees', badge: 'Pending' },
       { key: 'pay-fees', title: 'Pay Fees Online', path: '/student/fees/pay' },
@@ -63,12 +64,12 @@ export const navigationConfig = [
     title: 'Campus Life',
     icon: Building,
     children: [
-      { key: 'announcements', title: 'Announcements', path: '/student/announcements' },
+      { key: 'announcements', title: 'Announcements', path: '/student/announcements', module: 'communication' },
       { key: 'events', title: 'Campus Events', path: '/student/events' },
       { key: 'clubs', title: 'Clubs & Societies', path: '/student/clubs' },
-      { key: 'library', title: 'Digital Library', path: '/student/library' },
-      { key: 'transport', title: 'Transport', path: '/student/transport' },
-      { key: 'hostel', title: 'Hostel & Mess', path: '/student/hostel' }
+      { key: 'library', title: 'Digital Library', path: '/student/library', module: 'library' },
+      { key: 'transport', title: 'Transport', path: '/student/transport', module: 'transport' },
+      { key: 'hostel', title: 'Hostel & Mess', path: '/student/hostel', module: 'hostel' }
     ]
   },
   {
@@ -76,7 +77,7 @@ export const navigationConfig = [
     title: 'Campus Services',
     icon: Wrench,
     children: [
-      { key: 'certificates', title: 'Certificates', path: '/student/certificates' },
+      { key: 'certificates', title: 'Certificates', path: '/student/certificates', module: 'certificates' },
       { key: 'requests', title: 'Service Requests', path: '/student/services' },
       { key: 'grievances', title: 'Grievances & Complaints', path: '/student/grievances' },
       { key: 'appointments', title: 'Counselling Appointments', path: '/student/appointments' },

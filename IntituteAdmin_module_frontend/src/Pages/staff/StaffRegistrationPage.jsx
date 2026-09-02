@@ -12,7 +12,7 @@ export const StaffRegistrationPage = () => {
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
-    type: 'Teaching',
+    staffType: 'TEACHING',
     role: 'TEACHER',
     departmentId: '',
     email: '',
@@ -20,6 +20,7 @@ export const StaffRegistrationPage = () => {
     employeeCode: '',
     designation: '',
     qualification: '',
+    experience: '',
     joiningDate: ''
   });
 
@@ -89,13 +90,12 @@ export const StaffRegistrationPage = () => {
           <div>
             <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Staff Cadre Type *</label>
             <select
-              value={formData.type}
-              onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+              value={formData.staffType}
+              onChange={(e) => setFormData({ ...formData, staffType: e.target.value })}
               className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border rounded-lg font-medium"
             >
-              <option value="Teaching">Teaching Faculty</option>
-              <option value="Non-Teaching">Non-Teaching Staff</option>
-              <option value="Administrative">Administrative / Management</option>
+              <option value="TEACHING">Teaching Faculty</option>
+              <option value="NON_TEACHING">Non-Teaching Staff</option>
             </select>
           </div>
           <div>
@@ -181,17 +181,8 @@ export const StaffRegistrationPage = () => {
               className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border rounded-lg font-medium"
             />
           </div>
-          <div>
-            <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Gross Salary (Monthly ₹)</label>
-            <input
-              type="text"
-              placeholder="e.g. 95000"
-              value={formData.salary}
-              onChange={(e) => setFormData({ ...formData, salary: e.target.value })}
-              className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border rounded-lg font-mono font-medium"
-            />
-          </div>
         </div>
+        <p className="text-[11px] text-slate-400">Salary structure can be configured after registration under Salary Structure & Payroll Matrix.</p>
         <FileUpload label="Upload Faculty Profile Picture" />
       </FormSection>
 

@@ -1,16 +1,18 @@
 import React from 'react';
-import CertificateTemplate from '../../components/print/CertificateTemplate';
+import CertificateGenerator from '../../components/print/CertificateGenerator';
 
 export const TransferCertificatePage = () => {
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-xl font-bold text-slate-900 dark:text-white">Transfer Certificate (TC) Generator</h1>
-        <p className="text-xs text-slate-500 dark:text-slate-400">Generate and print official Transfer & Conduct Certificate for departing students</p>
-      </div>
-
-      <CertificateTemplate type="tc" />
-    </div>
+    <CertificateGenerator
+      type="TC"
+      title="Transfer Certificate (TC) Generator"
+      subtitle="Generate and print official Transfer & Conduct Certificate for departing students"
+      extraFields={[
+        { name: 'dateOfLeaving', label: 'Date of Leaving', placeholder: 'e.g. 31/05/2026' },
+        { name: 'reasonForLeaving', label: 'Reason for Leaving', placeholder: 'e.g. Course Completed' },
+        { name: 'conduct', label: 'Character & Conduct', placeholder: 'e.g. GOOD' },
+      ]}
+    />
   );
 };
 

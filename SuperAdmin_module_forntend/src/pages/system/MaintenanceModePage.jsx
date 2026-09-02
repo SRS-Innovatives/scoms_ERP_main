@@ -1,21 +1,42 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import PageHeader from '../../components/common/PageHeader';
 import { useNotification } from '../../context/NotificationContext';
-import { ShieldAlert, Power } from 'lucide-react';
+import { ShieldAlert, Power, Loader2 } from 'lucide-react';
+import settingsService from '../../services/settingsService';
 
 export const MaintenanceModePage = () => {
-  const { warning } = useNotification();
-  const [maintenanceActive, setMaintenanceActive] = useState(false);
-  const [message, setMessage] = useState('SCOMS platform is undergoing scheduled database indexing maintenance.');
+  const { warning, success, error: showError } = useNotification();
+  const [config, setConfig] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [toggling, setToggling] = useState(false);
 
-  const toggleMaintenance = () => {
-    setMaintenanceActive(prev => !prev);
-    warning(`Platform Maintenance Mode set to ${!maintenanceActive ? 'ACTIVE' : 'OFF'}`);
+  useEffect(() => {
+    settingsService.getSettings()
+      .then((res) => setConfig(res.data))
+      .catch((err) => showError(err.message || 'Failed to load settings', 'Load Failed'))
+      .finally(() => setLoading(false));
+  }, [showError]);
+
+  const toggleMaintenance = async () => {
+    setToggling(true);
+    try {
+      const res = await settingsService.updateSettings({ maintenanceMode: !config.maintenanceMode });
+      setConfig(res.data);
+      warning(`Platform Maintenance Mode set to ${res.data.maintenanceMode ? 'ACTIVE' : 'OFF'}`);
+    } catch (err) {
+      showError(err.message || 'Failed to update maintenance mode', 'Update Failed');
+    } finally {
+      setToggling(false);
+    }
   };
+
+  if (loading) {
+    return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-indigo-600" /></div>;
+  }
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
-      <PageHeader title="Platform Maintenance Mode Control" subtitle="Put the SCOMS multi-tenant portal into maintenance mode for scheduled upgrades." />
+      <PageHeader title="Platform Maintenance Mode Control" subtitle="Toggle the platform's maintenance flag, persisted to the platform settings record." />
 
       <div className="glass-card p-6 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-4 text-xs">
         <div className="flex items-center justify-between p-4 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-xl">
@@ -23,23 +44,23 @@ export const MaintenanceModePage = () => {
             <ShieldAlert className="w-6 h-6 text-amber-600" />
             <div>
               <h4 className="font-bold text-slate-900 dark:text-slate-100">Maintenance Status</h4>
-              <p className="text-slate-500">{maintenanceActive ? 'ACTIVE - Users see maintenance screen' : 'OFF - Platform operating normally'}</p>
+              <p className="text-slate-500">{config.maintenanceMode ? 'ACTIVE' : 'OFF — platform operating normally'}</p>
             </div>
           </div>
           <button
             onClick={toggleMaintenance}
-            className={`px-4 py-2 font-bold text-white rounded-xl transition-all flex items-center gap-1.5 ${
-              maintenanceActive ? 'bg-rose-600 hover:bg-rose-700' : 'bg-emerald-600 hover:bg-emerald-700'
+            disabled={toggling}
+            className={`px-4 py-2 font-bold text-white rounded-xl transition-all flex items-center gap-1.5 disabled:opacity-50 ${
+              config.maintenanceMode ? 'bg-rose-600 hover:bg-rose-700' : 'bg-emerald-600 hover:bg-emerald-700'
             }`}
           >
-            <Power className="w-4 h-4" /> {maintenanceActive ? 'Turn Off Maintenance' : 'Enable Maintenance'}
+            <Power className="w-4 h-4" /> {toggling ? 'Updating...' : config.maintenanceMode ? 'Turn Off Maintenance' : 'Enable Maintenance'}
           </button>
         </div>
 
-        <div>
-          <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">User-Facing Maintenance Message</label>
-          <textarea rows={3} value={message} onChange={(e) => setMessage(e.target.value)} className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border rounded-xl" />
-        </div>
+        <p className="text-[11px] text-slate-400">
+          This flag is persisted to the platform settings record but is not yet enforced by any backend middleware — no portal currently checks it before serving requests.
+        </p>
       </div>
     </div>
   );

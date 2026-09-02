@@ -1,29 +1,66 @@
-import React from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import DataTable from '../../components/common/DataTable';
+import EmptyState from '../../components/common/EmptyState';
+import { useNotification } from '../../context/NotificationContext';
+import { Loader2 } from 'lucide-react';
+import feeService from '../../services/feeService';
 
 export const CashBookPage = () => {
-  const cashEntries = [
-    { voucherNo: 'VCH-0912', date: '09-Aug-2026', particulars: 'Tuition Fee Received in Cash (Kavitha R.)', debit: 42500, credit: 0, balance: 142500 },
-    { voucherNo: 'VCH-0913', date: '09-Aug-2026', particulars: 'Office Stationery Cash Expense', debit: 0, credit: 1250, balance: 141250 }
-  ];
+  const { notifyError } = useNotification();
+  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const [dayBook, setDayBook] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  const fetchDay = useCallback(() => {
+    setLoading(true);
+    feeService.getDayBook(date)
+      .then((res) => setDayBook(res.data))
+      .catch((err) => notifyError(`Failed to load cash book: ${err.message}`))
+      .finally(() => setLoading(false));
+  }, [date, notifyError]);
+
+  useEffect(() => {
+    fetchDay();
+  }, [fetchDay]);
+
+  const cashEntries = (dayBook?.payments || []).filter((p) => p.paymentMode === 'CASH');
+  let running = 0;
+  const rows = cashEntries.map((p) => {
+    running += p.amountPaid;
+    return { ...p, balance: running };
+  });
 
   const columns = [
-    { header: 'Voucher No', key: 'voucherNo', render: (val) => <span className="font-mono font-bold text-indigo-600">{val}</span> },
-    { header: 'Date', key: 'date', render: (val) => <span className="font-mono">{val}</span> },
-    { header: 'Particulars', key: 'particulars', render: (val) => <span className="font-semibold text-slate-900 dark:text-white">{val}</span> },
-    { header: 'Debit / Receipt (₹)', key: 'debit', render: (val) => <span className="font-mono font-bold text-emerald-600">₹{val.toLocaleString()}</span> },
-    { header: 'Credit / Payment (₹)', key: 'credit', render: (val) => <span className="font-mono font-bold text-rose-600">₹{val.toLocaleString()}</span> },
-    { header: 'Closing Balance (₹)', key: 'balance', render: (val) => <span className="font-mono font-bold text-slate-900">₹{val.toLocaleString()}</span> }
+    { header: 'Receipt No', key: 'receipt', sortable: false, render: (val) => <span className="font-mono font-bold text-indigo-600">{val?.receiptNumber || '—'}</span> },
+    { header: 'Time', key: 'paidAt', render: (val) => <span className="font-mono">{new Date(val).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</span> },
+    { header: 'Student', key: 'student', sortable: false, render: (val) => <span className="font-semibold text-slate-900 dark:text-white">{val?.firstName} {val?.lastName} ({val?.rollNumber})</span> },
+    { header: 'Cash Received (₹)', key: 'amountPaid', render: (val) => <span className="font-mono font-bold text-emerald-600">₹{val.toLocaleString()}</span> },
+    { header: 'Running Balance (₹)', key: 'balance', render: (val) => <span className="font-mono font-bold text-slate-900 dark:text-white">₹{val.toLocaleString()}</span> },
   ];
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-xl font-bold text-slate-900 dark:text-white">Cash Book Ledger</h1>
-        <p className="text-xs text-slate-500 dark:text-slate-400">Daily physical cash receipts, petty cash disbursements & cashier closing balance</p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-xl font-bold text-slate-900 dark:text-white">Cash Book Ledger</h1>
+          <p className="text-xs text-slate-500 dark:text-slate-400">Physical cash receipts and running cashier balance for the selected day</p>
+        </div>
+        <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="p-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-mono" />
       </div>
 
-      <DataTable columns={columns} data={cashEntries} />
+      {loading ? (
+        <div className="flex justify-center py-16"><Loader2 className="w-7 h-7 animate-spin text-indigo-600" /></div>
+      ) : rows.length === 0 ? (
+        <EmptyState title="No Cash Transactions" description="No cash fee payments were recorded on this date." />
+      ) : (
+        <>
+          <DataTable columns={columns} data={rows} />
+          <div className="p-4 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-100 rounded-xl text-xs flex justify-between">
+            <span className="text-slate-500">Total Cash Collected:</span>
+            <span className="font-mono font-bold text-emerald-700">₹{running.toLocaleString()}</span>
+          </div>
+        </>
+      )}
     </div>
   );
 };

@@ -10,6 +10,31 @@ const { sendSuccess } = require('../utils/responseFormatter');
 const { AuthenticationError } = require('../errors/customErrors');
 const { ROLES } = require('../constants/roles');
 
+/**
+ * Logs every login attempt (success and failure) to the platform-wide AuditLog so the
+ * Super Admin Security Center has a real signal to show — never lets a logging failure
+ * break the actual login flow.
+ */
+const logLoginAttempt = async ({ req, success, identifier, userId, institutionId, reason }) => {
+  try {
+    await prisma.auditLog.create({
+      data: {
+        userId: userId || null,
+        institutionId: institutionId || null,
+        action: success ? 'LOGIN_SUCCESS' : 'LOGIN_FAILED',
+        module: 'AUTH',
+        entity: 'User',
+        entityId: identifier,
+        newValues: reason ? { reason } : undefined,
+        ipAddress: req.ip,
+        userAgent: req.get ? req.get('user-agent') : undefined,
+      },
+    });
+  } catch (err) {
+    // Audit logging must never break the login flow itself
+  }
+};
+
 const handleUnifiedLogin = async (req, res, next, allowedRoles = null) => {
   try {
     const { identifier, email, admissionNumber, employeeCode, password } = req.body;
@@ -62,17 +87,20 @@ const handleUnifiedLogin = async (req, res, next, allowedRoles = null) => {
     });
 
     if (!user) {
+      await logLoginAttempt({ req, success: false, identifier: searchInput, reason: 'ACCOUNT_NOT_FOUND' });
       throw new AuthenticationError('Invalid credentials. Account not found.');
     }
 
     // Verify password hash
     const isMatch = await comparePassword(password, user.password);
     if (!isMatch) {
+      await logLoginAttempt({ req, success: false, identifier: searchInput, userId: user.id, institutionId: user.institutionId, reason: 'WRONG_PASSWORD' });
       throw new AuthenticationError('Invalid credentials. Password incorrect.');
     }
 
     // Validate role restriction if provided
     if (allowedRoles && !allowedRoles.includes(user.role)) {
+      await logLoginAttempt({ req, success: false, identifier: searchInput, userId: user.id, institutionId: user.institutionId, reason: 'ROLE_NOT_ALLOWED' });
       throw new AuthenticationError('Access denied. Insufficient permissions for this portal.');
     }
 
@@ -113,6 +141,8 @@ const handleUnifiedLogin = async (req, res, next, allowedRoles = null) => {
       where: { id: user.id },
       data: { lastLoginAt: new Date() },
     });
+
+    await logLoginAttempt({ req, success: true, identifier: searchInput, userId: user.id, institutionId: user.institutionId });
 
     return sendSuccess(
       res,

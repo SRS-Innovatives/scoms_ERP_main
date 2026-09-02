@@ -30,28 +30,31 @@
 }
 
 /* Custom Glassmorphism & UI Utilities */
+/* background-color (not the `background` shorthand) — the shorthand resets
+   background-image, which would silently erase a gradient utility (e.g. bg-gradient-to-r)
+   applied on the same element alongside glass-card. */
 .glass-card {
-  background: rgba(255, 255, 255, 0.88);
+  background-color: rgba(255, 255, 255, 0.88);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   border: 1px solid rgba(226, 232, 240, 0.8);
 }
 
 .dark .glass-card {
-  background: rgba(21, 28, 44, 0.88);
+  background-color: rgba(21, 28, 44, 0.88);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   border: 1px solid rgba(36, 47, 70, 0.8);
 }
 
 .glass-nav {
-  background: rgba(255, 255, 255, 0.92);
+  background-color: rgba(255, 255, 255, 0.92);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
 }
 
 .dark .glass-nav {
-  background: rgba(11, 15, 25, 0.92);
+  background-color: rgba(11, 15, 25, 0.92);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
 }

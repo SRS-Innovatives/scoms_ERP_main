@@ -1,47 +1,52 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import PageHeader from '../../components/common/PageHeader';
 import StatusBadge from '../../components/common/StatusBadge';
-import { Home, Utensils } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { useNotification } from '../../context/NotificationContext';
+import campusService from '../../services/campusService';
 
 export const HostelPage = () => {
-  const { success } = useNotification();
+  const { error: showError } = useNotification();
+  const [bed, setBed] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    campusService.getMyHostel()
+      .then((res) => setBed(res.data))
+      .catch((err) => showError(err.message || 'Failed to load hostel allocation', 'Load Failed'))
+      .finally(() => setLoading(false));
+  }, [showError]);
+
+  if (loading) {
+    return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-indigo-600" /></div>;
+  }
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Hostel Management & Mess Services" subtitle="Block room allotment, warden contacts, mess menu, and outing gate pass." />
+      <PageHeader title="Hostel Room Allocation" subtitle="Your room, bed, warden contact, and mess fee." />
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="glass-card p-6 rounded-3xl border border-slate-200 dark:border-slate-800 space-y-4">
+      {!bed ? (
+        <div className="glass-card p-8 rounded-3xl border border-slate-200 dark:border-slate-800 text-center text-xs text-slate-500 max-w-2xl">
+          You are not currently allocated a hostel bed. Contact your Institute Admin to request one.
+        </div>
+      ) : (
+        <div className="glass-card p-6 rounded-3xl border border-slate-200 dark:border-slate-800 space-y-4 max-w-xl">
           <div className="flex justify-between items-start">
             <div>
-              <h3 className="font-bold text-base text-slate-900 dark:text-slate-100">Kaveri Boys Hostel Block-B</h3>
-              <p className="text-xs text-slate-500">Room No. 304 (3-Sharing Non-AC)</p>
+              <h3 className="font-bold text-base text-slate-900 dark:text-slate-100">{bed.hostel?.name}</h3>
+              <p className="text-xs text-slate-500">Room No. {bed.roomNumber} • Bed {bed.bedNumber}</p>
             </div>
             <StatusBadge status="Allotted" />
           </div>
 
-          <div className="text-xs space-y-1">
-            <p><span className="text-slate-400">Warden:</span> <span className="font-bold">Prof. K. Sundaram (+91 94421 99001)</span></p>
+          <div className="text-xs space-y-1.5 pt-2 border-t border-slate-200 dark:border-slate-800">
+            <p><span className="text-slate-400">Type:</span> <span className="font-bold">{bed.hostel?.type}</span></p>
+            {bed.hostel?.warden && <p><span className="text-slate-400">Warden:</span> <span className="font-bold">{bed.hostel.warden}</span></p>}
+            {bed.hostel?.messType && <p><span className="text-slate-400">Mess:</span> <span className="font-bold">{bed.hostel.messType}</span></p>}
+            <p><span className="text-slate-400">Monthly Fee:</span> <span className="font-bold">₹{bed.monthlyFee?.toLocaleString()}</span></p>
           </div>
-
-          <button
-            onClick={() => success('Outing gate pass requested for approval.', 'Pass Requested')}
-            className="w-full py-2 font-bold text-white bg-indigo-600 rounded-xl text-xs"
-          >
-            Apply Weekend Outing Pass
-          </button>
         </div>
-
-        <div className="glass-card p-6 rounded-3xl border border-slate-200 dark:border-slate-800 space-y-3 text-xs">
-          <h3 className="font-bold text-base text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
-            <Utensils className="w-4 h-4 text-indigo-500" /> Today Mess Menu
-          </h3>
-          <p><span className="font-bold">Breakfast:</span> Idli, Sambar, Vadai, Chutney, Tea/Coffee</p>
-          <p><span className="font-bold">Lunch:</span> South Indian Meals, Rice, Sambar, Poriyal, Curd</p>
-          <p><span className="font-bold">Dinner:</span> Chapati, Paneer Butter Masala, Rice, Milk</p>
-        </div>
-      </div>
+      )}
     </div>
   );
 };

@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import StatCard from '../../components/common/StatCard';
 import ChartCard from '../../components/common/ChartCard';
-import { mockBillingStats } from '../../data/mockBillingData';
-import { mockAnalytics } from '../../data/mockAnalyticsData';
 import analyticsService from '../../services/analyticsService';
 import billingService from '../../services/billingService';
+import supportService from '../../services/supportService';
 import {
   Building2,
   Users,
@@ -25,21 +24,26 @@ export const SuperAdminDashboardPage = () => {
   const navigate = useNavigate();
   const [analytics, setAnalytics] = useState(null);
   const [billingStats, setBillingStats] = useState(null);
+  const [openTicketsCount, setOpenTicketsCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const loadDashboardData = async () => {
       try {
         setLoading(true);
-        const [analyticsRes, billingRes] = await Promise.all([
+        const [analyticsRes, billingRes, ticketsRes] = await Promise.all([
           analyticsService.getAnalytics(),
-          billingService.getBillingStats()
+          billingService.getBillingStats(),
+          supportService.getTickets()
         ]);
         if (analyticsRes?.data) {
           setAnalytics(analyticsRes.data);
         }
         if (billingRes?.data) {
           setBillingStats(billingRes.data);
+        }
+        if (ticketsRes?.data) {
+          setOpenTicketsCount(ticketsRes.data.filter((t) => t.status === 'OPEN' || t.status === 'IN_PROGRESS').length);
         }
       } catch (err) {
         console.error('Failed to load dashboard metrics:', err);
@@ -193,8 +197,8 @@ export const SuperAdminDashboardPage = () => {
           />
           <StatCard
             title="Support Tickets"
-            value="0 Open"
-            subtitle="Avg Response Time: 0m"
+            value={`${openTicketsCount} Open`}
+            subtitle="Open or In Progress"
             icon={LifeBuoy}
             color="indigo"
             onClick={() => navigate('/super-admin/tickets')}

@@ -1,9 +1,10 @@
 import React from 'react';
 import PrintHeader from '../common/PrintHeader';
 import { Printer } from 'lucide-react';
-import { instituteInfo } from '../../data/mockData';
+import { useInstitution } from '../../context/InstitutionContext';
 
 export const CertificateTemplate = ({ type = 'bonafide', certData }) => {
+  const { institution } = useInstitution();
   const student = certData || {
     name: "Kavitha R. Sharma",
     rollNo: "21CS101",
@@ -33,7 +34,7 @@ export const CertificateTemplate = ({ type = 'bonafide', certData }) => {
         {/* Background Watermark */}
         <div className="absolute inset-0 flex items-center justify-center opacity-5 pointer-events-none">
           <h1 className="text-8xl font-bold uppercase tracking-widest text-slate-900 -rotate-12">
-            {instituteInfo.shortName}
+            {institution?.code || institution?.name || 'SCOMS'}
           </h1>
         </div>
 
@@ -130,7 +131,7 @@ export const CertificateTemplate = ({ type = 'bonafide', certData }) => {
 
           <div className="text-center">
             <p className="border-t border-slate-900 w-44 pt-1 font-bold text-slate-900 text-sm">PRINCIPAL / DIRECTOR</p>
-            <p className="text-[10px] text-slate-500">{instituteInfo.name}</p>
+            <p className="text-[10px] text-slate-500">{institution?.name || ''}</p>
           </div>
         </div>
       </div>

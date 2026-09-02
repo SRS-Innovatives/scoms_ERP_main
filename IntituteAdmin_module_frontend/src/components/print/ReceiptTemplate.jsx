@@ -1,7 +1,6 @@
 import React from 'react';
 import PrintHeader from '../common/PrintHeader';
 import { Printer, Download, Share2, Mail, MessageSquare } from 'lucide-react';
-import { instituteInfo } from '../../data/mockData';
 
 export const ReceiptTemplate = ({ receiptData, onPrint }) => {
   const data = receiptData || {

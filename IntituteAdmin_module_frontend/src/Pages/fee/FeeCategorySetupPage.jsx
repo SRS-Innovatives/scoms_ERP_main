@@ -1,31 +1,40 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import DataTable from '../../components/common/DataTable';
-import SearchFilterBar from '../../components/common/SearchFilterBar';
-import { feeCategories as initialCat } from '../../data/mockData';
 import { useNotification } from '../../context/NotificationContext';
+import { Loader2 } from 'lucide-react';
+import feeService from '../../services/feeService';
 
 export const FeeCategorySetupPage = () => {
-  const { notifySuccess } = useNotification();
-  const [search, setSearch] = useState('');
-  const [categories] = useState(initialCat);
+  const { notifyError } = useNotification();
+  const [categories, setCategories] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    feeService.getCategories()
+      .then((res) => setCategories(res.data || []))
+      .catch((err) => notifyError(`Failed to load fee categories: ${err.message}`))
+      .finally(() => setLoading(false));
+  }, [notifyError]);
 
   const columns = [
     { header: 'Code', key: 'code', render: (val) => <span className="font-mono font-bold text-indigo-600">{val}</span> },
-    { header: 'Category Name', key: 'name', render: (val) => <span className="font-bold text-slate-900 dark:text-white">{val}</span> },
-    { header: 'Billing Frequency', key: 'frequency' },
-    { header: 'Mandatory / Optional', key: 'mandatory', render: (val) => <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${val ? 'bg-indigo-100 text-indigo-800' : 'bg-slate-100 text-slate-700'}`}>{val ? 'MANDATORY' : 'OPTIONAL'}</span> },
-    { header: 'Description', key: 'description' }
+    { header: 'Fee Head', key: 'name', render: (val) => <span className="font-bold text-slate-900 dark:text-white">{val}</span> },
+    { header: 'Structures Configured', key: 'structureCount' },
+    { header: 'Total Amount Configured (₹)', key: 'totalConfigured', render: (val) => <span className="font-mono font-bold text-emerald-600">₹{val.toLocaleString()}</span> },
   ];
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-bold text-slate-900 dark:text-white">Fee Category Master Setup</h1>
-        <p className="text-xs text-slate-500 dark:text-slate-400">Configure fee heads (Tuition, Exam, Bus, Hostel, Special Lab, Library)</p>
+        <h1 className="text-xl font-bold text-slate-900 dark:text-white">Fee Category Master</h1>
+        <p className="text-xs text-slate-500 dark:text-slate-400">Standard fee heads (Tuition, Exam, Bus, Hostel, Lab, Library) — select one when creating a Fee Structure</p>
       </div>
 
-      <SearchFilterBar searchQuery={search} onSearchChange={setSearch} addLabel="Add Fee Category" onAddClick={() => notifySuccess('Add Fee Category Modal')} />
-      <DataTable columns={columns} data={categories} />
+      {loading ? (
+        <div className="flex justify-center py-16"><Loader2 className="w-7 h-7 animate-spin text-indigo-600" /></div>
+      ) : (
+        <DataTable columns={columns} data={categories} />
+      )}
     </div>
   );
 };

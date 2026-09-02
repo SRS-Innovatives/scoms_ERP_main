@@ -1,102 +1,100 @@
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import studentService from '../services/studentService';
 
 const StudentAuthContext = createContext();
 
-export const StudentAuthProvider = ({ children }) => {
-  const [student, setStudent] = useState(() => {
-    const saved = localStorage.getItem('scoms_student_user');
-    if (saved) return JSON.parse(saved);
-    return {
-      id: "STD-2026-001",
-      admissionNo: "SCOMS2026CS001",
-      regNo: "2026CS4012",
-      name: "Arun Kumar",
-      email: "arun.cs2026@srilakshmicollege.ac.in",
-      phone: "+91 98765 12345",
-      photo: "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&q=80&w=400",
-      institution: "Sri Lakshmi Arts and Science College",
-      department: "Computer Science",
-      course: "B.Sc Computer Science",
-      batch: "2024 - 2027",
-      semester: "Semester 4",
-      section: "A",
-      rollNo: "401",
-      classTeacher: "Dr. Malathi S. (HOD CS)",
-      status: "Active",
-      dob: "2005-04-14",
-      gender: "Male",
-      bloodGroup: "O+ positive",
-      address: "42, South Car Street, Palayamkottai",
-      city: "Tirunelveli",
-      district: "Tirunelveli",
-      state: "Tamil Nadu",
-      pincode: "627002",
-      fatherName: "Mr. S. Kumar",
-      motherName: "Mrs. K. Lakshmi",
-      parentPhone: "+91 94431 88990",
-      gpa: "8.92",
-      attendancePercentage: 88.5
-    };
-  });
-
-  const login = (userData, token) => {
-    const loggedStudent = typeof userData === 'string'
-      ? {
-          id: "STD-2026-001",
-          admissionNo: userData,
-          regNo: "2026CS4012",
-          name: "Arun Kumar",
-          email: "arun.cs2026@srilakshmicollege.ac.in",
-          phone: "+91 98765 12345",
-          photo: "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&q=80&w=400",
-          institution: "Sri Lakshmi Arts and Science College",
-          department: "Computer Science",
-          course: "B.Sc Computer Science",
-          batch: "2024 - 2027",
-          semester: "Semester 4",
-          section: "A",
-          rollNo: "401",
-          classTeacher: "Dr. Malathi S.",
-          status: "Active",
-          gpa: "8.92",
-          attendancePercentage: 88.5
-        }
-      : {
-          id: userData.student?.id || "STD-2026-001",
-          admissionNo: userData.admissionNumber || userData.student?.admissionNumber || "SCOMS2026CS001",
-          regNo: userData.student?.rollNumber || "2026CS4012",
-          name: userData.student ? `${userData.student.firstName} ${userData.student.lastName}` : (userData.name || "Arun Kumar"),
-          email: userData.email || "arun.cs2026@srilakshmicollege.ac.in",
-          phone: userData.mobile || "+91 98765 12345",
-          photo: userData.avatar || "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&q=80&w=400",
-          institution: userData.institutionName || "Sri Lakshmi Arts and Science College",
-          department: userData.student?.department?.name || "Computer Science",
-          course: userData.student?.course?.name || "B.Sc Computer Science",
-          batch: "2024 - 2027",
-          semester: userData.student?.section?.semester?.name || "Semester 4",
-          section: userData.student?.section?.name || "A",
-          rollNo: userData.student?.rollNumber || "401",
-          classTeacher: "Dr. Malathi S.",
-          status: userData.status || "Active",
-          gpa: "8.92",
-          attendancePercentage: 88.5
-        };
-
-    setStudent(loggedStudent);
-    localStorage.setItem('scoms_student_user', JSON.stringify(loggedStudent));
-    if (token) {
-      localStorage.setItem('scoms_student_token', token);
-    }
+/** Flattens the real backend Student record into the shape the rest of the app consumes.
+ * No hardcoded fallback values anywhere — a field that isn't set on the real record comes
+ * through as null/undefined and is rendered as such, never a fabricated placeholder. */
+const buildProfile = (raw) => {
+  if (!raw) return null;
+  const parentLink = raw.parents?.[0]?.parent;
+  return {
+    id: raw.id,
+    admissionNo: raw.admissionNumber,
+    regNo: raw.registerNumber || raw.rollNumber || null,
+    rollNo: raw.rollNumber,
+    name: `${raw.firstName || ''} ${raw.lastName || ''}`.trim(),
+    email: raw.email,
+    phone: raw.phone,
+    photo: null, // no avatar field exists on Student — UI falls back to initials
+    institution: raw.institution?.name || null,
+    department: raw.department?.name || null,
+    course: raw.course?.name || null,
+    batch: raw.section?.semester?.academicYear?.yearName || null,
+    semester: raw.section?.semester?.name || null,
+    section: raw.section?.name || null,
+    status: raw.status,
+    dob: raw.dob,
+    gender: raw.gender,
+    bloodGroup: raw.bloodGroup,
+    address: raw.address,
+    city: raw.city,
+    state: raw.state,
+    pincode: raw.pincode,
+    fatherName: parentLink?.fatherName || null,
+    motherName: parentLink?.motherName || null,
+    parentPhone: parentLink?.fatherPhone || parentLink?.motherPhone || parentLink?.guardianPhone || null,
   };
+};
 
-  const logout = () => {
+const TOKEN_KEYS = [
+  'scoms_student_token',
+  'scoms_student_user',
+  'scoms_access_token',
+  'scoms_refresh_token',
+  'scoms_user',
+  'scoms_current_role',
+];
+
+export const StudentAuthProvider = ({ children }) => {
+  const [student, setStudent] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  const hasToken = () => !!localStorage.getItem('scoms_student_token');
+
+  const loadProfile = useCallback(() => {
+    if (!hasToken()) {
+      setStudent(null);
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    studentService.getProfile()
+      .then((res) => setStudent(buildProfile(res.data)))
+      .catch(() => {}) // a real auth failure is handled globally by api.js's 401 redirect
+      .finally(() => setLoading(false));
+  }, []);
+
+  useEffect(() => {
+    loadProfile();
+  }, [loadProfile]);
+
+  /** Called by LoginPage right after UnifiedLoginPage has written the real token —
+   * re-fetches the authoritative profile from the backend rather than trusting whatever
+   * partial shape the login response happened to include. */
+  const login = useCallback((userData, token) => {
+    if (token) localStorage.setItem('scoms_student_token', token);
+    loadProfile();
+  }, [loadProfile]);
+
+  const logout = useCallback(() => {
+    TOKEN_KEYS.forEach((key) => localStorage.removeItem(key));
     setStudent(null);
-    localStorage.removeItem('scoms_student_user');
-    localStorage.removeItem('scoms_student_token');
+  }, []);
+
+  const value = {
+    student,
+    setStudent,
+    login,
+    logout,
+    loading,
+    isAuthenticated: hasToken(),
+    refetchProfile: loadProfile,
   };
 
   return (
-    <StudentAuthContext.Provider value={{ student, setStudent, login, logout }}>
+    <StudentAuthContext.Provider value={value}>
       {children}
     </StudentAuthContext.Provider>
   );
@@ -107,3 +105,5 @@ export const useStudentAuth = () => {
   if (!context) throw new Error('useStudentAuth must be used within StudentAuthProvider');
   return context;
 };
+
+export default StudentAuthContext;

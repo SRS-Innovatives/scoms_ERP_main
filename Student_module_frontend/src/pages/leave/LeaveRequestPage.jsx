@@ -1,27 +1,40 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import DataTable from '../../components/common/DataTable';
 import PageHeader from '../../components/common/PageHeader';
 import StatusBadge from '../../components/common/StatusBadge';
 import ApplyLeaveModal from '../../components/modals/ApplyLeaveModal';
-import { Plus } from 'lucide-react';
+import { useNotification } from '../../context/NotificationContext';
+import leaveService from '../../services/leaveService';
+
+const TYPE_LABELS = { MEDICAL: 'Medical Leave', CASUAL: 'Casual / Personal Leave', DUTY: 'On Duty (OD)', EARNED: 'Earned Leave' };
+const STATUS_LABELS = { PENDING: 'Pending', APPROVED: 'Approved', REJECTED: 'Rejected', CANCELLED: 'Cancelled' };
+
+const daysBetween = (start, end) => Math.round((new Date(end) - new Date(start)) / 86400000) + 1;
 
 export const LeaveRequestPage = () => {
+  const { error: showError } = useNotification();
   const [modalOpen, setModalOpen] = useState(false);
+  const [leaves, setLeaves] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const leaveHistory = [
-    { id: "LEV-101", type: "Medical Leave", fromDate: "2026-07-10", toDate: "2026-07-12", days: 3, reason: "Viral Fever & Doctor Prescription", status: "Approved", approver: "Dr. Malathi S. (Class Teacher)" },
-    { id: "LEV-102", type: "On Duty (OD)", fromDate: "2026-06-18", toDate: "2026-06-18", days: 1, reason: "Inter-College Hackathon at IIT Madras", status: "Approved", approver: "Prof. Arvind Rao" }
-  ];
+  const load = useCallback(() => {
+    setLoading(true);
+    leaveService.getMyLeaves()
+      .then((res) => setLeaves(res.data || []))
+      .catch((err) => showError(err.message || 'Failed to load leave requests', 'Load Failed'))
+      .finally(() => setLoading(false));
+  }, [showError]);
+
+  useEffect(() => { load(); }, [load]);
 
   const columns = [
-    { header: 'ID', key: 'id', render: (v) => <span className="font-mono font-bold text-indigo-600">{v}</span> },
-    { header: 'Type', key: 'type', render: (v) => <span className="font-bold text-slate-900 dark:text-slate-100">{v}</span> },
-    { header: 'From Date', key: 'fromDate' },
-    { header: 'To Date', key: 'toDate' },
-    { header: 'Days', key: 'days', render: (v) => `${v} Day(s)` },
+    { header: 'Type', key: 'type', render: (v) => <span className="font-bold text-slate-900 dark:text-slate-100">{TYPE_LABELS[v] || v}</span> },
+    { header: 'From Date', key: 'startDate', render: (v) => new Date(v).toLocaleDateString() },
+    { header: 'To Date', key: 'endDate', render: (v) => new Date(v).toLocaleDateString() },
+    { header: 'Days', key: 'startDate', sortable: false, render: (_v, row) => `${daysBetween(row.startDate, row.endDate)} Day(s)` },
     { header: 'Reason', key: 'reason' },
-    { header: 'Approver Notes', key: 'approver' },
-    { header: 'Status', key: 'status', render: (v) => <StatusBadge status={v} size="sm" /> }
+    { header: 'Approved By', key: 'approvedBy', render: (v) => v || '—' },
+    { header: 'Status', key: 'status', render: (v) => <StatusBadge status={STATUS_LABELS[v] || v} size="sm" /> },
   ];
 
   return (
@@ -33,9 +46,9 @@ export const LeaveRequestPage = () => {
         onAction={() => setModalOpen(true)}
       />
 
-      <DataTable columns={columns} data={leaveHistory} />
+      <DataTable columns={columns} data={leaves} loading={loading} />
 
-      <ApplyLeaveModal isOpen={modalOpen} onClose={() => setModalOpen(false)} />
+      <ApplyLeaveModal isOpen={modalOpen} onClose={() => setModalOpen(false)} onSubmitted={load} />
     </div>
   );
 };

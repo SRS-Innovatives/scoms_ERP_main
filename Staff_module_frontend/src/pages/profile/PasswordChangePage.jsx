@@ -1,23 +1,33 @@
 import React, { useState } from 'react';
 import { useNotification } from '../../context/NotificationContext';
 import { KeyRound, ShieldCheck } from 'lucide-react';
+import profileService from '../../services/profileService';
 
 export const PasswordChangePage = () => {
   const { success, error } = useNotification();
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (newPassword !== confirmPassword) {
       error('New password and confirm password do not match!');
       return;
     }
-    success('Password changed successfully!', 'Security Updated');
-    setCurrentPassword('');
-    setNewPassword('');
-    setConfirmPassword('');
+    setSubmitting(true);
+    try {
+      await profileService.changePassword({ oldPassword: currentPassword, newPassword });
+      success('Password changed successfully!', 'Security Updated');
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+    } catch (err) {
+      error(err.message || 'Failed to change password', 'Update Failed');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -64,9 +74,10 @@ export const PasswordChangePage = () => {
 
         <button
           type="submit"
-          className="w-full py-2.5 font-bold text-white bg-sky-600 hover:bg-sky-700 dark:bg-sky-500 rounded-xl shadow-sm transition-all flex items-center justify-center gap-1.5"
+          disabled={submitting}
+          className="w-full py-2.5 font-bold text-white bg-sky-600 hover:bg-sky-700 dark:bg-sky-500 rounded-xl shadow-sm transition-all flex items-center justify-center gap-1.5 disabled:opacity-50"
         >
-          <ShieldCheck className="w-4 h-4" /> Update Password
+          <ShieldCheck className="w-4 h-4" /> {submitting ? 'Updating...' : 'Update Password'}
         </button>
       </form>
     </div>

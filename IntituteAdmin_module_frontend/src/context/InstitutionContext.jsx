@@ -11,13 +11,13 @@ export const InstitutionProvider = ({ children }) => {
   const [enabledModules, setEnabledModules] = useState(null); // null = not yet resolved
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  const refetch = () => {
     const token = localStorage.getItem('scoms_admin_token');
     if (!token) {
       setLoading(false);
       return;
     }
-    authService
+    return authService
       .getMe()
       .then((res) => {
         const inst = res.data?.institution || null;
@@ -26,7 +26,9 @@ export const InstitutionProvider = ({ children }) => {
       })
       .catch((err) => console.error('Failed to load institution context', err))
       .finally(() => setLoading(false));
-  }, []);
+  };
+
+  useEffect(() => { refetch(); }, []);
 
   // Core modules are always visible. While the institution context hasn't resolved yet
   // (or for institutions that predate module assignment) we fail-open so the sidebar
@@ -38,7 +40,7 @@ export const InstitutionProvider = ({ children }) => {
   };
 
   return (
-    <InstitutionContext.Provider value={{ institution, enabledModules, loading, isModuleEnabled }}>
+    <InstitutionContext.Provider value={{ institution, enabledModules, loading, isModuleEnabled, refetch }}>
       {children}
     </InstitutionContext.Provider>
   );

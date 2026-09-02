@@ -35,7 +35,9 @@ export const DigitalIdCardPage = () => {
           </div>
 
           <div className="flex gap-4 items-center">
-            <img src={student?.photo} alt={student?.name} className="w-20 h-24 rounded-2xl object-cover border-2 border-indigo-400 shadow-lg" />
+            <span className="w-20 h-24 rounded-2xl bg-indigo-800 flex items-center justify-center text-2xl font-black border-2 border-indigo-400 shadow-lg shrink-0">
+              {student?.name ? `${student.name[0]}${student.name.split(' ')[1]?.[0] || ''}` : '..'}
+            </span>
             <div className="space-y-1 text-xs">
               <h2 className="text-base font-black text-white">{student?.name}</h2>
               <p className="text-indigo-300 font-mono font-bold text-[11px]">{student?.admissionNo}</p>

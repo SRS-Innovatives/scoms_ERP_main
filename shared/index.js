@@ -15,12 +15,17 @@ const password = require('./auth/password');
 const { ROLE_PERMISSIONS, hasPermission } = require('./permissions/permissionMatrix');
 const requireAuth = require('./middleware/requireAuth');
 const requireTenant = require('./middleware/requireTenant');
+const requireModule = require('./middleware/requireModule');
 const { requirePermission, requireRole } = require('./middleware/requirePermission');
 const errorHandler = require('./middleware/errorHandler');
 const schemas = require('./validation/schemas');
 
 const { handleUnifiedLogin } = require('./auth/unifiedAuth');
-const { sendEmailNotification, sendSMSNotification } = require('./utils/notifications');
+const { handleForgotPassword, handleVerifyOtp, handleResetPassword } = require('./auth/passwordReset');
+const { sendEmailNotification, sendSMSNotification, sendWhatsAppNotification } = require('./utils/notifications');
+const paymentGateway = require('./utils/paymentGateway');
+const { formatClassLabel } = require('./utils/classLabel');
+const { getHealthPayload } = require('./utils/health');
 
 module.exports = {
   ROLES,
@@ -38,12 +43,20 @@ module.exports = {
   ...jwt,
   ...password,
   handleUnifiedLogin,
+  handleForgotPassword,
+  handleVerifyOtp,
+  handleResetPassword,
   sendEmailNotification,
   sendSMSNotification,
+  sendWhatsAppNotification,
+  paymentGateway,
+  formatClassLabel,
+  getHealthPayload,
   ROLE_PERMISSIONS,
   hasPermission,
   requireAuth,
   requireTenant,
+  requireModule,
   requirePermission,
   requireRole,
   errorHandler,

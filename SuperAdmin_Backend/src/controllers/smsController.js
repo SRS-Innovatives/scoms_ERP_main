@@ -1,8 +1,35 @@
 /**
  * Super Admin SMS Controller
+ *
+ * Real workflow:
+ * 1. Super Admin "purchases" SMS credits from a provider (Twilio/ValueFirst/Msg91/etc.) —
+ *    recorded as an SmsPurchase ledger entry, which tops up the platform-wide wallet.
+ * 2. Super Admin allocates credits out of that platform wallet to a specific institution —
+ *    recorded as an SmsAllocation ledger entry, which funds that institution's own wallet.
+ * 3. Every SMS an institution sends (see shared/utils/notifications.js) draws down its
+ *    wallet balance in real time; once exhausted, further sends are blocked, not faked.
  */
-const { prisma, sendSuccess } = require('../../../shared');
+const {
+  prisma,
+  sendSuccess,
+  sendPaginated,
+  NotFoundError,
+  ValidationError,
+  BusinessRuleError,
+} = require('../../../shared');
 
+const PLATFORM_WALLET_ID = 'global';
+
+const getPlatformWallet = () =>
+  prisma.platformSmsWallet.upsert({
+    where: { id: PLATFORM_WALLET_ID },
+    create: { id: PLATFORM_WALLET_ID },
+    update: {},
+  });
+
+// ============================================================
+// Usage stats (real, aggregated from SmsLog — unchanged behavior)
+// ============================================================
 const getSmsStats = async (req, res, next) => {
   try {
     const groups = await prisma.smsLog.groupBy({
@@ -35,6 +62,169 @@ const getSmsStats = async (req, res, next) => {
   }
 };
 
+// ============================================================
+// Wallet overview (platform balance + every institution's balance)
+// ============================================================
+const getWalletOverview = async (req, res, next) => {
+  try {
+    const [platformWallet, institutions, wallets, recentPurchases, recentAllocations] = await Promise.all([
+      getPlatformWallet(),
+      prisma.institution.findMany({
+        where: { deletedAt: null },
+        select: { id: true, name: true, code: true },
+        orderBy: { name: 'asc' },
+      }),
+      prisma.institutionSmsWallet.findMany(),
+      prisma.smsPurchase.findMany({ orderBy: { createdAt: 'desc' }, take: 10 }),
+      prisma.smsAllocation.findMany({
+        include: { institution: { select: { name: true, code: true } } },
+        orderBy: { createdAt: 'desc' },
+        take: 10,
+      }),
+    ]);
+
+    // Every institution appears here, even ones never allocated a wallet yet — those
+    // simply default to zero so Super Admin can discover and allocate to them directly.
+    const walletByInstitution = Object.fromEntries(wallets.map((w) => [w.institutionId, w]));
+    const institutionWallets = institutions.map((inst) => {
+      const w = walletByInstitution[inst.id];
+      return {
+        institutionId: inst.id,
+        institution: inst,
+        balance: w?.balance ?? 0,
+        totalAllocated: w?.totalAllocated ?? 0,
+        totalUsed: w?.totalUsed ?? 0,
+        updatedAt: w?.updatedAt ?? null,
+      };
+    });
+
+    return sendSuccess(res, {
+      platformWallet,
+      institutionWallets,
+      recentPurchases,
+      recentAllocations,
+    }, 'SMS wallet overview retrieved successfully');
+  } catch (err) {
+    next(err);
+  }
+};
+
+// ============================================================
+// Purchase credits from a third-party SMS provider (tops up platform wallet)
+// ============================================================
+const purchaseSmsCredits = async (req, res, next) => {
+  try {
+    const { provider, credits, amountINR, reference } = req.body;
+
+    if (!provider) throw new ValidationError('provider is required');
+    const creditsNum = Number(credits);
+    const amountNum = Number(amountINR);
+    if (!creditsNum || creditsNum <= 0) throw new ValidationError('credits must be a positive number');
+    if (!amountNum || amountNum <= 0) throw new ValidationError('amountINR must be a positive number');
+
+    const result = await prisma.$transaction(async (tx) => {
+      const purchase = await tx.smsPurchase.create({
+        data: {
+          provider,
+          credits: creditsNum,
+          amountINR: amountNum,
+          reference: reference || null,
+          purchasedBy: req.user.id,
+        },
+      });
+
+      const wallet = await tx.platformSmsWallet.upsert({
+        where: { id: PLATFORM_WALLET_ID },
+        create: { id: PLATFORM_WALLET_ID, balance: creditsNum, totalPurchased: creditsNum },
+        update: { balance: { increment: creditsNum }, totalPurchased: { increment: creditsNum } },
+      });
+
+      await tx.auditLog.create({
+        data: {
+          userId: req.user.id,
+          action: 'SMS_CREDITS_PURCHASED',
+          module: 'SMS',
+          entity: 'SmsPurchase',
+          entityId: purchase.id,
+          newValues: JSON.stringify({ provider, credits: creditsNum, amountINR: amountNum }),
+        },
+      });
+
+      return { purchase, wallet };
+    });
+
+    return sendSuccess(res, result, `${creditsNum.toLocaleString()} SMS credits purchased successfully`, 201);
+  } catch (err) {
+    next(err);
+  }
+};
+
+// ============================================================
+// Allocate credits from the platform wallet to a specific institution
+// ============================================================
+const allocateSmsCredits = async (req, res, next) => {
+  try {
+    const { institutionId, credits, note } = req.body;
+
+    if (!institutionId) throw new ValidationError('institutionId is required');
+    const creditsNum = Number(credits);
+    if (!creditsNum || creditsNum <= 0) throw new ValidationError('credits must be a positive number');
+
+    const institution = await prisma.institution.findUnique({ where: { id: institutionId } });
+    if (!institution) throw new NotFoundError('Institution not found');
+
+    const result = await prisma.$transaction(async (tx) => {
+      const platformWallet = await tx.platformSmsWallet.upsert({
+        where: { id: PLATFORM_WALLET_ID },
+        create: { id: PLATFORM_WALLET_ID },
+        update: {},
+      });
+
+      if (platformWallet.balance < creditsNum) {
+        throw new BusinessRuleError(
+          `Insufficient platform SMS balance: ${platformWallet.balance.toLocaleString()} available, ${creditsNum.toLocaleString()} requested. Purchase more credits first.`
+        );
+      }
+
+      const allocation = await tx.smsAllocation.create({
+        data: { institutionId, credits: creditsNum, note: note || null, allocatedBy: req.user.id },
+      });
+
+      await tx.platformSmsWallet.update({
+        where: { id: PLATFORM_WALLET_ID },
+        data: { balance: { decrement: creditsNum }, totalAllocated: { increment: creditsNum } },
+      });
+
+      const institutionWallet = await tx.institutionSmsWallet.upsert({
+        where: { institutionId },
+        create: { institutionId, balance: creditsNum, totalAllocated: creditsNum },
+        update: { balance: { increment: creditsNum }, totalAllocated: { increment: creditsNum } },
+      });
+
+      await tx.auditLog.create({
+        data: {
+          institutionId,
+          userId: req.user.id,
+          action: 'SMS_CREDITS_ALLOCATED',
+          module: 'SMS',
+          entity: 'SmsAllocation',
+          entityId: allocation.id,
+          newValues: JSON.stringify({ credits: creditsNum, note }),
+        },
+      });
+
+      return { allocation, institutionWallet };
+    });
+
+    return sendSuccess(res, result, `${creditsNum.toLocaleString()} SMS credits allocated to ${institution.name}`, 201);
+  } catch (err) {
+    next(err);
+  }
+};
+
 module.exports = {
   getSmsStats,
+  getWalletOverview,
+  purchaseSmsCredits,
+  allocateSmsCredits,
 };

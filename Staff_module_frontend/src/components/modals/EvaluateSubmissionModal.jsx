@@ -1,18 +1,38 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, CheckCircle, FileText } from 'lucide-react';
 import { useNotification } from '../../context/NotificationContext';
+import assignmentService from '../../services/assignmentService';
 
-export const EvaluateSubmissionModal = ({ isOpen, onClose, submission }) => {
-  const { success } = useNotification();
-  const [marks, setMarks] = useState(submission?.marks || '');
-  const [feedback, setFeedback] = useState(submission?.feedback || '');
+export const EvaluateSubmissionModal = ({ isOpen, onClose, submission, onSaved }) => {
+  const { success, error: showError } = useNotification();
+  const [marks, setMarks] = useState('');
+  const [feedback, setFeedback] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    setMarks(submission?.marksObtained ?? '');
+    setFeedback(submission?.feedback ?? '');
+  }, [submission]);
 
   if (!isOpen || !submission) return null;
 
-  const handleSave = (e) => {
+  const studentName = `${submission.student?.firstName || ''} ${submission.student?.lastName || ''}`.trim() || 'Student';
+  const rollNo = submission.student?.rollNumber || '—';
+  const submittedOn = submission.submittedAt ? new Date(submission.submittedAt).toLocaleString() : '—';
+
+  const handleSave = async (e) => {
     e.preventDefault();
-    success(`Evaluated assignment for ${submission.studentName}! Marks: ${marks}`, 'Grading Saved');
-    onClose();
+    setSaving(true);
+    try {
+      await assignmentService.evaluateSubmission(submission.id, { marksObtained: marks, feedback });
+      success(`Evaluated assignment for ${studentName}! Marks: ${marks}`, 'Grading Saved');
+      onSaved && onSaved();
+      onClose();
+    } catch (err) {
+      showError(err.message || 'Failed to save evaluation', 'Save Failed');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -28,19 +48,22 @@ export const EvaluateSubmissionModal = ({ isOpen, onClose, submission }) => {
         </div>
 
         <div className="mb-4 p-3 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700 text-xs space-y-1">
-          <p><span className="font-semibold text-slate-700 dark:text-slate-300">Student:</span> {submission.studentName} (Roll #{submission.rollNo})</p>
-          <p><span className="font-semibold text-slate-700 dark:text-slate-300">Submitted On:</span> {submission.submittedOn}</p>
-          <p className="flex items-center gap-1 text-sky-600 dark:text-sky-400 font-semibold cursor-pointer">
-            <FileText className="w-3.5 h-3.5" /> View Uploaded File ({submission.fileUrl})
-          </p>
+          <p><span className="font-semibold text-slate-700 dark:text-slate-300">Student:</span> {studentName} (Roll #{rollNo})</p>
+          <p><span className="font-semibold text-slate-700 dark:text-slate-300">Submitted On:</span> {submittedOn}</p>
+          {submission.fileUrl ? (
+            <p className="flex items-center gap-1 text-sky-600 dark:text-sky-400 font-semibold cursor-pointer">
+              <FileText className="w-3.5 h-3.5" /> View Uploaded File ({submission.fileUrl})
+            </p>
+          ) : (
+            <p className="text-slate-600 dark:text-slate-300 whitespace-pre-wrap">{submission.content || 'No text answer submitted.'}</p>
+          )}
         </div>
 
         <form onSubmit={handleSave} className="space-y-4">
           <div>
-            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Marks Awarded (Out of 25)</label>
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Marks Awarded</label>
             <input
               type="number"
-              max={25}
               min={0}
               required
               value={marks}
@@ -70,9 +93,10 @@ export const EvaluateSubmissionModal = ({ isOpen, onClose, submission }) => {
             </button>
             <button
               type="submit"
-              className="px-4 py-2 text-xs font-semibold text-white bg-sky-600 hover:bg-sky-700 dark:bg-sky-500 rounded-xl shadow-sm transition-all"
+              disabled={saving}
+              className="px-4 py-2 text-xs font-semibold text-white bg-sky-600 hover:bg-sky-700 dark:bg-sky-500 rounded-xl shadow-sm transition-all disabled:opacity-50"
             >
-              Save Evaluation
+              {saving ? 'Saving...' : 'Save Evaluation'}
             </button>
           </div>
         </form>

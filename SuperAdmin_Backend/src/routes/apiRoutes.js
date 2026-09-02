@@ -13,11 +13,19 @@ const supportController = require('../controllers/supportController');
 const aiController = require('../controllers/aiController');
 const analyticsController = require('../controllers/analyticsController');
 const settingsController = require('../controllers/settingsController');
+const securityController = require('../controllers/securityController');
+const systemController = require('../controllers/systemController');
 const smsController = require('../controllers/smsController');
-const { requireAuth, requireRole, ROLES } = require('../../../shared');
+const emailController = require('../controllers/emailController');
+const whatsappController = require('../controllers/whatsappController');
+const announcementController = require('../controllers/announcementController');
+const { requireAuth, requireRole, ROLES, handleForgotPassword, handleVerifyOtp, handleResetPassword } = require('../../../shared');
 
 // Standalone Auth Routes
 router.post('/auth/login', authController.login);
+router.post('/auth/forgot-password', handleForgotPassword);
+router.post('/auth/verify-otp', handleVerifyOtp);
+router.post('/auth/reset-password', handleResetPassword);
 router.post('/auth/refresh', authController.refreshToken);
 router.post('/auth/logout', authController.logout);
 
@@ -57,7 +65,11 @@ router.put('/billing/gst-profile', billingController.updateGstProfile);
 
 // Subscriptions
 router.get('/plans', subscriptionController.getPlans);
+router.post('/plans', subscriptionController.createPlan);
+router.patch('/plans/:id', subscriptionController.updatePlan);
 router.get('/subscriptions', subscriptionController.getSubscriptions);
+router.get('/subscriptions/renewals', subscriptionController.getRenewals);
+router.post('/subscriptions/:id/remind', subscriptionController.sendRenewalReminder);
 
 // Support
 router.get('/tickets', supportController.getTickets);
@@ -74,7 +86,34 @@ router.get('/analytics', analyticsController.getAnalytics);
 router.get('/settings', settingsController.getSettings);
 router.put('/settings', settingsController.updateSettings);
 
-// SMS Stats
+// Security Center
+router.get('/security/overview', securityController.getSecurityOverview);
+
+// System & Health
+router.get('/system/health', systemController.getSystemHealth);
+
+// SMS Stats & Credit Wallet
 router.get('/sms-stats', smsController.getSmsStats);
+router.get('/sms/wallet', smsController.getWalletOverview);
+router.post('/sms/purchase', smsController.purchaseSmsCredits);
+router.post('/sms/allocate', smsController.allocateSmsCredits);
+
+// Email Stats & Credit Wallet
+router.get('/email-stats', emailController.getEmailStats);
+router.get('/email/logs', emailController.getRecentEmailLogs);
+router.get('/email/wallet', emailController.getWalletOverview);
+router.post('/email/purchase', emailController.purchaseEmailCredits);
+router.post('/email/allocate', emailController.allocateEmailCredits);
+
+// WhatsApp Stats & Credit Wallet
+router.get('/whatsapp-stats', whatsappController.getWhatsappStats);
+router.get('/whatsapp/wallet', whatsappController.getWalletOverview);
+router.post('/whatsapp/purchase', whatsappController.purchaseWhatsappCredits);
+router.post('/whatsapp/allocate', whatsappController.allocateWhatsappCredits);
+
+// Announcements
+router.get('/announcements', announcementController.getAnnouncements);
+router.post('/announcements', announcementController.createAnnouncement);
+router.delete('/announcements/:id', announcementController.deleteAnnouncement);
 
 module.exports = router;

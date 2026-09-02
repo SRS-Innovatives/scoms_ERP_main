@@ -1,50 +1,78 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import DataTable from '../../components/common/DataTable';
 import SearchFilterBar from '../../components/common/SearchFilterBar';
-import { studentsList } from '../../data/mockData';
+import ChartCard from '../../components/common/ChartCard';
 import { useNotification } from '../../context/NotificationContext';
-import { Printer, Download, FileSpreadsheet } from 'lucide-react';
+import { Printer, Loader2 } from 'lucide-react';
+import studentService from '../../services/studentService';
 
 export const AdmissionReportPage = () => {
-  const { notifySuccess } = useNotification();
+  const { notifyError } = useNotification();
   const [search, setSearch] = useState('');
+  const [students, setStudents] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    studentService.getAll({ limit: 1000 })
+      .then((res) => setStudents(res.data || []))
+      .catch((err) => notifyError(`Failed to load admission report: ${err.message}`))
+      .finally(() => setLoading(false));
+  }, [notifyError]);
+
+  const { genderBreakdown, courseBreakdown } = useMemo(() => {
+    const byGender = {};
+    const byCourse = {};
+    students.forEach((s) => {
+      byGender[s.gender] = (byGender[s.gender] || 0) + 1;
+      const courseName = s.course?.name || 'Unassigned';
+      byCourse[courseName] = (byCourse[courseName] || 0) + 1;
+    });
+    return {
+      genderBreakdown: Object.entries(byGender).map(([name, count]) => ({ name, count })),
+      courseBreakdown: Object.entries(byCourse).map(([label, amount]) => ({ label, amount })),
+    };
+  }, [students]);
 
   const columns = [
-    { header: 'Reg No', key: 'regNo', render: (val) => <span className="font-mono font-bold text-indigo-600">{val}</span> },
-    { header: 'Student Name', key: 'name', render: (val) => <span className="font-bold text-slate-900 dark:text-white">{val}</span> },
+    { header: 'Reg No', key: 'registerNumber', render: (val, row) => <span className="font-mono font-bold text-indigo-600">{val || row.admissionNumber}</span> },
+    { header: 'Student Name', key: 'firstName', sortable: false, render: (_, row) => <span className="font-bold text-slate-900 dark:text-white">{row.firstName} {row.lastName}</span> },
     { header: 'Gender', key: 'gender' },
-    { header: 'Course & Dept', key: 'course' },
-    { header: 'Aadhaar No', key: 'aadhaarNo', render: (val) => <span className="font-mono">{val}</span> },
-    { header: 'Caste Category', key: 'casteCommunity' },
-    { header: 'Scholarship Scheme', key: 'scholarship' }
+    { header: 'Course', key: 'course', sortable: false, render: (val) => val?.name || '—' },
+    { header: 'Department', key: 'department', sortable: false, render: (val) => val?.name || '—' },
+    { header: 'Admission Date', key: 'admissionDate', render: (val) => <span className="font-mono">{new Date(val).toLocaleDateString('en-IN')}</span> },
+    { header: 'Status', key: 'status' },
   ];
+
+  const filtered = students.filter((s) => `${s.firstName} ${s.lastName}`.toLowerCase().includes(search.toLowerCase()) || s.admissionNumber?.toLowerCase().includes(search.toLowerCase()));
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-xl font-bold text-slate-900 dark:text-white">Admission & Intake Analytics Report</h1>
-          <p className="text-xs text-slate-500 dark:text-slate-400">Demographic report with Print, PDF download & Excel export</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400">Demographic breakdown of all admitted students</p>
         </div>
-
-        <div className="flex items-center gap-2">
-          <button onClick={() => window.print()} className="flex items-center gap-1.5 px-3 py-2 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl text-xs font-semibold">
-            <Printer className="w-4 h-4" />
-            <span>Print Report</span>
-          </button>
-          <button onClick={() => notifySuccess('PDF Export Started')} className="flex items-center gap-1.5 px-3 py-2 bg-rose-600 text-white rounded-xl text-xs font-semibold">
-            <Download className="w-4 h-4" />
-            <span>Export PDF</span>
-          </button>
-          <button onClick={() => notifySuccess('Excel Spreadsheet Downloaded!')} className="flex items-center gap-1.5 px-3 py-2 bg-emerald-600 text-white rounded-xl text-xs font-semibold">
-            <FileSpreadsheet className="w-4 h-4" />
-            <span>Export Excel</span>
-          </button>
-        </div>
+        <button onClick={() => window.print()} className="flex items-center gap-1.5 px-3 py-2 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl text-xs font-semibold no-print">
+          <Printer className="w-4 h-4" />
+          <span>Print Report</span>
+        </button>
       </div>
 
-      <SearchFilterBar searchQuery={search} onSearchChange={setSearch} placeholder="Search report..." />
-      <DataTable columns={columns} data={studentsList} />
+      {loading ? (
+        <div className="flex justify-center py-16"><Loader2 className="w-7 h-7 animate-spin text-indigo-600" /></div>
+      ) : (
+        <>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2">
+              <ChartCard title="Admissions by Course" type="bar" data={courseBreakdown} height={200} />
+            </div>
+            <ChartCard title="Gender Distribution" type="pie" data={genderBreakdown} height={200} />
+          </div>
+
+          <SearchFilterBar searchQuery={search} onSearchChange={setSearch} placeholder="Search student name or admission no..." />
+          <DataTable columns={columns} data={filtered} />
+        </>
+      )}
     </div>
   );
 };

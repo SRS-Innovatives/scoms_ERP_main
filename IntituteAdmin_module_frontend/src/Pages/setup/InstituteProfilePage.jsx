@@ -1,181 +1,135 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import FormSection from '../../components/common/FormSection';
-import FileUpload from '../../components/common/FileUpload';
-import { instituteInfo } from '../../data/mockData';
 import { useNotification } from '../../context/NotificationContext';
-import { Building2, Save, Landmark, Globe, Mail, Phone, MapPin, Award } from 'lucide-react';
+import { useInstitution } from '../../context/InstitutionContext';
+import { Building2, Save, MapPin, Loader2 } from 'lucide-react';
+import institutionProfileService from '../../services/institutionProfileService';
+
+const EMPTY_FORM = {
+  affiliation: '', board: '', university: '', principalName: '', establishedYear: '',
+  address: '', city: '', district: '', state: '', pincode: '', phone: '', email: '', website: '',
+};
 
 export const InstituteProfilePage = () => {
-  const { notifySuccess } = useNotification();
-  const [formData, setFormData] = useState({ ...instituteInfo });
+  const { notifySuccess, notifyError } = useNotification();
+  const { institution, loading, refetch } = useInstitution();
+  const [formData, setFormData] = useState(EMPTY_FORM);
+  const [saving, setSaving] = useState(false);
 
-  const handleSave = (e) => {
+  useEffect(() => {
+    if (institution) {
+      setFormData({
+        affiliation: institution.affiliation || '',
+        board: institution.board || '',
+        university: institution.university || '',
+        principalName: institution.principalName || '',
+        establishedYear: institution.establishedYear || '',
+        address: institution.address || '',
+        city: institution.city || '',
+        district: institution.district || '',
+        state: institution.state || '',
+        pincode: institution.pincode || '',
+        phone: institution.phone || '',
+        email: institution.email || '',
+        website: institution.website || '',
+      });
+    }
+  }, [institution]);
+
+  const handleSave = async (e) => {
     e.preventDefault();
-    notifySuccess('Institute profile details updated successfully!', 'Saved');
+    setSaving(true);
+    try {
+      await institutionProfileService.updateProfile(formData);
+      await refetch();
+      notifySuccess('Institute profile details updated successfully!', 'Saved');
+    } catch (err) {
+      notifyError(`Failed to save profile: ${err.message}`);
+    } finally {
+      setSaving(false);
+    }
   };
+
+  if (loading) {
+    return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-indigo-600" /></div>;
+  }
+
+  const field = (key) => ({
+    value: formData[key],
+    onChange: (e) => setFormData({ ...formData, [key]: e.target.value }),
+  });
 
   return (
     <form onSubmit={handleSave} className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-xl font-bold text-slate-900 dark:text-white">Institute Profile Setup</h1>
-          <p className="text-xs text-slate-500 dark:text-slate-400">Configure official institution branding, AICTE/NAAC affiliation, and bank account details</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400">Contact and affiliation details printed on receipts, hall tickets & certificates</p>
         </div>
         <button
           type="submit"
-          className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-semibold text-xs shadow-sm transition-all"
+          disabled={saving}
+          className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-semibold text-xs shadow-sm transition-all disabled:opacity-50"
         >
           <Save className="w-4 h-4" />
-          <span>Save Changes</span>
+          <span>{saving ? 'Saving...' : 'Save Changes'}</span>
         </button>
       </div>
 
-      <FormSection title="General Information" subtitle="Basic details printed on receipts, hall tickets & certificates" icon={Building2}>
+      <FormSection title="General Information" subtitle="Institution name & code are managed by SCOMS Platform Admin" icon={Building2}>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
           <div>
-            <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Institution Full Name</label>
-            <input
-              type="text"
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white font-medium"
-            />
+            <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Institution Name (Read-Only)</label>
+            <input type="text" disabled value={institution?.name || ''} className="w-full p-2.5 bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-500" />
           </div>
-
           <div>
-            <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Short Name / Code</label>
-            <input
-              type="text"
-              value={formData.shortName}
-              onChange={(e) => setFormData({ ...formData, shortName: e.target.value })}
-              className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white font-medium"
-            />
+            <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Institution Code (Read-Only)</label>
+            <input type="text" disabled value={institution?.code || ''} className="w-full p-2.5 bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-500" />
           </div>
-
           <div>
-            <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Institution Type</label>
-            <select
-              value={formData.type}
-              onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-              className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white font-medium"
-            >
-              <option value="Autonomous / Engineering & Arts">Autonomous Engineering & Arts College</option>
-              <option value="Arts & Science College">Arts & Science College</option>
-              <option value="CBSE Senior Secondary School">CBSE Senior Secondary School</option>
-              <option value="State Board Matriculation School">State Board Matriculation School</option>
-              <option value="Polytechnic College">Polytechnic College</option>
-            </select>
+            <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Principal / Head Name</label>
+            <input type="text" {...field('principalName')} className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white font-medium" />
           </div>
-
           <div className="md:col-span-2">
             <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">University / Board Affiliation</label>
-            <input
-              type="text"
-              value={formData.affiliation}
-              onChange={(e) => setFormData({ ...formData, affiliation: e.target.value })}
-              className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white font-medium"
-            />
+            <input type="text" {...field('affiliation')} className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white font-medium" />
           </div>
-
           <div>
-            <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Accreditation / NAAC Grade</label>
-            <input
-              type="text"
-              value={formData.accreditation}
-              onChange={(e) => setFormData({ ...formData, accreditation: e.target.value })}
-              className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white font-medium"
-            />
+            <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Established Year</label>
+            <input type="number" {...field('establishedYear')} className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white font-medium" />
           </div>
         </div>
       </FormSection>
 
-      <FormSection title="Contact & Location Details" subtitle="Official address for communication" icon={MapPin}>
+      <FormSection title="Contact & Location Details" subtitle="Official address for communication and printed documents" icon={MapPin}>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
           <div className="md:col-span-2">
             <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Campus Address</label>
-            <input
-              type="text"
-              value={formData.address}
-              onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-              className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white font-medium"
-            />
+            <input type="text" {...field('address')} className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white font-medium" />
+          </div>
+          <div>
+            <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">City</label>
+            <input type="text" {...field('city')} className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white font-medium" />
+          </div>
+          <div>
+            <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">State</label>
+            <input type="text" {...field('state')} className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white font-medium" />
+          </div>
+          <div>
+            <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Pincode</label>
+            <input type="text" {...field('pincode')} className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white font-medium" />
           </div>
           <div>
             <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Phone Number</label>
-            <input
-              type="text"
-              value={formData.phone}
-              onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-              className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white font-medium"
-            />
+            <input type="text" {...field('phone')} className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white font-medium" />
           </div>
           <div>
             <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Official Email</label>
-            <input
-              type="email"
-              value={formData.email}
-              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-              className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white font-medium"
-            />
+            <input type="email" {...field('email')} className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white font-medium" />
           </div>
           <div>
             <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Official Website</label>
-            <input
-              type="text"
-              value={formData.website}
-              onChange={(e) => setFormData({ ...formData, website: e.target.value })}
-              className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white font-medium"
-            />
-          </div>
-        </div>
-      </FormSection>
-
-      <FormSection title="Bank Details (For Challan & Fee Payment)" subtitle="Account info printed on 3-part bank challans" icon={Landmark}>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
-          <div>
-            <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Bank Name</label>
-            <input
-              type="text"
-              value={formData.bankDetails.bankName}
-              onChange={(e) => setFormData({ ...formData, bankDetails: { ...formData.bankDetails, bankName: e.target.value } })}
-              className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white font-medium"
-            />
-          </div>
-          <div>
-            <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Branch Name</label>
-            <input
-              type="text"
-              value={formData.bankDetails.branch}
-              onChange={(e) => setFormData({ ...formData, bankDetails: { ...formData.bankDetails, branch: e.target.value } })}
-              className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white font-medium"
-            />
-          </div>
-          <div>
-            <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Account Holder Name</label>
-            <input
-              type="text"
-              value={formData.bankDetails.accountName}
-              onChange={(e) => setFormData({ ...formData, bankDetails: { ...formData.bankDetails, accountName: e.target.value } })}
-              className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white font-medium"
-            />
-          </div>
-          <div>
-            <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Account Number</label>
-            <input
-              type="text"
-              value={formData.bankDetails.accountNumber}
-              onChange={(e) => setFormData({ ...formData, bankDetails: { ...formData.bankDetails, accountNumber: e.target.value } })}
-              className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white font-mono font-medium"
-            />
-          </div>
-          <div>
-            <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">IFSC Code</label>
-            <input
-              type="text"
-              value={formData.bankDetails.ifscCode}
-              onChange={(e) => setFormData({ ...formData, bankDetails: { ...formData.bankDetails, ifscCode: e.target.value } })}
-              className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white font-mono font-medium"
-            />
+            <input type="text" {...field('website')} className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white font-medium" />
           </div>
         </div>
       </FormSection>

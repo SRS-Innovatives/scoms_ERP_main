@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
 import PageHeader from '../../components/common/PageHeader';
+import { useNotification } from '../../context/NotificationContext';
 import { aiService } from '../../services/aiService';
 import { Bot, Send, Sparkles, User } from 'lucide-react';
 
 export const AiAssistantPage = () => {
+  const { error: showError } = useNotification();
   const [prompt, setPrompt] = useState('');
   const [messages, setMessages] = useState([
-    { sender: 'ai', text: 'Hello Arun! I am your SCOMS AI Campus Tutor. Ask me anything about your syllabus (CS8401 OS, CS8403 DBMS), code debugging, or exam study plans!' }
+    { sender: 'ai', text: 'Hello! I am your SCOMS AI Campus Tutor. Ask me anything about your syllabus, and I\'ll point you to the core concepts and next study steps.' }
   ]);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -15,18 +17,26 @@ export const AiAssistantPage = () => {
     if (!prompt.trim()) return;
 
     const userMsg = { sender: 'user', text: prompt };
-    setMessages(prev => [...prev, userMsg]);
+    setMessages((prev) => [...prev, userMsg]);
+    const question = prompt;
     setPrompt('');
     setIsLoading(true);
 
-    const res = await aiService.askAiAssistant(prompt);
-    setIsLoading(false);
-    setMessages(prev => [...prev, { sender: 'ai', text: res.data.answer }]);
+    try {
+      const res = await aiService.askAiAssistant(question);
+      setMessages((prev) => [...prev, { sender: 'ai', text: res.data.answer }]);
+    } catch (err) {
+      showError(err.message || 'Failed to get a response from the AI tutor', 'AI Tutor Unavailable');
+      setMessages((prev) => prev.slice(0, -1)); // roll back the optimistic user message
+      setPrompt(question);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
-      <PageHeader title="AI Campus Study Tutor" subtitle="Powered by Gemini & SCOMS AI Engine for instant concept explanations." />
+      <PageHeader title="AI Campus Study Tutor" subtitle="Ask a question and get a structured study pointer — usage is logged for your institution." />
 
       <div className="glass-card rounded-3xl border border-slate-200 dark:border-slate-800 flex flex-col h-[520px]">
         <div className="p-4 border-b border-slate-200 dark:border-slate-800 bg-indigo-50/50 dark:bg-indigo-950/30 flex items-center justify-between">

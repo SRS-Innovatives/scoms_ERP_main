@@ -1,0 +1,54 @@
+// Fee & Payments Service — /api/v1/admin/fees/*
+import apiCall from './api';
+
+const getCategories = () => apiCall('/fees/categories');
+
+const getStructures = () => apiCall('/fees/structures');
+const createStructure = (payload) => apiCall('/fees/structures', { method: 'POST', body: payload });
+const deleteStructure = (id) => apiCall(`/fees/structures/${id}`, { method: 'DELETE' });
+
+const getAssignments = (params = {}) => {
+  const qs = new URLSearchParams(params).toString();
+  return apiCall(`/fees/assignments${qs ? `?${qs}` : ''}`);
+};
+const assignFee = (payload) => apiCall('/fees/assignments', { method: 'POST', body: payload });
+const bulkAssignFee = (payload) => apiCall('/fees/assignments/bulk', { method: 'POST', body: payload });
+
+const getInstallments = () => apiCall('/fees/installments');
+const createInstallmentPlan = (payload) => apiCall('/fees/installments', { method: 'POST', body: payload });
+
+const collectFee = (payload) => apiCall('/fees/collect', { method: 'POST', body: payload });
+
+const getReceipt = (id) => apiCall(`/fees/receipts/${id}`);
+
+const getChallans = () => apiCall('/fees/challans');
+const createChallan = (payload) => apiCall('/fees/challans', { method: 'POST', body: payload });
+
+const getScholarships = () => apiCall('/fees/scholarships');
+const applyScholarship = (assignmentId, payload) => apiCall(`/fees/assignments/${assignmentId}/scholarship`, { method: 'PATCH', body: payload });
+
+const getRefunds = () => apiCall('/fees/refunds');
+const createRefund = (payload) => apiCall('/fees/refunds', { method: 'POST', body: payload });
+const processRefund = (id, status) => apiCall(`/fees/refunds/${id}`, { method: 'PATCH', body: { status } });
+
+const getPendingFees = () => apiCall('/fees/pending');
+const getDashboard = () => apiCall('/fees/dashboard');
+const getReports = (params = {}) => {
+  const qs = new URLSearchParams(params).toString();
+  return apiCall(`/fees/reports${qs ? `?${qs}` : ''}`);
+};
+const getDayBook = (date) => apiCall(`/fees/daybook${date ? `?date=${date}` : ''}`);
+
+export const feeService = {
+  getCategories,
+  getStructures, createStructure, deleteStructure,
+  getAssignments, assignFee, bulkAssignFee,
+  getInstallments, createInstallmentPlan,
+  collectFee,
+  getReceipt,
+  getChallans, createChallan,
+  getScholarships, applyScholarship,
+  getRefunds, createRefund, processRefund,
+  getPendingFees, getDashboard, getReports, getDayBook,
+};
+export default feeService;
