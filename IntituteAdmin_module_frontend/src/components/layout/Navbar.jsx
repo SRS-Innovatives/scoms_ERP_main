@@ -18,15 +18,19 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { useInstitution } from '../../context/InstitutionContext';
+import { useAuth } from '../../context/AuthContext';
 
 export const Navbar = ({ onToggleSidebar, onToggleMobile }) => {
   const navigate = useNavigate();
   const { theme, toggleTheme } = useTheme();
   const { notifyInfo } = useNotification();
   const { institution } = useInstitution();
+  const { profile, logout } = useAuth();
   const [showNotifications, setShowNotifications] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const selectedInstitute = institution?.code || institution?.name || 'SCOMS';
+  const adminName = profile?.institution?.principalName || profile?.staff?.designation || 'Institute Admin';
+  const adminEmail = profile?.email || '';
 
   const notificationsList = [
     { id: 1, title: 'Fee Payment Received', desc: 'REC/2025/04921 - Rs 46,000 paid by Kavitha R.', time: '5 mins ago', type: 'success' },
@@ -123,14 +127,20 @@ export const Navbar = ({ onToggleSidebar, onToggleMobile }) => {
             onClick={() => setShowProfileMenu(!showProfileMenu)}
             className="flex items-center gap-2.5 p-1 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
           >
-            <img
-              src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=100"
-              alt="Admin"
-              className="w-8 h-8 rounded-lg object-cover border border-indigo-200 dark:border-slate-700"
-            />
+            {profile?.avatar ? (
+              <img
+                src={profile.avatar}
+                alt={adminName}
+                className="w-8 h-8 rounded-lg object-cover border border-indigo-200 dark:border-slate-700"
+              />
+            ) : (
+              <div className="w-8 h-8 rounded-lg border border-indigo-200 dark:border-slate-700 bg-indigo-50 dark:bg-indigo-950 flex items-center justify-center">
+                <User className="w-4 h-4 text-indigo-400" />
+              </div>
+            )}
             <div className="hidden sm:flex flex-col text-left">
-              <span className="text-xs font-bold text-slate-900 dark:text-white leading-tight">Dr. S. K. Rajan</span>
-              <span className="text-[10px] text-slate-400 font-medium">Principal & Super Admin</span>
+              <span className="text-xs font-bold text-slate-900 dark:text-white leading-tight">{adminName}</span>
+              <span className="text-[10px] text-slate-400 font-medium">Institute Admin</span>
             </div>
             <ChevronDown className="w-3.5 h-3.5 text-slate-400 hidden sm:block" />
           </button>
@@ -138,15 +148,15 @@ export const Navbar = ({ onToggleSidebar, onToggleMobile }) => {
           {showProfileMenu && (
             <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl p-2 text-xs z-50 animate-scale-up">
               <div className="p-3 bg-indigo-50 dark:bg-indigo-950/60 rounded-xl mb-2">
-                <p className="font-bold text-indigo-950 dark:text-indigo-200">Dr. S. K. Rajan</p>
-                <p className="text-[10px] text-indigo-600 dark:text-indigo-400">admin.principal@srcet.edu.in</p>
+                <p className="font-bold text-indigo-950 dark:text-indigo-200">{adminName}</p>
+                <p className="text-[10px] text-indigo-600 dark:text-indigo-400">{adminEmail}</p>
               </div>
 
               <div className="space-y-0.5">
                 <button
                   onClick={() => {
-                    notifyInfo("Profile Settings Opened", "System Settings");
                     setShowProfileMenu(false);
+                    navigate('/admin/profile');
                   }}
                   className="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-medium"
                 >
@@ -155,7 +165,7 @@ export const Navbar = ({ onToggleSidebar, onToggleMobile }) => {
                 </button>
                 <button
                   onClick={() => {
-                    notifyInfo("Security & Roles Opened", "Admin");
+                    notifyInfo("Security & Permissions is on the roadmap", "Coming Soon");
                     setShowProfileMenu(false);
                   }}
                   className="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-medium"
@@ -166,9 +176,8 @@ export const Navbar = ({ onToggleSidebar, onToggleMobile }) => {
                 <div className="my-1 border-t border-slate-100 dark:border-slate-800" />
                 <button
                   onClick={() => {
-                    notifyInfo("Logged out safely", "Session Ended");
                     setShowProfileMenu(false);
-                    navigate('/login');
+                    logout();
                   }}
                   className="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/40 text-rose-600 font-medium"
                 >

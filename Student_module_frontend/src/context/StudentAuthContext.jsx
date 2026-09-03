@@ -17,7 +17,7 @@ const buildProfile = (raw) => {
     name: `${raw.firstName || ''} ${raw.lastName || ''}`.trim(),
     email: raw.email,
     phone: raw.phone,
-    photo: null, // no avatar field exists on Student — UI falls back to initials
+    photo: raw.user?.avatar || null,
     institution: raw.institution?.name || null,
     department: raw.department?.name || null,
     course: raw.course?.name || null,

@@ -3,7 +3,7 @@ import FormInput from '../../components/common/FormInput';
 import Select from '../../components/common/Select';
 import FileUpload from '../../components/common/FileUpload';
 import { useNotification } from '../../context/NotificationContext';
-import { Check, ChevronRight, ChevronLeft, Building2, CheckCircle2, ShieldCheck, Loader2 } from 'lucide-react';
+import { Check, ChevronRight, ChevronLeft, Building2, CheckCircle2, ShieldCheck, Loader2, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import institutionService from '../../services/institutionService';
 
@@ -49,8 +49,23 @@ export const OnboardingWizardPage = () => {
     plan: '',
     establishmentYear: '',
     accreditation: '',
-    modules: []
+    modules: [],
+    logo: ''
   });
+
+  const MAX_LOGO_BYTES = 2 * 1024 * 1024; // 2MB — plenty for a logo, keeps the data URI light
+
+  const handleLogoSelect = (file) => {
+    if (!file) return;
+    if (file.size > MAX_LOGO_BYTES) {
+      showError('Logo must be 2MB or smaller.');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => setFormData((prev) => ({ ...prev, logo: reader.result }));
+    reader.onerror = () => showError('Failed to read the selected logo file.');
+    reader.readAsDataURL(file);
+  };
 
   const handleNext = async () => {
     if (currentStep < 9) {
@@ -127,6 +142,24 @@ export const OnboardingWizardPage = () => {
             <div className="grid grid-cols-2 gap-4">
               <FormInput label="Institution Code" required value={formData.code} onChange={(v) => setFormData({ ...formData, code: v })} placeholder="Enter institution code" />
               <Select label="Institution Type" value={formData.type} onChange={(v) => setFormData({ ...formData, type: v })} options={[{ value: 'SCHOOL', label: 'School' }, { value: 'COLLEGE', label: 'College' }, { value: 'UNIVERSITY', label: 'University' }, { value: 'POLYTECHNIC', label: 'Polytechnic' }]} />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Institution Logo</label>
+              <p className="text-[11px] text-slate-400 mb-2">
+                Shown across the whole platform for this institution — staff/student portal branding, ID cards, certificates, and the left header of every generated report.
+              </p>
+              {formData.logo ? (
+                <div className="flex items-center gap-3 p-3 bg-indigo-50/70 dark:bg-indigo-950/50 border border-indigo-200 dark:border-indigo-800 rounded-xl">
+                  <img src={formData.logo} alt="Institution logo preview" className="w-14 h-14 rounded-lg object-cover border border-white shadow-sm shrink-0" />
+                  <div className="flex-1 text-xs font-semibold text-slate-700 dark:text-slate-300">Logo selected</div>
+                  <button onClick={() => setFormData((prev) => ({ ...prev, logo: '' }))} className="p-1.5 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg">
+                    <X className="w-4 h-4 text-slate-500" />
+                  </button>
+                </div>
+              ) : (
+                <FileUpload label="" accept=".png,.jpg,.jpeg" onFileSelect={handleLogoSelect} />
+              )}
             </div>
           </div>
         )}
@@ -217,7 +250,14 @@ export const OnboardingWizardPage = () => {
           <div className="space-y-4 text-xs">
             <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">Step 8: Final Review & Inspection</h3>
             <div className="p-4 bg-slate-50 dark:bg-slate-800/60 rounded-xl space-y-2">
-              <p><span className="font-bold">Institution:</span> {formData.name} ({formData.code})</p>
+              <div className="flex items-center gap-3">
+                {formData.logo ? (
+                  <img src={formData.logo} alt="Logo" className="w-10 h-10 rounded-lg object-cover border border-slate-200 dark:border-slate-700" />
+                ) : (
+                  <div className="w-10 h-10 rounded-lg bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-[9px] text-slate-500">No logo</div>
+                )}
+                <p><span className="font-bold">Institution:</span> {formData.name} ({formData.code})</p>
+              </div>
               <p><span className="font-bold">Type:</span> {formData.type} • Location: {formData.city}, {formData.state}</p>
               <p><span className="font-bold">Admin Email:</span> {formData.adminEmail}</p>
               <p><span className="font-bold">Subscription Plan:</span> {formData.plan}</p>

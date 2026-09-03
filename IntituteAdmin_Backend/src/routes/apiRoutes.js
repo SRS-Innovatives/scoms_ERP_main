@@ -11,9 +11,11 @@ const setupController = require('../controllers/setupController');
 const staffController = require('../controllers/staffController');
 const studentController = require('../controllers/studentController');
 const feeController = require('../controllers/feeController');
+const feeEngineController = require('../controllers/feeEngineController');
 const dashboardController = require('../controllers/dashboardController');
 const announcementController = require('../controllers/announcementController');
 const attendanceController = require('../controllers/attendanceController');
+const reportController = require('../controllers/reportController');
 const timetableController = require('../controllers/timetableController');
 const examController = require('../controllers/examController');
 const libraryController = require('../controllers/libraryController');
@@ -21,6 +23,7 @@ const transportController = require('../controllers/transportController');
 const hostelController = require('../controllers/hostelController');
 const inventoryController = require('../controllers/inventoryController');
 const certificateController = require('../controllers/certificateController');
+const certificateTemplateController = require('../controllers/certificateTemplateController');
 const settingsController = require('../controllers/settingsController');
 const institutionProfileController = require('../controllers/institutionProfileController');
 const eventController = require('../controllers/eventController');
@@ -44,6 +47,7 @@ router.use(requireTenant);
 
 router.get('/auth/me', authController.getMe);
 router.post('/auth/change-password', authController.changePassword);
+router.patch('/auth/profile', authController.updateProfile);
 
 // Dashboard
 router.get('/dashboard', dashboardController.getDashboard);
@@ -134,6 +138,28 @@ router.get('/fees/dashboard', feeController.getFeeDashboard);
 router.get('/fees/reports', feeController.getFeeReports);
 router.get('/fees/daybook', feeController.getDayBook);
 
+// Dynamic Fee Engine — metadata-driven fee heads, structure builder, multi-item payments
+router.get('/fee-heads/categories', feeEngineController.getFeeCategoriesV2);
+router.post('/fee-heads/categories', feeEngineController.createFeeCategory);
+router.get('/fee-heads', feeEngineController.getFeeHeads);
+router.post('/fee-heads', feeEngineController.createFeeHead);
+router.patch('/fee-heads/:id', feeEngineController.updateFeeHead);
+router.delete('/fee-heads/:id', feeEngineController.deactivateFeeHead);
+
+router.get('/fee-structures', feeEngineController.getFeeStructuresV2);
+router.post('/fee-structures', feeEngineController.createFeeStructureV2);
+router.get('/fee-structures/:id', feeEngineController.getFeeStructureByIdV2);
+router.patch('/fee-structures/:id', feeEngineController.updateFeeStructureV2);
+router.post('/fee-structures/:id/publish', feeEngineController.publishFeeStructure);
+router.post('/fee-structures/:id/archive', feeEngineController.archiveFeeStructure);
+router.post('/fee-structures/:id/duplicate', feeEngineController.duplicateFeeStructure);
+router.post('/fee-structures/:id/assign', feeEngineController.assignStructureToStudents);
+
+router.get('/students/:id/fee-items', feeEngineController.getStudentFeeItems);
+
+router.post('/fee-payments', feeEngineController.collectFeePaymentV2);
+router.post('/fee-receipts/:id/reprint', feeEngineController.reprintReceiptV2);
+
 // Library
 router.use('/library', requireModule('library'));
 router.get('/library/books', libraryController.getBooks);
@@ -195,6 +221,15 @@ router.use('/certificate-requests', requireModule('certificates'));
 router.get('/certificate-requests', certificateController.getCertificateRequests);
 router.patch('/certificate-requests/:id', certificateController.resolveCertificateRequest);
 
+// Dynamic Certificate Engine — catalog, format customization, dynamic generation
+router.use('/certificate-templates', requireModule('certificates'));
+router.get('/certificate-templates/catalog', certificateTemplateController.getCatalog);
+router.get('/certificate-templates/:code/definition', certificateTemplateController.getDefinition);
+router.get('/certificate-templates/:code/format', certificateTemplateController.getFormatSettings);
+router.patch('/certificate-templates/:code/format', certificateTemplateController.updateFormatSettings);
+router.post('/certificate-templates/:code/format/reset', certificateTemplateController.resetFormatSettings);
+router.post('/certificate-templates/:code/generate', certificateTemplateController.generateFromTemplate);
+
 // Settings
 router.get('/settings/audit-logs', settingsController.getAuditLogs);
 router.get('/settings/roles', settingsController.getUserRoles);
@@ -240,6 +275,22 @@ router.use('/attendance', requireModule('attendance'));
 router.get('/attendance/register', attendanceController.getDailyRegister);
 router.get('/attendance/absentees', attendanceController.getAbsentees);
 router.post('/attendance/absentees/notify', attendanceController.notifyAbsentees);
+
+// Dynamic Report Center
+router.get('/reports/catalog', reportController.getCatalog);
+router.get('/reports/history', reportController.getHistory);
+router.get('/reports/saved', reportController.getSavedReports);
+router.post('/reports/saved', reportController.createSavedReport);
+router.delete('/reports/saved/:id', reportController.deleteSavedReport);
+router.get('/reports/filter-options', reportController.getFilterOptions);
+router.get('/reports/:code/definition', reportController.getDefinition);
+router.post('/reports/:code/preview', reportController.previewReport);
+router.post('/reports/:code/generate', reportController.generateReport);
+router.post('/reports/:code/export', reportController.exportReport);
+
+// Institution-specific report requests
+router.post('/report-requests', reportController.createReportRequest);
+router.get('/report-requests', reportController.getReportRequests);
 router.get('/attendance/reports', attendanceController.getReports);
 
 // Timetable

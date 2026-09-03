@@ -6,6 +6,7 @@ const {
   prisma,
   sendSuccess,
   NotFoundError,
+  ValidationError,
 } = require('../../../shared');
 
 /** Fields a student may edit about themselves — never admission/academic/identity fields. */
@@ -17,6 +18,7 @@ const getProfile = async (req, res, next) => {
       where: { id: req.user.studentId },
       include: {
         institution: { select: { name: true, code: true, logo: true } },
+        user: { select: { avatar: true } },
         department: true,
         course: true,
         section: {
@@ -91,10 +93,20 @@ const updateProfile = async (req, res, next) => {
       if (req.body[field] !== undefined) data[field] = req.body[field];
     }
 
+    // avatar lives on User, not Student — updated separately, same validation as every
+    // other portal's profile-photo upload.
+    if (req.body.avatar !== undefined) {
+      const { avatar } = req.body;
+      if (avatar !== '' && !/^data:image\/(png|jpeg|jpg);base64,/.test(avatar)) {
+        throw new ValidationError('Profile photo must be a PNG or JPEG image');
+      }
+      await prisma.user.update({ where: { id: req.user.id }, data: { avatar: avatar === '' ? null : avatar } });
+    }
+
     const student = await prisma.student.update({
       where: { id: req.user.studentId },
       data,
-      include: { institution: { select: { name: true } }, department: true, course: true, section: true, parents: { include: { parent: true } } },
+      include: { institution: { select: { name: true } }, user: { select: { avatar: true } }, department: true, course: true, section: true, parents: { include: { parent: true } } },
     });
 
     return sendSuccess(res, student, 'Profile updated successfully');

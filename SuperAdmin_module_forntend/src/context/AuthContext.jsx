@@ -23,8 +23,18 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem('scoms_superadmin_token');
   };
 
+  /** Merges a partial update (e.g. a newly-uploaded avatar) into the stored user and
+   * persists it, so the change survives a refresh without needing a full re-login. */
+  const updateUser = (partial) => {
+    setUser((prev) => {
+      const next = { ...prev, ...partial };
+      localStorage.setItem('scoms_superadmin_user', JSON.stringify(next));
+      return next;
+    });
+  };
+
   return (
-    <AuthContext.Provider value={{ user, login, logout }}>
+    <AuthContext.Provider value={{ user, login, logout, updateUser }}>
       {children}
     </AuthContext.Provider>
   );

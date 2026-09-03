@@ -69,6 +69,8 @@ import ProgressReportPage from '../pages/examination/ProgressReportPage';
 
 // Fee
 import FeeDashboardPage from '../pages/fee/FeeDashboardPage';
+import FeeHeadsPage from '../pages/fee/FeeHeadsPage';
+import FeeStructureBuilderPage from '../pages/fee/FeeStructureBuilderPage';
 import FeeCategorySetupPage from '../pages/fee/FeeCategorySetupPage';
 import FeeStructurePage from '../pages/fee/FeeStructurePage';
 import StudentFeeAssignmentPage from '../pages/fee/StudentFeeAssignmentPage';
@@ -128,6 +130,7 @@ import VendorManagementPage from '../pages/inventory/VendorManagementPage';
 
 // Certificates
 import TransferCertificatesPage from '../pages/certificates/TransferCertificatesPage';
+import CertificateFormatPage from '../pages/certificates/CertificateFormatPage';
 import BonafideCertificatesPage from '../pages/certificates/BonafideCertificatesPage';
 import CourseCompletionPage from '../pages/certificates/CourseCompletionPage';
 import ConductCertificatesPage from '../pages/certificates/ConductCertificatesPage';
@@ -138,6 +141,10 @@ import ExperienceCertificatesPage from '../pages/certificates/ExperienceCertific
 
 // Reports
 import AdmissionReportPage from '../pages/reports/AdmissionReportPage';
+import ReportCenterPage from '../pages/reports/ReportCenterPage';
+import ReportHistoryPage from '../pages/reports/ReportHistoryPage';
+import SavedReportsPage from '../pages/reports/SavedReportsPage';
+import ReportRequestPage from '../pages/reports/ReportRequestPage';
 import AttendanceReportPage from '../pages/reports/AttendanceReportPage';
 import FeeCollectionReportPage from '../pages/reports/FeeCollectionReportPage';
 import OutstandingReportPage from '../pages/reports/OutstandingReportPage';
@@ -158,6 +165,8 @@ import BackupRestorePage from '../pages/settings/BackupRestorePage';
 import AuditLogsPage from '../pages/settings/AuditLogsPage';
 import LoginPage from '../Pages/auth/LoginPage';
 import ForgotPasswordPage from '../Pages/auth/ForgotPasswordPage';
+import ProtectedRoute from '../components/auth/ProtectedRoute';
+import AdminProfilePage from '../Pages/profile/AdminProfilePage';
 
 export const AppRoutes = () => {
   return (
@@ -166,9 +175,10 @@ export const AppRoutes = () => {
       <Route path="/login" element={<LoginPage />} />
       <Route path="/admin/forgot-password" element={<ForgotPasswordPage />} />
       <Route path="/" element={<Navigate to="/admin/dashboard" replace />} />
-      <Route path="/admin" element={<MainLayout />}>
+      <Route path="/admin" element={<ProtectedRoute><MainLayout /></ProtectedRoute>}>
         <Route index element={<Navigate to="/admin/dashboard" replace />} />
         <Route path="dashboard" element={<DashboardPage />} />
+        <Route path="profile" element={<AdminProfilePage />} />
 
         {/* Institution Setup */}
         <Route path="setup/profile" element={<InstituteProfilePage />} />
@@ -233,6 +243,8 @@ export const AppRoutes = () => {
 
         {/* Fee Management */}
         <Route path="fee/dashboard" element={<FeeDashboardPage />} />
+        <Route path="fee/heads" element={<FeeHeadsPage />} />
+        <Route path="fee/structure-builder" element={<FeeStructureBuilderPage />} />
         <Route path="fee/category" element={<FeeCategorySetupPage />} />
         <Route path="fee/structure" element={<FeeStructurePage />} />
         <Route path="fee/assignment" element={<StudentFeeAssignmentPage />} />
@@ -291,6 +303,7 @@ export const AppRoutes = () => {
         <Route path="inventory/vendors" element={<VendorManagementPage />} />
 
         {/* Certificates */}
+        <Route path="certificates/format" element={<CertificateFormatPage />} />
         <Route path="certificates/tc" element={<TransferCertificatesPage />} />
         <Route path="certificates/bonafide" element={<BonafideCertificatesPage />} />
         <Route path="certificates/completion" element={<CourseCompletionPage />} />
@@ -301,6 +314,10 @@ export const AppRoutes = () => {
         <Route path="certificates/experience" element={<ExperienceCertificatesPage />} />
 
         {/* Reports */}
+        <Route path="reports/center" element={<ReportCenterPage />} />
+        <Route path="reports/history" element={<ReportHistoryPage />} />
+        <Route path="reports/saved" element={<SavedReportsPage />} />
+        <Route path="reports/request" element={<ReportRequestPage />} />
         <Route path="reports/admission" element={<AdmissionReportPage />} />
         <Route path="reports/attendance" element={<AttendanceReportPage />} />
         <Route path="reports/fee-collection" element={<FeeCollectionReportPage />} />

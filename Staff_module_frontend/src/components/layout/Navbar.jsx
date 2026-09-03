@@ -144,9 +144,13 @@ export const Navbar = ({ sidebarOpen, setSidebarOpen, onOpenCompose }) => {
               onClick={() => setShowProfileMenu(!showProfileMenu)}
               className="flex items-center gap-2.5 p-1 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
             >
-              <span className="w-8 h-8 rounded-xl bg-sky-600 text-white flex items-center justify-center font-bold text-xs border border-sky-300 dark:border-sky-700">
-                {initials}
-              </span>
+              {profile?.user?.avatar ? (
+                <img src={profile.user.avatar} alt={initials} className="w-8 h-8 rounded-xl object-cover border border-sky-300 dark:border-sky-700" />
+              ) : (
+                <span className="w-8 h-8 rounded-xl bg-sky-600 text-white flex items-center justify-center font-bold text-xs border border-sky-300 dark:border-sky-700">
+                  {initials}
+                </span>
+              )}
               <div className="hidden lg:block text-left">
                 <p className="text-xs font-bold text-slate-900 dark:text-slate-100 leading-tight">
                   {profile ? `${profile.firstName} ${profile.lastName}` : 'Loading...'}

@@ -3,6 +3,14 @@
  */
 const { prisma, sendSuccess, resolveEnabledModules, MODULE_CATALOG } = require('../../../shared');
 
+// Onboarding lets admins free-type a state name, so "Tamil Nadu" and "tamil nadu" land as
+// distinct DB rows — normalize casing here so the dashboard groups them as one state without
+// having to touch the stored records.
+const normalizeState = (state) => {
+  const trimmed = (state || 'Other').trim();
+  return trimmed.replace(/\w\S*/g, (word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase());
+};
+
 const getAnalytics = async (req, res, next) => {
   try {
     const [
@@ -92,7 +100,7 @@ const getAnalytics = async (req, res, next) => {
     // 4. State-wise Distribution Ranking
     const stateCounts = {};
     institutions.forEach(inst => {
-      const state = inst.state || 'Other';
+      const state = normalizeState(inst.state);
       stateCounts[state] = (stateCounts[state] || 0) + 1;
     });
     const stateDistribution = Object.keys(stateCounts).map(state => ({
@@ -108,7 +116,7 @@ const getAnalytics = async (req, res, next) => {
 
     const stateAgg = {};
     institutions.forEach((inst) => {
-      const state = inst.state || 'Other';
+      const state = normalizeState(inst.state);
       if (!stateAgg[state]) stateAgg[state] = { state, institutions: 0, activeStudents: 0, revenue: 0 };
       stateAgg[state].institutions++;
       stateAgg[state].activeStudents += studentCountByInstId[inst.id] || 0;

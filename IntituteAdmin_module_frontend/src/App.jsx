@@ -3,6 +3,7 @@ import { BrowserRouter } from 'react-router-dom';
 import { ThemeProvider } from './context/ThemeContext';
 import { NotificationProvider } from './context/NotificationContext';
 import { InstitutionProvider } from './context/InstitutionContext';
+import { AuthProvider } from './context/AuthContext';
 import AppRoutes from './routes/AppRoutes';
 
 export function App() {
@@ -10,9 +11,11 @@ export function App() {
     <BrowserRouter>
       <ThemeProvider>
         <NotificationProvider>
-          <InstitutionProvider>
-            <AppRoutes />
-          </InstitutionProvider>
+          <AuthProvider>
+            <InstitutionProvider>
+              <AppRoutes />
+            </InstitutionProvider>
+          </AuthProvider>
         </NotificationProvider>
       </ThemeProvider>
     </BrowserRouter>

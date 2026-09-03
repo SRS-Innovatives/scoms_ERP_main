@@ -17,6 +17,7 @@ const {
   handleLogout,
   handleGetMe,
   handleChangePassword,
+  handleUpdateProfile,
 } = require('../../../shared/auth/authControllerBase');
 
 const login = async (req, res, next) => {
@@ -29,4 +30,5 @@ module.exports = {
   logout: handleLogout,
   getMe: handleGetMe,
   changePassword: handleChangePassword,
+  updateProfile: handleUpdateProfile,
 };

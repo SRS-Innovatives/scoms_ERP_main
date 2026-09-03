@@ -12,6 +12,7 @@ const {
   ROLES,
   MODULE_CATALOG,
   OPTIONAL_MODULE_KEYS,
+  generateUserCode,
 } = require('../../../shared');
 
 const getInstitutions = async (req, res, next) => {
@@ -54,7 +55,7 @@ const createInstitutionOnboarding = async (req, res, next) => {
   try {
     const {
       name, code, type, registrationNumber, affiliation, email, phone,
-      address, city, district, state, pincode, country,
+      address, city, district, state, pincode, country, logo,
       establishmentYear, adminName, adminEmail, adminPassword, plan, modules, accreditation
     } = req.body;
 
@@ -89,6 +90,7 @@ const createInstitutionOnboarding = async (req, res, next) => {
           state,
           pincode,
           country: country || 'India',
+          logo: logo || null,
           establishedYear: establishmentYear ? parseInt(establishmentYear) : null,
           planName: plan,
           modules: modules ? modules : null,
@@ -99,22 +101,25 @@ const createInstitutionOnboarding = async (req, res, next) => {
       // 4. Create admin user if provided
       if (adminEmail && adminPassword) {
         const hashedPassword = await hashPassword(adminPassword);
+        // Professional, institution-mapped ID — e.g. "DPIS-ADM-00001" — never a raw timestamp.
+        const adminUserCode = generateUserCode(institution.code, ROLES.INSTITUTE_ADMIN, 1);
         const user = await tx.user.create({
           data: {
             institutionId: institution.id,
             email: adminEmail,
             mobile: phone,
+            userCode: adminUserCode,
             password: hashedPassword,
             role: ROLES.INSTITUTE_ADMIN,
             status: 'ACTIVE',
           },
         });
-        
+
         await tx.staff.create({
           data: {
             userId: user.id,
             institutionId: institution.id,
-            employeeCode: `ADM-${Date.now()}`,
+            employeeCode: adminUserCode,
             designation: 'Institute Admin',
           }
         });
@@ -164,24 +169,29 @@ const createInstituteAdmin = async (req, res, next) => {
       // 4. Hash password
       const hashedPassword = await hashPassword(password);
 
+      // Professional, institution-mapped ID — e.g. "DPIS-ADM-00002" — never a raw timestamp.
+      const adminCount = await tx.user.count({ where: { institutionId, role: ROLES.INSTITUTE_ADMIN } });
+      const adminUserCode = generateUserCode(institution.code, ROLES.INSTITUTE_ADMIN, adminCount + 1);
+
       // 5. Create user & 6. Assign role
       const user = await tx.user.create({
         data: {
           institutionId,
           email,
           mobile: phone,
+          userCode: adminUserCode,
           password: hashedPassword,
           role: ROLES.INSTITUTE_ADMIN,
           status: 'ACTIVE',
         },
       });
-      
+
       // 8. Create staff profile if needed, since name is required for profile
       const staff = await tx.staff.create({
         data: {
           userId: user.id,
           institutionId,
-          employeeCode: `ADM-${Date.now()}`,
+          employeeCode: adminUserCode,
           designation: designation || 'Institute Admin',
         }
       });

@@ -125,6 +125,8 @@ export const navigationConfig = [
     badge: 'Important',
     children: [
       { key: 'fee-dashboard', title: 'Fee Dashboard', path: '/admin/fee/dashboard' },
+      { key: 'fee-heads-setup', title: 'Fee Heads (Dynamic)', path: '/admin/fee/heads', badge: 'NEW' },
+      { key: 'fee-structure-builder', title: 'Fee Structure Builder (Dynamic)', path: '/admin/fee/structure-builder', badge: 'NEW' },
       { key: 'fee-category', title: 'Fee Category Setup', path: '/admin/fee/category' },
       { key: 'fee-structure', title: 'Fee Structure', path: '/admin/fee/structure' },
       { key: 'student-assignment', title: 'Student Fee Assignment', path: '/admin/fee/assignment' },
@@ -213,6 +215,7 @@ export const navigationConfig = [
     title: 'Certificates Module',
     icon: FileCheck,
     children: [
+      { key: 'cert-format', title: 'Customize Certificate Format', path: '/admin/certificates/format', badge: 'NEW' },
       { key: 'cert-tc', title: 'Transfer Certificate (TC)', path: '/admin/certificates/tc' },
       { key: 'cert-bonafide', title: 'Bonafide Certificate', path: '/admin/certificates/bonafide' },
       { key: 'cert-completion', title: 'Course Completion', path: '/admin/certificates/completion' },
@@ -235,6 +238,7 @@ export const navigationConfig = [
     title: 'Reports Module',
     icon: BarChart3,
     children: [
+      { key: 'rep-center', title: 'Report Center (Build Your Own)', path: '/admin/reports/center', badge: 'NEW' },
       { key: 'rep-admission', title: 'Admission Report', path: '/admin/reports/admission' },
       { key: 'rep-attendance', title: 'Attendance Report', path: '/admin/reports/attendance' },
       { key: 'rep-fee', title: 'Fee Collection Report', path: '/admin/reports/fee-collection' },

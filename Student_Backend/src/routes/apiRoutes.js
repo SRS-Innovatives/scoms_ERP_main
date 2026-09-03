@@ -42,6 +42,7 @@ router.use(requireTenant);
 
 router.get('/auth/me', authController.getMe);
 router.post('/auth/change-password', authController.changePassword);
+router.patch('/auth/profile', authController.updateProfile);
 
 // Profile Route (core — always accessible)
 router.get('/profile', studentProfileController.getProfile);

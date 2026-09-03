@@ -28,7 +28,7 @@ const getDashboard = async (req, res, next) => {
       recentStudents,
       recentAnnouncements,
     ] = await Promise.all([
-      prisma.institution.findUnique({ where: { id: institutionId }, select: { name: true, code: true, type: true, modules: true } }),
+      prisma.institution.findUnique({ where: { id: institutionId }, select: { name: true, code: true, type: true, modules: true, logo: true } }),
       prisma.student.count({ where: { institutionId, status: 'ACTIVE' } }),
       prisma.staff.count({ where: { institutionId } }),
       prisma.department.count({ where: { institutionId } }),

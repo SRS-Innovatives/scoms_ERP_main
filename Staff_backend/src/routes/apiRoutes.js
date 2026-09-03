@@ -38,6 +38,7 @@ router.use(requireTenant);
 
 router.get('/auth/me', authController.getMe);
 router.post('/auth/change-password', authController.changePassword);
+router.patch('/auth/profile', authController.updateProfile);
 
 // Profile (self-service)
 router.get('/profile/me', profileController.getMyProfile);

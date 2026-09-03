@@ -1,21 +1,57 @@
-import React, { useState, useEffect } from 'react';
-import { User, CreditCard, Edit, Loader2 } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { User, CreditCard, Edit, Loader2, Camera } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useNotification } from '../../context/NotificationContext';
 import profileService from '../../services/profileService';
 
+const MAX_PHOTO_BYTES = 2 * 1024 * 1024; // 2MB
+
 export const ProfilePage = () => {
   const navigate = useNavigate();
-  const { error: showError } = useNotification();
+  const { error: showError, success } = useNotification();
   const [staff, setStaff] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef(null);
 
-  useEffect(() => {
+  const loadProfile = () => {
     profileService.getMyProfile()
       .then((res) => setStaff(res.data))
       .catch((err) => showError(err.message || 'Failed to load profile', 'Load Failed'))
       .finally(() => setLoading(false));
-  }, [showError]);
+  };
+
+  useEffect(loadProfile, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handlePhotoSelect = (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    if (!['image/png', 'image/jpeg'].includes(file.type)) {
+      showError('Profile photo must be a PNG or JPEG image.');
+      return;
+    }
+    if (file.size > MAX_PHOTO_BYTES) {
+      showError('Photo must be 2MB or smaller.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = async () => {
+      setUploading(true);
+      try {
+        await profileService.updateMyProfile({ avatar: reader.result });
+        success('Profile photo updated.');
+        loadProfile();
+      } catch (err) {
+        showError(err.message || 'Failed to upload photo.');
+      } finally {
+        setUploading(false);
+      }
+    };
+    reader.onerror = () => showError('Failed to read the selected file.');
+    reader.readAsDataURL(file);
+  };
 
   if (loading || !staff) {
     return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-sky-600" /></div>;
@@ -25,8 +61,24 @@ export const ProfilePage = () => {
     <div className="space-y-6">
       <div className="glass-card p-6 rounded-3xl border border-slate-200 dark:border-slate-800 flex flex-col md:flex-row items-center justify-between gap-6">
         <div className="flex flex-col sm:flex-row items-center gap-5 text-center sm:text-left">
-          <div className="w-24 h-24 rounded-3xl bg-sky-600 text-white flex items-center justify-center text-3xl font-black border-4 border-sky-500/30 shadow-lg shrink-0">
-            {staff.firstName?.[0]}{staff.lastName?.[0]}
+          <div className="relative shrink-0">
+            {staff.user?.avatar ? (
+              <img src={staff.user.avatar} alt={`${staff.firstName} ${staff.lastName}`} className="w-24 h-24 rounded-3xl object-cover border-4 border-sky-500/30 shadow-lg" />
+            ) : (
+              <div className="w-24 h-24 rounded-3xl bg-sky-600 text-white flex items-center justify-center text-3xl font-black border-4 border-sky-500/30 shadow-lg">
+                {staff.firstName?.[0]}{staff.lastName?.[0]}
+              </div>
+            )}
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploading}
+              title="Change photo"
+              className="absolute -bottom-1.5 -right-1.5 w-8 h-8 rounded-full bg-sky-600 hover:bg-sky-700 text-white flex items-center justify-center shadow-md disabled:opacity-50"
+            >
+              {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Camera className="w-4 h-4" />}
+            </button>
+            <input ref={fileInputRef} type="file" accept="image/png,image/jpeg" onChange={handlePhotoSelect} className="hidden" />
           </div>
           <div>
             <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100">{staff.firstName} {staff.lastName}</h2>

@@ -19,6 +19,7 @@ const smsController = require('../controllers/smsController');
 const emailController = require('../controllers/emailController');
 const whatsappController = require('../controllers/whatsappController');
 const announcementController = require('../controllers/announcementController');
+const reportManagementController = require('../controllers/reportManagementController');
 const { requireAuth, requireRole, ROLES, handleForgotPassword, handleVerifyOtp, handleResetPassword } = require('../../../shared');
 
 // Standalone Auth Routes
@@ -35,6 +36,24 @@ router.use(requireRole(ROLES.SUPER_ADMIN, ROLES.PLATFORM_ADMIN));
 
 router.get('/auth/me', authController.getMe);
 router.post('/auth/change-password', authController.changePassword);
+router.patch('/auth/profile', authController.updateProfile);
+
+// Dynamic Report Engine — Catalog Management
+router.get('/reports', reportManagementController.getReports);
+router.post('/reports', reportManagementController.createReport);
+router.get('/reports/:id', reportManagementController.getReportById);
+router.patch('/reports/:id', reportManagementController.updateReport);
+router.delete('/reports/:id', reportManagementController.archiveReport);
+router.post('/reports/:id/clone', reportManagementController.cloneReport);
+
+// Dynamic Report Engine — Institution Assignment
+router.get('/institutions/:id/reports', reportManagementController.getInstitutionReports);
+router.post('/institutions/:id/reports', reportManagementController.assignReportsToInstitution);
+router.patch('/institutions/:id/reports/:reportId', reportManagementController.updateInstitutionReport);
+
+// Dynamic Report Engine — Custom Report Requests (review workflow)
+router.get('/report-requests', reportManagementController.getReportRequests);
+router.patch('/report-requests/:id', reportManagementController.updateReportRequest);
 
 // Institutions Management
 router.get('/institutions', institutionController.getInstitutions);
