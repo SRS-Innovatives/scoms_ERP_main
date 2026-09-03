@@ -13,7 +13,18 @@ const {
   MODULE_CATALOG,
   OPTIONAL_MODULE_KEYS,
   generateUserCode,
+  pushNotificationToMany,
 } = require('../../../shared');
+
+/** Every platform-level user (Super Admin + Platform Admin) — the audience for
+ * institution-onboarded/support-ticket style notifications that aren't tied to one tenant. */
+const notifyPlatformAdmins = async ({ title, message, type, link }) => {
+  const admins = await prisma.user.findMany({
+    where: { role: { in: [ROLES.SUPER_ADMIN, ROLES.PLATFORM_ADMIN] }, status: 'ACTIVE' },
+    select: { id: true },
+  });
+  await pushNotificationToMany({ userIds: admins.map((a) => a.id), title, message, type, link });
+};
 
 const getInstitutions = async (req, res, next) => {
   try {
@@ -142,6 +153,13 @@ const createInstitutionOnboarding = async (req, res, next) => {
 
       return institution;
     });
+
+    notifyPlatformAdmins({
+      title: 'New Institution Onboarded',
+      message: `${result.name} (${result.code}) was just onboarded to the platform.`,
+      type: 'INSTITUTION',
+      link: `/super-admin/institutions/${result.id}`,
+    }).catch(() => {}); // best-effort — never block the real onboarding response on this
 
     return sendSuccess(res, result, 'Institution created successfully', 201);
   } catch (err) {

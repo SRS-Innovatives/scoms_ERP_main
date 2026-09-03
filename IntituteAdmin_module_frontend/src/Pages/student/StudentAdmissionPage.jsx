@@ -1,133 +1,161 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import StepperForm from '../../components/common/StepperForm';
 import FormSection from '../../components/common/FormSection';
-import FileUpload from '../../components/common/FileUpload';
 import { useNotification } from '../../context/NotificationContext';
-import { User, Users, MapPin, GraduationCap, Bus, Home, Save, CheckCircle, ArrowRight, ArrowLeft } from 'lucide-react';
+import {
+  User, IdCard, Users, MapPin, GraduationCap, HeartPulse, Landmark,
+  Camera, CheckCircle, ArrowRight, ArrowLeft, Loader2, X,
+} from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import apiCall from '../../services/api';
 
+const MAX_PHOTO_BYTES = 2 * 1024 * 1024; // 2MB
+
+const emptyForm = {
+  // 1. Personal & Identity
+  firstName: '', lastName: '', gender: 'FEMALE', dob: '', bloodGroup: 'O+',
+  religion: '', nationality: 'Indian', motherTongue: '', aadhaarNumber: '',
+  category: 'General', subCaste: '', email: '', phone: '', alternatePhone: '',
+  // 2. Parent & Guardian
+  fatherName: '', fatherOccupation: '', fatherEmail: '',
+  motherName: '', motherOccupation: '', motherEmail: '',
+  guardianName: '', guardianRelation: '', parentPhone: '', parentEmail: '', annualIncome: '',
+  // 3. Contact & Address
+  address: '', city: '', state: '', pincode: '', district: '', permanentAddress: '', landmark: '',
+  // 4. Academic Admission
+  departmentId: '', courseId: '', semesterId: '', sectionId: '', rollNumber: '', registerNumber: '',
+  previousSchoolName: '', previousSchoolBoard: '', lastQualificationExam: '', qualifyingScore: '',
+  admissionQuota: 'Management', scholarshipType: '', emisId: '',
+  // 5. Health & Emergency
+  medicalConditions: '', allergies: '', emergencyContactName: '', emergencyContactPhone: '',
+  // 6. Bank & Services
+  bankAccountNumber: '', bankIfscCode: '', bankName: '',
+  transportRequired: false, transport: 'None', hostelRequired: false, hostel: 'Day Scholar',
+  // 7. Photo & Credentials
+  photo: '', password: '',
+};
+
+/** A labeled text/select field — defined once here rather than re-typed ~55 times across
+ * this form's 7 sections. `as="select"` renders `children` as <option>s instead. */
+const Field = ({ label, required, as = 'input', type = 'text', value, onChange, options, mono, ...rest }) => (
+  <div>
+    <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+      {label}{required && ' *'}
+    </label>
+    {as === 'select' ? (
+      <select
+        required={required}
+        value={value}
+        onChange={onChange}
+        className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white font-medium"
+        {...rest}
+      >
+        {options.map((o) => (typeof o === 'string' ? <option key={o} value={o}>{o}</option> : <option key={o.value} value={o.value}>{o.label}</option>))}
+      </select>
+    ) : as === 'textarea' ? (
+      <textarea
+        required={required}
+        rows={2}
+        value={value}
+        onChange={onChange}
+        className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white font-medium"
+        {...rest}
+      />
+    ) : (
+      <input
+        type={type}
+        required={required}
+        value={value}
+        onChange={onChange}
+        className={`w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white font-medium ${mono ? 'font-mono' : ''}`}
+        {...rest}
+      />
+    )}
+  </div>
+);
+
 export const StudentAdmissionPage = () => {
-  const { notifySuccess } = useNotification();
+  const { notifySuccess, notifyError } = useNotification();
   const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState(1);
+  const [submitting, setSubmitting] = useState(false);
+  const fileInputRef = useRef(null);
 
-  const [formData, setFormData] = useState({
-    name: '',
-    gender: 'Female',
-    dob: '',
-    bloodGroup: 'O+',
-    aadhaarNo: '',
-    casteCommunity: 'BC (OBC)',
-    scholarship: 'None',
-    email: '',
-    phone: '',
-
-    fatherName: '',
-    fatherOcc: '',
-    motherName: '',
-    parentPhone: '',
-    annualIncome: '',
-
-    address: '',
-    city: 'Chennai',
-    state: 'Tamil Nadu',
-    pincode: '600017',
-
-    departmentId: '',
-    courseId: '',
-    semesterId: '',
-    sectionId: '',
-    
-    previousSchool: '',
-    cutoffMarks: '',
-    rollNumber: '',
-    password: '',
-
-    transport: 'None',
-    hostel: 'Day Scholar',
-    photo: null
-  });
+  const [formData, setFormData] = useState(emptyForm);
+  const set = (key) => (e) => setFormData((prev) => ({ ...prev, [key]: e.target.value }));
+  const setBool = (key) => (e) => setFormData((prev) => ({ ...prev, [key]: e.target.checked }));
 
   const [departments, setDepartments] = useState([]);
   const [courses, setCourses] = useState([]);
   const [semesters, setSemesters] = useState([]);
   const [sections, setSections] = useState([]);
 
-  useEffect(() => {
-    fetchDepartments();
-  }, []);
-
+  useEffect(() => { fetchDepartments(); }, []);
   useEffect(() => {
     if (formData.departmentId) fetchCourses(formData.departmentId);
     else setCourses([]);
   }, [formData.departmentId]);
-
   useEffect(() => {
     if (formData.courseId) fetchSemesters(formData.courseId);
     else setSemesters([]);
   }, [formData.courseId]);
-
   useEffect(() => {
     if (formData.semesterId) fetchSections(formData.semesterId);
     else setSections([]);
   }, [formData.semesterId]);
 
   const fetchDepartments = async () => {
-    try {
-      const res = await apiCall('/setup/departments');
-      setDepartments(res.data);
-    } catch (error) {
-      console.error(error);
-    }
+    try { setDepartments((await apiCall('/setup/departments')).data); } catch (err) { console.error(err); }
   };
-
   const fetchCourses = async (deptId) => {
-    try {
-      const res = await apiCall('/setup/courses');
-      // For now, client side filter (can also be done server side with ?departmentId)
-      setCourses(res.data.filter(c => c.departmentId === deptId));
-    } catch (error) {
-      console.error(error);
-    }
+    try { setCourses((await apiCall('/setup/courses')).data.filter((c) => c.departmentId === deptId)); } catch (err) { console.error(err); }
   };
-
   const fetchSemesters = async (courseId) => {
-    try {
-      const res = await apiCall(`/setup/semesters?courseId=${courseId}`);
-      setSemesters(res.data);
-    } catch (error) {
-      console.error(error);
-    }
+    try { setSemesters((await apiCall(`/setup/semesters?courseId=${courseId}`)).data); } catch (err) { console.error(err); }
+  };
+  const fetchSections = async (semesterId) => {
+    try { setSections((await apiCall(`/setup/sections?semesterId=${semesterId}`)).data); } catch (err) { console.error(err); }
   };
 
-  const fetchSections = async (semesterId) => {
-    try {
-      const res = await apiCall(`/setup/sections?semesterId=${semesterId}`);
-      setSections(res.data);
-    } catch (error) {
-      console.error(error);
+  const handlePhotoSelect = (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    if (!['image/png', 'image/jpeg'].includes(file.type)) {
+      notifyError('Student photo must be a PNG or JPEG image.');
+      return;
     }
+    if (file.size > MAX_PHOTO_BYTES) {
+      notifyError('Photo must be 2MB or smaller.');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => setFormData((prev) => ({ ...prev, photo: reader.result }));
+    reader.onerror = () => notifyError('Failed to read the selected file.');
+    reader.readAsDataURL(file);
   };
 
   const steps = [
-    { label: 'Personal Info' },
-    { label: 'Parent Details' },
-    { label: 'Academic & Course' },
-    { label: 'Services & Photo' }
+    { label: 'Personal & Identity' },
+    { label: 'Parent & Guardian' },
+    { label: 'Contact & Address' },
+    { label: 'Academic Admission' },
+    { label: 'Health & Emergency' },
+    { label: 'Bank & Services' },
+    { label: 'Photo & Login' },
   ];
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setSubmitting(true);
     try {
-      const res = await apiCall('/students/admission', {
-        method: 'POST',
-        body: formData
-      });
-      notifySuccess(`Admission created successfully for ${formData.name || 'New Student'}!`, 'Admission Created');
+      await apiCall('/students/admission', { method: 'POST', body: formData });
+      notifySuccess(`Admission created successfully for ${formData.firstName} ${formData.lastName}!`, 'Admission Created');
       navigate('/admin/student/list');
     } catch (error) {
-      notifySuccess(`Failed to create admission: ${error.message}`);
+      notifyError(`Failed to create admission: ${error.message}`);
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -135,365 +163,219 @@ export const StudentAdmissionPage = () => {
     <div className="space-y-6 max-w-5xl mx-auto">
       <div>
         <h1 className="text-xl font-bold text-slate-900 dark:text-white">New Student Admission Form</h1>
-        <p className="text-xs text-slate-500 dark:text-slate-400">Complete multi-step student registration adhering to Indian institutional standards</p>
+        <p className="text-xs text-slate-500 dark:text-slate-400">Complete 7-step student registration capturing every detail the institution needs on record</p>
       </div>
 
       <StepperForm steps={steps} currentStep={currentStep} />
 
       <form onSubmit={handleSubmit}>
-        {/* Step 1: Personal Details */}
+        {/* Step 1: Personal & Identity */}
         {currentStep === 1 && (
-          <FormSection title="1. Personal Information" subtitle="Basic student demographics & government ID details" icon={User}>
+          <FormSection title="1. Personal & Identity Information" subtitle="Basic demographics & government ID details" icon={User}>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
-              <div>
-                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Student Full Name *</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. Kavitha R. Sharma"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white font-medium"
-                />
-              </div>
-
-              <div>
-                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Gender *</label>
-                <select
-                  value={formData.gender}
-                  onChange={(e) => setFormData({ ...formData, gender: e.target.value })}
-                  className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white font-medium"
-                >
-                  <option value="Female">Female</option>
-                  <option value="Male">Male</option>
-                  <option value="Other">Other</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Date of Birth *</label>
-                <input
-                  type="date"
-                  required
-                  value={formData.dob}
-                  onChange={(e) => setFormData({ ...formData, dob: e.target.value })}
-                  className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white font-medium"
-                />
-              </div>
-
-              <div>
-                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Blood Group</label>
-                <select
-                  value={formData.bloodGroup}
-                  onChange={(e) => setFormData({ ...formData, bloodGroup: e.target.value })}
-                  className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white font-medium"
-                >
-                  <option value="O+">O+</option>
-                  <option value="A+">A+</option>
-                  <option value="B+">B+</option>
-                  <option value="AB+">AB+</option>
-                  <option value="O-">O-</option>
-                  <option value="A-">A-</option>
-                  <option value="B-">B-</option>
-                  <option value="AB-">AB-</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Aadhaar Card Number *</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="xxxx-xxxx-xxxx"
-                  value={formData.aadhaarNo}
-                  onChange={(e) => setFormData({ ...formData, aadhaarNo: e.target.value })}
-                  className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white font-mono font-medium"
-                />
-              </div>
-
-              <div>
-                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Community / Caste Category *</label>
-                <select
-                  value={formData.casteCommunity}
-                  onChange={(e) => setFormData({ ...formData, casteCommunity: e.target.value })}
-                  className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white font-medium"
-                >
-                  <option value="BC (OBC)">BC (OBC)</option>
-                  <option value="MBC / DNC">MBC / DNC</option>
-                  <option value="SC">SC (Scheduled Caste)</option>
-                  <option value="ST">ST (Scheduled Tribe)</option>
-                  <option value="OC / General">OC / General</option>
-                  <option value="BC (Muslim)">BC (Muslim)</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Scholarship Eligible Option</label>
-                <select
-                  value={formData.scholarship}
-                  onChange={(e) => setFormData({ ...formData, scholarship: e.target.value })}
-                  className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white font-medium"
-                >
-                  <option value="None">None / Regular Fee</option>
-                  <option value="First Generation Graduate (Govt of TN)">First Generation Graduate (FGG)</option>
-                  <option value="7.5% Govt School Quota">7.5% Govt School Quota</option>
-                  <option value="Post Matric Scholarship (PMS)">Post Matric Scholarship (PMS)</option>
-                  <option value="Institutional Merit Waiver">Institutional Merit Waiver</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Student Contact Mobile</label>
-                <input
-                  type="text"
-                  placeholder="+91 98400 12345"
-                  value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white font-medium"
-                />
-              </div>
-
-              <div>
-                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Student Email Address</label>
-                <input
-                  type="email"
-                  placeholder="student@example.com"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white font-medium"
-                />
-              </div>
+              <Field label="First Name" required value={formData.firstName} onChange={set('firstName')} placeholder="e.g. Kavitha" />
+              <Field label="Last Name" required value={formData.lastName} onChange={set('lastName')} placeholder="e.g. R. Sharma" />
+              <Field label="Gender" as="select" required value={formData.gender} onChange={set('gender')} options={[{ value: 'FEMALE', label: 'Female' }, { value: 'MALE', label: 'Male' }, { value: 'OTHER', label: 'Other' }]} />
+              <Field label="Date of Birth" type="date" required value={formData.dob} onChange={set('dob')} />
+              <Field label="Blood Group" as="select" value={formData.bloodGroup} onChange={set('bloodGroup')} options={['O+', 'A+', 'B+', 'AB+', 'O-', 'A-', 'B-', 'AB-']} />
+              <Field label="Nationality" value={formData.nationality} onChange={set('nationality')} />
+              <Field label="Religion" value={formData.religion} onChange={set('religion')} placeholder="e.g. Hindu / Muslim / Christian" />
+              <Field label="Mother Tongue" value={formData.motherTongue} onChange={set('motherTongue')} placeholder="e.g. Tamil" />
+              <Field label="Community / Caste Category" as="select" value={formData.category} onChange={set('category')} options={['General', 'BC (OBC)', 'MBC / DNC', 'SC', 'ST', 'BC (Muslim)']} />
+              <Field label="Sub-Caste" value={formData.subCaste} onChange={set('subCaste')} />
+              <Field label="Aadhaar Card Number" mono value={formData.aadhaarNumber} onChange={set('aadhaarNumber')} placeholder="xxxx-xxxx-xxxx" />
+              <Field label="Student Email Address" type="email" value={formData.email} onChange={set('email')} placeholder="student@example.com" />
+              <Field label="Student Contact Mobile" value={formData.phone} onChange={set('phone')} placeholder="+91 98400 12345" />
+              <Field label="Alternate Contact Number" value={formData.alternatePhone} onChange={set('alternatePhone')} />
             </div>
           </FormSection>
         )}
 
-        {/* Step 2: Parent Details */}
+        {/* Step 2: Parent & Guardian */}
         {currentStep === 2 && (
-          <FormSection title="2. Parent & Address Details" subtitle="Guardian info for emergency & communication" icon={Users}>
+          <FormSection title="2. Parent & Guardian Details" subtitle="Contact & background info for communication and eligibility" icon={Users}>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
-              <div>
-                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Father's Name *</label>
-                <input
-                  type="text"
-                  required
-                  value={formData.fatherName}
-                  onChange={(e) => setFormData({ ...formData, fatherName: e.target.value })}
-                  className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white font-medium"
-                />
-              </div>
+              <Field label="Father's Name" required value={formData.fatherName} onChange={set('fatherName')} />
+              <Field label="Father's Occupation" value={formData.fatherOccupation} onChange={set('fatherOccupation')} />
+              <Field label="Father's Email" type="email" value={formData.fatherEmail} onChange={set('fatherEmail')} />
+              <Field label="Mother's Name" value={formData.motherName} onChange={set('motherName')} />
+              <Field label="Mother's Occupation" value={formData.motherOccupation} onChange={set('motherOccupation')} />
+              <Field label="Mother's Email" type="email" value={formData.motherEmail} onChange={set('motherEmail')} />
+              <Field label="Guardian's Name (if applicable)" value={formData.guardianName} onChange={set('guardianName')} />
+              <Field label="Guardian's Relation to Student" value={formData.guardianRelation} onChange={set('guardianRelation')} placeholder="e.g. Uncle, Elder Sibling" />
+              <Field label="Parent/Guardian Login Email" type="email" value={formData.parentEmail} onChange={set('parentEmail')} placeholder="Used to create the parent portal login" />
+              <Field label="Parent Contact Number (for SMS)" required value={formData.parentPhone} onChange={set('parentPhone')} placeholder="+91 94440 00000" />
+              <Field label="Annual Family Income (INR)" value={formData.annualIncome} onChange={set('annualIncome')} placeholder="e.g. 2,50,000" />
+            </div>
+          </FormSection>
+        )}
 
-              <div>
-                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Father's Occupation</label>
-                <input
-                  type="text"
-                  value={formData.fatherOcc}
-                  onChange={(e) => setFormData({ ...formData, fatherOcc: e.target.value })}
-                  className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white font-medium"
-                />
-              </div>
-
-              <div>
-                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Mother's Name</label>
-                <input
-                  type="text"
-                  value={formData.motherName}
-                  onChange={(e) => setFormData({ ...formData, motherName: e.target.value })}
-                  className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white font-medium"
-                />
-              </div>
-
-              <div>
-                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Parent Contact Number (For SMS) *</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="+91 94440 00000"
-                  value={formData.parentPhone}
-                  onChange={(e) => setFormData({ ...formData, parentPhone: e.target.value })}
-                  className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white font-medium"
-                />
-              </div>
-
-              <div>
-                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Annual Family Income (INR)</label>
-                <input
-                  type="text"
-                  placeholder="e.g. 2,50,000"
-                  value={formData.annualIncome}
-                  onChange={(e) => setFormData({ ...formData, annualIncome: e.target.value })}
-                  className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white font-medium"
-                />
-              </div>
-
+        {/* Step 3: Contact & Address */}
+        {currentStep === 3 && (
+          <FormSection title="3. Contact & Address" subtitle="Residential and permanent address details" icon={MapPin}>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
               <div className="md:col-span-3">
-                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Residential Address *</label>
-                <textarea
-                  rows={2}
-                  required
-                  value={formData.address}
-                  onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                  className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white font-medium"
-                />
+                <Field label="Residential Address" as="textarea" required value={formData.address} onChange={set('address')} />
+              </div>
+              <Field label="City" required value={formData.city} onChange={set('city')} />
+              <Field label="State" required value={formData.state} onChange={set('state')} />
+              <Field label="District" value={formData.district} onChange={set('district')} />
+              <Field label="Pincode" mono required value={formData.pincode} onChange={set('pincode')} />
+              <Field label="Landmark" value={formData.landmark} onChange={set('landmark')} />
+              <div className="md:col-span-3">
+                <Field label="Permanent Address (only if different from residential)" as="textarea" value={formData.permanentAddress} onChange={set('permanentAddress')} />
               </div>
             </div>
           </FormSection>
         )}
 
-        {/* Step 3: Academic & Course */}
-        {currentStep === 3 && (
-          <FormSection title="3. Academic Admission & Previous School" subtitle="Choice of branch & HSC cutoff score" icon={GraduationCap}>
+        {/* Step 4: Academic Admission */}
+        {currentStep === 4 && (
+          <FormSection title="4. Academic Admission & Previous School" subtitle="Choice of branch, class placement, and prior academic record" icon={GraduationCap}>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
               <div>
                 <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Department *</label>
-                <select
-                  required
-                  value={formData.departmentId}
-                  onChange={(e) => setFormData({ ...formData, departmentId: e.target.value, courseId: '', semesterId: '', sectionId: '' })}
-                  className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white font-medium"
-                >
+                <select required value={formData.departmentId} onChange={(e) => setFormData({ ...formData, departmentId: e.target.value, courseId: '', semesterId: '', sectionId: '' })} className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white font-medium">
                   <option value="">Select Department</option>
-                  {departments.map((dept) => (
-                    <option key={dept.id} value={dept.id}>{dept.name} ({dept.code})</option>
-                  ))}
+                  {departments.map((dept) => <option key={dept.id} value={dept.id}>{dept.name} ({dept.code})</option>)}
                 </select>
               </div>
-
               <div>
                 <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Course / Degree Program *</label>
-                <select
-                  required
-                  disabled={!formData.departmentId}
-                  value={formData.courseId}
-                  onChange={(e) => setFormData({ ...formData, courseId: e.target.value, semesterId: '', sectionId: '' })}
-                  className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white font-medium"
-                >
+                <select required disabled={!formData.departmentId} value={formData.courseId} onChange={(e) => setFormData({ ...formData, courseId: e.target.value, semesterId: '', sectionId: '' })} className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white font-medium">
                   <option value="">Select Course</option>
-                  {courses.map((c) => (
-                    <option key={c.id} value={c.id}>{c.name}</option>
-                  ))}
+                  {courses.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
               </div>
-              
               <div>
                 <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Semester *</label>
-                <select
-                  required
-                  disabled={!formData.courseId}
-                  value={formData.semesterId}
-                  onChange={(e) => setFormData({ ...formData, semesterId: e.target.value, sectionId: '' })}
-                  className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white font-medium"
-                >
+                <select required disabled={!formData.courseId} value={formData.semesterId} onChange={(e) => setFormData({ ...formData, semesterId: e.target.value, sectionId: '' })} className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white font-medium">
                   <option value="">Select Semester</option>
-                  {semesters.map((sem) => (
-                    <option key={sem.id} value={sem.id}>{sem.name}</option>
-                  ))}
+                  {semesters.map((sem) => <option key={sem.id} value={sem.id}>{sem.name}</option>)}
                 </select>
               </div>
-              
               <div>
                 <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Section *</label>
-                <select
-                  required
-                  disabled={!formData.semesterId}
-                  value={formData.sectionId}
-                  onChange={(e) => setFormData({ ...formData, sectionId: e.target.value })}
-                  className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white font-medium"
-                >
+                <select required disabled={!formData.semesterId} value={formData.sectionId} onChange={(e) => setFormData({ ...formData, sectionId: e.target.value })} className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white font-medium">
                   <option value="">Select Section</option>
-                  {sections.map((sec) => (
-                    <option key={sec.id} value={sec.id}>{sec.name}</option>
-                  ))}
+                  {sections.map((sec) => <option key={sec.id} value={sec.id}>{sec.name}</option>)}
                 </select>
               </div>
 
-              <div>
-                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Previous School / Junior College</label>
-                <input
-                  type="text"
-                  value={formData.previousSchool}
-                  onChange={(e) => setFormData({ ...formData, previousSchool: e.target.value })}
-                  className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white font-medium"
-                />
-              </div>
+              <Field label="Roll Number" value={formData.rollNumber} onChange={set('rollNumber')} />
+              <Field label="Register Number" mono value={formData.registerNumber} onChange={set('registerNumber')} />
+              <Field label="Admission Quota" as="select" value={formData.admissionQuota} onChange={set('admissionQuota')} options={['Management', 'Government', 'NRI', 'Sports', 'Management Merit']} />
+              <Field label="Scholarship Type" as="select" value={formData.scholarshipType} onChange={set('scholarshipType')} options={['', 'First Generation Graduate (FGG)', '7.5% Govt School Quota', 'Post Matric Scholarship (PMS)', 'Institutional Merit Waiver']} />
+              <Field label="Previous School / Junior College" value={formData.previousSchoolName} onChange={set('previousSchoolName')} />
+              <Field label="Previous School Board" value={formData.previousSchoolBoard} onChange={set('previousSchoolBoard')} placeholder="e.g. CBSE / State Board / ICSE" />
+              <Field label="Last Qualifying Exam" value={formData.lastQualificationExam} onChange={set('lastQualificationExam')} placeholder="e.g. 10th SSLC / 12th HSC" />
+              <Field label="Qualifying Score" mono value={formData.qualifyingScore} onChange={set('qualifyingScore')} placeholder="e.g. 480/500 or 92%" />
+              <Field label="State Student UID (EMIS ID)" mono value={formData.emisId} onChange={set('emisId')} />
+            </div>
+          </FormSection>
+        )}
 
+        {/* Step 5: Health & Emergency */}
+        {currentStep === 5 && (
+          <FormSection title="5. Health & Emergency Contact" subtitle="Medical information & who to reach in an emergency" icon={HeartPulse}>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+              <Field label="Known Medical Conditions" as="textarea" value={formData.medicalConditions} onChange={set('medicalConditions')} placeholder="e.g. Asthma, Diabetes — leave blank if none" />
+              <Field label="Known Allergies" as="textarea" value={formData.allergies} onChange={set('allergies')} placeholder="e.g. Peanuts, Penicillin — leave blank if none" />
+              <Field label="Emergency Contact Name" value={formData.emergencyContactName} onChange={set('emergencyContactName')} />
+              <Field label="Emergency Contact Phone" value={formData.emergencyContactPhone} onChange={set('emergencyContactPhone')} />
+            </div>
+          </FormSection>
+        )}
+
+        {/* Step 6: Bank & Services */}
+        {currentStep === 6 && (
+          <FormSection title="6. Bank Details & Campus Services" subtitle="Scholarship/refund disbursal account, transport & hostel" icon={Landmark}>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs mb-6">
+              <Field label="Bank Account Number" mono value={formData.bankAccountNumber} onChange={set('bankAccountNumber')} />
+              <Field label="Bank IFSC Code" mono value={formData.bankIfscCode} onChange={set('bankIfscCode')} />
+              <Field label="Bank Name & Branch" value={formData.bankName} onChange={set('bankName')} />
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
               <div>
-                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">12th Standard / HSC Cutoff Score</label>
-                <input
-                  type="text"
-                  placeholder="e.g. 192.50 / 200"
-                  value={formData.cutoffMarks}
-                  onChange={(e) => setFormData({ ...formData, cutoffMarks: e.target.value })}
-                  className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white font-mono font-medium"
-                />
+                <Field label="Transport Facility" as="select" value={formData.transport} onChange={set('transport')} options={['None', 'Bus Route 04 (Velachery)', 'Bus Route 12 (Anna Nagar)']} />
+                <label className="flex items-center gap-2 mt-2 text-[11px] font-medium text-slate-600 dark:text-slate-400">
+                  <input type="checkbox" checked={formData.transportRequired} onChange={setBool('transportRequired')} className="w-3.5 h-3.5 rounded accent-indigo-600" />
+                  Student requires campus transport
+                </label>
+              </div>
+              <div>
+                <Field label="Hostel Accommodation" as="select" value={formData.hostel} onChange={set('hostel')} options={['Day Scholar', 'Bhavani Boys Hostel', 'Kaveri Girls Hostel']} />
+                <label className="flex items-center gap-2 mt-2 text-[11px] font-medium text-slate-600 dark:text-slate-400">
+                  <input type="checkbox" checked={formData.hostelRequired} onChange={setBool('hostelRequired')} className="w-3.5 h-3.5 rounded accent-indigo-600" />
+                  Student requires hostel accommodation
+                </label>
               </div>
             </div>
           </FormSection>
         )}
 
-        {/* Step 4: Services & Photo */}
-        {currentStep === 4 && (
-          <FormSection title="4. Transport, Hostel & Documents" subtitle="Avail campus bus, hostel accommodation and upload student photo" icon={Bus}>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs mb-6">
-              <div>
-                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Transport Facility</label>
-                <select
-                  value={formData.transport}
-                  onChange={(e) => setFormData({ ...formData, transport: e.target.value })}
-                  className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white font-medium"
+        {/* Step 7: Photo & Login */}
+        {currentStep === 7 && (
+          <FormSection title="7. Student Photo & Login Credentials" subtitle="Passport photo and the password for the student's portal account" icon={IdCard}>
+            <div className="flex items-start gap-5 mb-6">
+              <div className="relative shrink-0">
+                {formData.photo ? (
+                  <img src={formData.photo} alt="Student" className="w-24 h-24 rounded-2xl object-cover border-2 border-indigo-500" />
+                ) : (
+                  <div className="w-24 h-24 rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 flex items-center justify-center">
+                    <User className="w-10 h-10 text-slate-300 dark:text-slate-600" />
+                  </div>
+                )}
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="absolute -bottom-1.5 -right-1.5 w-8 h-8 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white flex items-center justify-center shadow-md"
+                  title="Upload photo"
                 >
-                  <option value="None">None / Self Transport</option>
-                  <option value="Bus Route 04 (Velachery)">Bus Route 04 (Velachery Corridor - Rs 24,000/yr)</option>
-                  <option value="Bus Route 12 (Anna Nagar)">Bus Route 12 (Anna Nagar Corridor - Rs 26,000/yr)</option>
-                </select>
+                  <Camera className="w-4 h-4" />
+                </button>
+                {formData.photo && (
+                  <button
+                    type="button"
+                    onClick={() => setFormData((prev) => ({ ...prev, photo: '' }))}
+                    className="absolute -top-1.5 -right-1.5 w-6 h-6 rounded-full bg-rose-500 hover:bg-rose-600 text-white flex items-center justify-center shadow-md"
+                    title="Remove photo"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+                <input ref={fileInputRef} type="file" accept="image/png,image/jpeg" onChange={handlePhotoSelect} className="hidden" />
               </div>
-
-              <div>
-                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Hostel Accommodation</label>
-                <select
-                  value={formData.hostel}
-                  onChange={(e) => setFormData({ ...formData, hostel: e.target.value })}
-                  className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white font-medium"
-                >
-                  <option value="Day Scholar">Day Scholar</option>
-                  <option value="Bhavani Boys Hostel">Bhavani Boys Hostel (Rs 65,000/yr)</option>
-                  <option value="Kaveri Girls Hostel">Kaveri Girls Hostel (Rs 65,000/yr)</option>
-                </select>
+              <div className="text-xs text-slate-500 dark:text-slate-400 pt-1">
+                <p className="font-semibold text-slate-700 dark:text-slate-300 mb-1">Passport Size Photograph</p>
+                <p>PNG or JPEG, up to 2MB. This photo shows on the student's profile, ID card, and reports.</p>
               </div>
             </div>
 
-            <FileUpload label="Upload Passport Size Student Photograph" accept=".jpg,.jpeg,.png" />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+              <Field label="Student Portal Password" type="password" value={formData.password} onChange={set('password')} placeholder="Leave blank to use the default: Student@123" />
+            </div>
           </FormSection>
         )}
 
         {/* Action Controls */}
         <div className="flex items-center justify-between pt-4 border-t border-slate-200 dark:border-slate-800">
           {currentStep > 1 ? (
-            <button
-              type="button"
-              onClick={() => setCurrentStep((prev) => prev - 1)}
-              className="flex items-center gap-1.5 px-4 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-300 rounded-xl font-semibold text-xs transition-colors"
-            >
+            <button type="button" onClick={() => setCurrentStep((prev) => prev - 1)} className="flex items-center gap-1.5 px-4 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-300 rounded-xl font-semibold text-xs transition-colors">
               <ArrowLeft className="w-4 h-4" />
               <span>Back</span>
             </button>
           ) : <div />}
 
-          {currentStep < 4 ? (
-            <button
-              type="button"
-              onClick={() => setCurrentStep((prev) => prev + 1)}
-              className="flex items-center gap-1.5 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-semibold text-xs shadow-md transition-all"
-            >
+          {currentStep < steps.length ? (
+            <button type="button" onClick={() => setCurrentStep((prev) => prev + 1)} className="flex items-center gap-1.5 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-semibold text-xs shadow-md transition-all">
               <span>Next Step</span>
               <ArrowRight className="w-4 h-4" />
             </button>
           ) : (
-            <button
-              type="submit"
-              className="flex items-center gap-2 px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs shadow-lg transition-all"
-            >
-              <CheckCircle className="w-4 h-4" />
-              <span>Complete Admission</span>
+            <button type="submit" disabled={submitting} className="flex items-center gap-2 px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs shadow-lg transition-all disabled:opacity-50">
+              {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
+              <span>{submitting ? 'Submitting...' : 'Complete Admission'}</span>
             </button>
           )}
         </div>

@@ -2,6 +2,7 @@
 import apiCall from './api';
 
 export const attendanceService = {
+  getSmsStatus: async () => apiCall('/attendance/sms-status'),
   getMyClasses: async () => apiCall('/attendance/my-classes'),
   getRoster: async (sectionId) => apiCall(`/attendance/roster?sectionId=${sectionId}`),
   getSession: async (sectionId, date, periodNumber = 1) =>

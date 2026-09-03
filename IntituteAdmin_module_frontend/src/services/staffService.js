@@ -21,6 +21,7 @@ const updateLeaveStatus = (id, status) => apiCall(`/staff/leave/${id}`, { method
 
 const getTeacherAssignments = () => apiCall('/staff/assignments');
 const assignTeacher = (payload) => apiCall('/staff/assignments', { method: 'POST', body: payload });
+const removeTeacherAssignment = (id) => apiCall(`/staff/assignments/${id}`, { method: 'DELETE' });
 
 export const staffService = {
   getAll, getById, create, update,
@@ -28,6 +29,6 @@ export const staffService = {
   getSalaries, setSalary,
   getAttendance, markAttendance,
   getLeaveRequests, createLeaveRequest, updateLeaveStatus,
-  getTeacherAssignments, assignTeacher,
+  getTeacherAssignments, assignTeacher, removeTeacherAssignment,
 };
 export default staffService;

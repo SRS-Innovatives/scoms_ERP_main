@@ -29,6 +29,7 @@ const MODULE_CATALOG = [
   { key: 'inventory', label: 'Inventory & Assets', description: 'Asset register, lab/computer inventory, purchases' },
   { key: 'certificates', label: 'Certificates Module', description: 'TC, bonafide, conduct and completion certificates' },
   { key: 'reports', label: 'Reports Module', description: 'Cross-module analytical and compliance reports' },
+  { key: 'homework', label: 'Homework Module', description: 'Class-wise homework posting with description and image/PDF/DOCX attachments' },
 ];
 
 const OPTIONAL_MODULE_KEYS = MODULE_CATALOG.map((m) => m.key);

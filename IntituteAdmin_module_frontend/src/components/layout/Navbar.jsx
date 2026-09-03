@@ -6,7 +6,6 @@ import {
   Menu,
   Sun,
   Moon,
-  Bell,
   Search,
   User,
   ChevronDown,
@@ -19,6 +18,7 @@ import {
 } from 'lucide-react';
 import { useInstitution } from '../../context/InstitutionContext';
 import { useAuth } from '../../context/AuthContext';
+import NotificationBell from './NotificationBell';
 
 export const Navbar = ({ onToggleSidebar, onToggleMobile }) => {
   const navigate = useNavigate();
@@ -26,17 +26,10 @@ export const Navbar = ({ onToggleSidebar, onToggleMobile }) => {
   const { notifyInfo } = useNotification();
   const { institution } = useInstitution();
   const { profile, logout } = useAuth();
-  const [showNotifications, setShowNotifications] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const selectedInstitute = institution?.code || institution?.name || 'SCOMS';
   const adminName = profile?.institution?.principalName || profile?.staff?.designation || 'Institute Admin';
   const adminEmail = profile?.email || '';
-
-  const notificationsList = [
-    { id: 1, title: 'Fee Payment Received', desc: 'REC/2025/04921 - Rs 46,000 paid by Kavitha R.', time: '5 mins ago', type: 'success' },
-    { id: 2, title: 'Exam Registration Form', desc: '142 new exam forms submitted for Sem 6', time: '20 mins ago', type: 'info' },
-    { id: 3, title: 'Absentees Alert', desc: '48 students absent today. SMS ready for broadcast.', time: '1 hr ago', type: 'warning' }
-  ];
 
   return (
     <header className="sticky top-0 z-30 h-16 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 px-4 flex items-center justify-between no-print">
@@ -86,40 +79,7 @@ export const Navbar = ({ onToggleSidebar, onToggleMobile }) => {
         </button>
 
         {/* Notification Bell */}
-        <div className="relative">
-          <button
-            onClick={() => setShowNotifications(!showNotifications)}
-            className="p-2 rounded-xl text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors relative"
-          >
-            <Bell className="w-4 h-4" />
-            <span className="w-2 h-2 rounded-full bg-rose-500 absolute top-2 right-2 animate-ping" />
-            <span className="w-2 h-2 rounded-full bg-rose-500 absolute top-2 right-2" />
-          </button>
-
-          {showNotifications && (
-            <div className="absolute right-0 mt-2 w-80 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl p-4 text-xs z-50 animate-scale-up">
-              <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800 mb-2">
-                <h4 className="font-bold text-slate-900 dark:text-white">Notifications (3)</h4>
-                <button className="text-[10px] text-indigo-600 font-semibold hover:underline">Mark all read</button>
-              </div>
-
-              <div className="space-y-2">
-                {notificationsList.map((n) => (
-                  <div
-                    key={n.id}
-                    className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-                  >
-                    <div className="flex justify-between items-center mb-0.5">
-                      <span className="font-bold text-slate-900 dark:text-white">{n.title}</span>
-                      <span className="text-[9px] text-slate-400">{n.time}</span>
-                    </div>
-                    <p className="text-[11px] text-slate-500 dark:text-slate-400">{n.desc}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
+        <NotificationBell />
 
         {/* User Profile Menu */}
         <div className="relative">

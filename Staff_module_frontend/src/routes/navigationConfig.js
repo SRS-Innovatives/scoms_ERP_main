@@ -67,10 +67,9 @@ export const navigationConfig = [
     ]
   },
   {
-    key: 'assignments',
+    key: 'homework',
     title: 'Assignments & Homework',
     icon: FileText,
-    badge: '14 New',
     children: [
       { key: 'create-assignment', title: 'Create Assignment', path: '/staff/assignments/create' },
       { key: 'assignment-list', title: 'Assignment List', path: '/staff/assignments/list' },

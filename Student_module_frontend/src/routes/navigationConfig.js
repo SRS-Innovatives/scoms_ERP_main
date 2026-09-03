@@ -31,7 +31,7 @@ export const navigationConfig = [
       { key: 'subjects', title: 'My Subjects', path: '/student/subjects' },
       { key: 'attendance', title: 'Attendance', path: '/student/attendance', module: 'attendance' },
       { key: 'timetable', title: 'Timetable', path: '/student/timetable', module: 'timetable' },
-      { key: 'assignments', title: 'Assignments', path: '/student/assignments', badge: '1 Due' },
+      { key: 'assignments', title: 'Assignments', path: '/student/assignments', module: 'homework' },
       { key: 'materials', title: 'Study Materials', path: '/student/materials' },
       { key: 'question-bank', title: 'Question Bank', path: '/student/question-bank' },
       { key: 'practice-tests', title: 'Practice Tests', path: '/student/practice-tests' }

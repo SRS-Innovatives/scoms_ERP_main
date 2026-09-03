@@ -30,15 +30,19 @@
 }
 
 /* Custom Utilities & Glassmorphism */
+/* Near-opaque on purpose: this class sits outside Tailwind's cascade layers, which gives
+   it priority over any `bg-white`/`bg-slate-900` utility placed alongside it on a
+   dropdown/popover/modal — a lower alpha here used to let page content behind a floating
+   panel show through and read as a rendering bug, not a "glass" effect. */
 .glass-card {
-  background: rgba(255, 255, 255, 0.85);
+  background: rgba(255, 255, 255, 0.98);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border: 1px solid rgba(226, 232, 240, 0.8);
 }
 
 .dark .glass-card {
-  background: rgba(30, 41, 59, 0.85);
+  background: rgba(30, 41, 59, 0.98);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border: 1px solid rgba(51, 65, 85, 0.8);

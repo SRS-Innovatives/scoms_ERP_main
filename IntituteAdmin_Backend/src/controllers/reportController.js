@@ -113,7 +113,13 @@ const exportReport = async (req, res, next) => {
     const format = (req.body.format || 'CSV').toUpperCase();
     const result = await runForRequest(req);
 
-    const institution = await prisma.institution.findUnique({ where: { id: req.institutionId }, select: { name: true, logo: true } });
+    const institution = await prisma.institution.findUnique({
+      where: { id: req.institutionId },
+      select: { name: true, logo: true, address: true, city: true, state: true, pincode: true },
+    });
+    const institutionAddress = institution
+      ? [institution.address, institution.city, institution.state, institution.pincode].filter(Boolean).join(', ')
+      : undefined;
     const fileBase = `${result.report.code}_${new Date().toISOString().slice(0, 10)}`;
 
     if (format === 'CSV') {
@@ -128,7 +134,9 @@ const exportReport = async (req, res, next) => {
         reportName: result.report.name,
         institutionName: institution?.name,
         institutionLogo: institution?.logo,
+        institutionAddress,
         generatedAt: result.generatedAt,
+        generatedBy: req.user.email,
         columns: result.columns,
         rows: result.rows,
       });
@@ -142,7 +150,9 @@ const exportReport = async (req, res, next) => {
         reportName: result.report.name,
         institutionName: institution?.name,
         institutionLogo: institution?.logo,
+        institutionAddress,
         generatedAt: result.generatedAt,
+        generatedBy: req.user.email,
         columns: result.columns,
         rows: result.rows,
         filtersSummary: result.summary,

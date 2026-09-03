@@ -5,6 +5,10 @@ import MainLayout from '../components/layout/MainLayout';
 // Dashboard
 import DashboardPage from '../pages/dashboard/DashboardPage';
 
+// Homework
+import HomeworkListPage from '../pages/homework/HomeworkListPage';
+import HomeworkDetailPage from '../pages/homework/HomeworkDetailPage';
+
 // Setup
 import InstituteProfilePage from '../pages/setup/InstituteProfilePage';
 import AcademicYearSetupPage from '../pages/setup/AcademicYearSetupPage';
@@ -41,6 +45,7 @@ import StaffLeavePage from '../pages/staff/StaffLeavePage';
 import StaffAttendancePage from '../pages/staff/StaffAttendancePage';
 import StaffIDCardPage from '../pages/staff/StaffIDCardPage';
 import ServiceCertificatePage from '../pages/staff/ServiceCertificatePage';
+import TeacherAssignmentsPage from '../pages/staff/TeacherAssignmentsPage';
 
 // Attendance
 import DailyAttendancePage from '../pages/attendance/DailyAttendancePage';
@@ -180,6 +185,10 @@ export const AppRoutes = () => {
         <Route path="dashboard" element={<DashboardPage />} />
         <Route path="profile" element={<AdminProfilePage />} />
 
+        {/* Homework */}
+        <Route path="homework" element={<HomeworkListPage />} />
+        <Route path="homework/:id" element={<HomeworkDetailPage />} />
+
         {/* Institution Setup */}
         <Route path="setup/profile" element={<InstituteProfilePage />} />
         <Route path="setup/academic-year" element={<AcademicYearSetupPage />} />
@@ -216,6 +225,7 @@ export const AppRoutes = () => {
         <Route path="staff/attendance" element={<StaffAttendancePage />} />
         <Route path="staff/id-card" element={<StaffIDCardPage />} />
         <Route path="staff/service-cert" element={<ServiceCertificatePage />} />
+        <Route path="staff/assignments" element={<TeacherAssignmentsPage />} />
 
         {/* Attendance */}
         <Route path="attendance/daily" element={<DailyAttendancePage />} />

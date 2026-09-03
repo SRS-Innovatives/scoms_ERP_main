@@ -1,8 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNotification } from '../../context/NotificationContext';
-import { PlusCircle, Save, Loader2 } from 'lucide-react';
+import { PlusCircle, Save, Loader2, Paperclip, FileText as FileIcon, Image as ImageIcon, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import assignmentService from '../../services/assignmentService';
+
+const MAX_ATTACHMENT_BYTES = 5 * 1024 * 1024; // 5MB
+const ACCEPTED_TYPES = ['image/png', 'image/jpeg', 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
 
 export const CreateAssignmentPage = () => {
   const { success, error: showError } = useNotification();
@@ -10,14 +13,49 @@ export const CreateAssignmentPage = () => {
   const [classes, setClasses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const fileInputRef = useRef(null);
+  const [attachmentName, setAttachmentName] = useState('');
+  const [attachmentReading, setAttachmentReading] = useState(false);
 
   const [formData, setFormData] = useState({
     title: '',
     classKey: '',
     dueDate: '',
     totalMarks: 25,
-    description: ''
+    description: '',
+    attachmentUrl: '',
   });
+
+  const handleAttachmentSelect = (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    if (!ACCEPTED_TYPES.includes(file.type)) {
+      showError('Attachment must be a PNG, JPEG, PDF, or Word document.');
+      return;
+    }
+    if (file.size > MAX_ATTACHMENT_BYTES) {
+      showError('Attachment must be 5MB or smaller.');
+      return;
+    }
+    setAttachmentReading(true);
+    const reader = new FileReader();
+    reader.onload = () => {
+      setFormData((prev) => ({ ...prev, attachmentUrl: reader.result }));
+      setAttachmentName(file.name);
+      setAttachmentReading(false);
+    };
+    reader.onerror = () => {
+      showError('Failed to read the selected file.');
+      setAttachmentReading(false);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const removeAttachment = () => {
+    setFormData((prev) => ({ ...prev, attachmentUrl: '' }));
+    setAttachmentName('');
+  };
 
   useEffect(() => {
     assignmentService.getMyClasses()
@@ -43,6 +81,7 @@ export const CreateAssignmentPage = () => {
         dueDate: formData.dueDate,
         totalMarks: formData.totalMarks,
         description: formData.description,
+        attachmentUrl: formData.attachmentUrl || undefined,
       });
       success(`Assignment "${formData.title}" created and published to ${res.data.className}!`, 'Assignment Published');
       navigate('/staff/assignments/list');
@@ -131,6 +170,37 @@ export const CreateAssignmentPage = () => {
             onChange={(e) => setFormData({ ...formData, description: e.target.value })}
             className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-200"
           ></textarea>
+        </div>
+
+        <div>
+          <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Attachment (optional)</label>
+          {formData.attachmentUrl ? (
+            <div className="flex items-center justify-between gap-3 px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl">
+              <div className="flex items-center gap-2 min-w-0">
+                {formData.attachmentUrl.startsWith('data:image') ? (
+                  <ImageIcon className="w-4 h-4 text-sky-500 shrink-0" />
+                ) : (
+                  <FileIcon className="w-4 h-4 text-sky-500 shrink-0" />
+                )}
+                <span className="truncate font-medium text-slate-700 dark:text-slate-300">{attachmentName}</span>
+              </div>
+              <button type="button" onClick={removeAttachment} className="text-slate-400 hover:text-rose-500 shrink-0">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={attachmentReading}
+              className="w-full flex items-center justify-center gap-2 px-3 py-3 border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-xl text-slate-500 dark:text-slate-400 hover:border-sky-500 hover:text-sky-600 transition-colors disabled:opacity-50"
+            >
+              {attachmentReading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Paperclip className="w-4 h-4" />}
+              <span className="font-medium">{attachmentReading ? 'Reading file...' : 'Attach an image, PDF, or Word document'}</span>
+            </button>
+          )}
+          <input ref={fileInputRef} type="file" accept="image/png,image/jpeg,application/pdf,.doc,.docx" onChange={handleAttachmentSelect} className="hidden" />
+          <p className="text-[10px] text-slate-400 mt-1">PNG, JPEG, PDF, or Word — up to 5MB.</p>
         </div>
 
         <div className="flex justify-end pt-3">

@@ -20,12 +20,17 @@ export const TakeAttendancePage = () => {
   const [roster, setRoster] = useState([]);
   const [statusMap, setStatusMap] = useState({});
   const [alreadyRecorded, setAlreadyRecorded] = useState(false);
+  const [smsEnabled, setSmsEnabled] = useState(true);
 
   useEffect(() => {
     attendanceService.getMyClasses()
       .then((res) => setMyClasses(res.data || []))
       .catch((err) => showError(err.message || 'Failed to load assigned classes', 'Load Failed'))
       .finally(() => setLoadingClasses(false));
+
+    attendanceService.getSmsStatus()
+      .then((res) => setSmsEnabled(res.data?.enabled !== false))
+      .catch(() => {}); // non-critical — the save flow itself is the source of truth either way
   }, [showError]);
 
   const selectedMapping = myClasses.find((m) => m.id === selectedMappingId);
@@ -70,8 +75,9 @@ export const TakeAttendancePage = () => {
         records,
       });
       const absentCount = records.filter((r) => r.status === 'ABSENT').length;
+      const smsNote = absentCount === 0 ? '' : smsEnabled ? ` SMS alerts sent to ${absentCount} parent(s).` : ` (${absentCount} absent — SMS alerts are turned off by your admin.)`;
       success(
-        `Attendance for ${selectedMapping.section.name} (${selectedMapping.subject.name}) recorded.${absentCount > 0 ? ` SMS alerts sent to ${absentCount} parent(s).` : ''}`,
+        `Attendance for ${selectedMapping.section.name} (${selectedMapping.subject.name}) recorded.${smsNote}`,
         'Attendance Saved'
       );
       setAlreadyRecorded(true);
@@ -162,12 +168,16 @@ export const TakeAttendancePage = () => {
           <AttendanceTable
             students={tableStudents}
             onStatusChange={(studentId, status) => setStatusMap((prev) => ({ ...prev, [studentId]: status }))}
-            onSendSms={() => success('Absence SMS is sent automatically to parents when you save attendance.', 'Automatic')}
+            onSendSms={() => smsEnabled
+              ? success('Absence SMS is sent automatically to parents when you save attendance.', 'Automatic')
+              : showError('Your Institute Admin has turned off automatic absence SMS for staff. Marks will still be recorded.', 'SMS Disabled')}
           />
 
-          <div className="glass-card p-4 rounded-2xl border border-slate-200 dark:border-slate-800 flex items-center justify-between">
-            <span className="text-xs text-slate-500 dark:text-slate-400">
-              Absent students' parents receive an SMS automatically when you save.
+          <div className={`glass-card p-4 rounded-2xl border flex items-center justify-between ${smsEnabled ? 'border-slate-200 dark:border-slate-800' : 'border-amber-200 dark:border-amber-900 bg-amber-50/50 dark:bg-amber-950/20'}`}>
+            <span className={`text-xs ${smsEnabled ? 'text-slate-500 dark:text-slate-400' : 'text-amber-700 dark:text-amber-400'}`}>
+              {smsEnabled
+                ? "Absent students' parents receive an SMS automatically when you save."
+                : 'Automatic absence SMS is currently turned off by your Institute Admin.'}
             </span>
             <button
               onClick={handleSaveAttendance}

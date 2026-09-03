@@ -147,9 +147,48 @@ const getMySubjects = async (req, res, next) => {
   }
 };
 
+/** Everything the Digital ID Card page needs in one call — student identity/photo,
+ * institution letterhead, and the institution's chosen orientation/template so every
+ * student's card renders exactly the way their Institute Admin configured it. */
+const getIdCard = async (req, res, next) => {
+  try {
+    const [student, settings] = await Promise.all([
+      prisma.student.findUnique({
+        where: { id: req.user.studentId },
+        include: {
+          institution: { select: { name: true, code: true, logo: true, address: true, city: true, state: true, pincode: true } },
+          user: { select: { avatar: true } },
+          course: { select: { name: true } },
+          department: { select: { name: true } },
+          section: { select: { name: true, semester: { select: { name: true, academicYear: { select: { yearName: true } } } } } },
+          parents: { include: { parent: { select: { fatherName: true, fatherPhone: true, motherPhone: true, guardianPhone: true } } } },
+        },
+      }),
+      prisma.institutionSettings.findUnique({
+        where: { institutionId: req.institutionId },
+        select: { idCardOrientation: true, idCardTemplate: true },
+      }),
+    ]);
+
+    if (!student) throw new NotFoundError('Student profile not found');
+
+    const parentContact = student.parents[0]?.parent;
+    return sendSuccess(res, {
+      student: { ...student, parents: undefined },
+      parentPhone: parentContact?.fatherPhone || parentContact?.motherPhone || parentContact?.guardianPhone || null,
+      parentName: parentContact?.fatherName || null,
+      orientation: settings?.idCardOrientation || 'VERTICAL',
+      template: settings?.idCardTemplate || 'CLASSIC',
+    }, 'ID card data retrieved');
+  } catch (err) {
+    next(err);
+  }
+};
+
 module.exports = {
   getProfile,
   updateProfile,
   getAttendanceSummary,
   getMySubjects,
+  getIdCard,
 };
