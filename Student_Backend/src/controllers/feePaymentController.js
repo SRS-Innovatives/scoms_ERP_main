@@ -48,7 +48,7 @@ const initiateOnlinePayment = async (req, res, next) => {
       throw new ValidationError(`Amount exceeds the outstanding due amount of ₹${assignment.dueAmount}`);
     }
 
-    const order = paymentGateway.createOrder(Number(amount));
+    const order = await paymentGateway.createOrder(Number(amount));
     return sendSuccess(res, order, 'Payment order created successfully');
   } catch (err) {
     next(err);

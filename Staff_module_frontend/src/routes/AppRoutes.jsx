@@ -33,6 +33,7 @@ import AttendanceReportsPage from '../pages/attendance/AttendanceReportsPage';
 
 // Assignments
 import CreateAssignmentPage from '../pages/assignments/CreateAssignmentPage';
+import MyPublicationsPage from '../pages/research/MyPublicationsPage';
 import AssignmentListPage from '../pages/assignments/AssignmentListPage';
 import AssignmentDetailsPage from '../pages/assignments/AssignmentDetailsPage';
 import StudentSubmissionsPage from '../pages/assignments/StudentSubmissionsPage';
@@ -64,6 +65,8 @@ import WeakStudentsPage from '../pages/performance/WeakStudentsPage';
 import TopPerformersPage from '../pages/performance/TopPerformersPage';
 import AttendanceVsMarksPage from '../pages/performance/AttendanceVsMarksPage';
 import ParentMeetingNotesPage from '../pages/performance/ParentMeetingNotesPage';
+import AchievementEntryPage from '../pages/performance/AchievementEntryPage';
+import GalleryPage from '../pages/communication/GalleryPage';
 
 // Timetable
 import MyTimetablePage from '../pages/timetable/MyTimetablePage';
@@ -175,6 +178,7 @@ export const AppRoutes = () => {
 
             {/* Assignments */}
             <Route path="assignments/create" element={<CreateAssignmentPage />} />
+            <Route path="research" element={<MyPublicationsPage />} />
             <Route path="assignments/list" element={<AssignmentListPage />} />
             <Route path="assignments/details" element={<AssignmentDetailsPage />} />
             <Route path="assignments/submissions" element={<StudentSubmissionsPage />} />
@@ -206,6 +210,8 @@ export const AppRoutes = () => {
             <Route path="performance/top" element={<TopPerformersPage />} />
             <Route path="performance/marks-vs-attendance" element={<AttendanceVsMarksPage />} />
             <Route path="performance/parent-notes" element={<ParentMeetingNotesPage />} />
+            <Route path="performance/achievements" element={<AchievementEntryPage />} />
+            <Route path="gallery" element={<GalleryPage />} />
 
             {/* Timetable */}
             <Route path="timetable/my" element={<MyTimetablePage />} />

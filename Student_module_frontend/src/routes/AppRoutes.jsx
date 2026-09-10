@@ -70,7 +70,9 @@ import StudyProgressTrackerPage from '../pages/ai/StudyProgressTrackerPage';
 // Documents & Comm
 import DocumentVaultPage from '../pages/documents/DocumentVaultPage';
 import DigitalIdCardPage from '../pages/documents/DigitalIdCardPage';
+import MyDegreePage from '../pages/documents/MyDegreePage';
 import MessagesPage from '../pages/communication/MessagesPage';
+import GalleryPage from '../pages/communication/GalleryPage';
 import NotificationsPage from '../pages/communication/NotificationsPage';
 import AcademicCalendarPage from '../pages/calendar/AcademicCalendarPage';
 import SettingsPage from '../pages/settings/SettingsPage';
@@ -137,7 +139,9 @@ export const AppRoutes = () => {
               <Route path="student/study-progress" element={<StudyProgressTrackerPage />} />
               <Route path="student/documents" element={<DocumentVaultPage />} />
               <Route path="student/id-card" element={<DigitalIdCardPage />} />
+              <Route path="student/degree" element={<MyDegreePage />} />
               <Route path="student/messages" element={<MessagesPage />} />
+              <Route path="student/gallery" element={<GalleryPage />} />
               <Route path="student/notifications" element={<NotificationsPage />} />
               <Route path="student/calendar" element={<AcademicCalendarPage />} />
               <Route path="student/settings" element={<SettingsPage />} />

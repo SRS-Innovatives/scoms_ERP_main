@@ -1,43 +1,70 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import DataTable from '../../components/common/DataTable';
+import EmptyState from '../../components/common/EmptyState';
 import SMSComposeModal from '../../components/modals/SMSComposeModal';
-import { MessageSquare, Send, CheckCircle2 } from 'lucide-react';
+import { useNotification } from '../../context/NotificationContext';
+import { MessageSquare, Send, CheckCircle2, XCircle, Loader2 } from 'lucide-react';
+import broadcastService from '../../services/broadcastService';
 
 export const SMSCenterPage = () => {
+  const { notifyError } = useNotification();
   const [showModal, setShowModal] = useState(false);
+  const [logs, setLogs] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const smsLogs = [
-    { batchId: 'SMS-84920', template: 'Absentee Alert', recipients: '48 Parents', status: 'Delivered (DLT Verified)', time: '09-Aug-2026 10:15 AM' },
-    { batchId: 'SMS-84918', template: 'Fee Due Reminder', recipients: '142 Students', status: 'Delivered (DLT Verified)', time: '05-Aug-2026 04:30 PM' }
-  ];
+  const fetchLogs = useCallback(() => {
+    setLoading(true);
+    broadcastService.getSmsLogs()
+      .then((res) => setLogs(res.data || []))
+      .catch((err) => notifyError(`Failed to load SMS logs: ${err.message}`))
+      .finally(() => setLoading(false));
+  }, [notifyError]);
+
+  useEffect(() => { fetchLogs(); }, [fetchLogs]);
 
   const columns = [
-    { header: 'Batch ID', key: 'batchId', render: (val) => <span className="font-mono font-bold text-indigo-600">{val}</span> },
-    { header: 'DLT Template', key: 'template', render: (val) => <span className="font-bold text-slate-900 dark:text-white">{val}</span> },
-    { header: 'Recipient Count', key: 'recipients', render: (val) => <span className="font-semibold text-slate-800 dark:text-slate-200">{val}</span> },
-    { header: 'Gateway Status', key: 'status', render: (val) => <span className="flex items-center gap-1 font-semibold text-emerald-600 text-xs"><CheckCircle2 className="w-3.5 h-3.5" />{val}</span> },
-    { header: 'Dispatch Time', key: 'time', render: (val) => <span className="font-mono">{val}</span> }
+    { header: 'Recipient', key: 'recipientPhone', render: (val) => <span className="font-mono font-bold text-indigo-600">{val}</span> },
+    { header: 'Message', key: 'message', render: (val) => <span className="text-slate-700 dark:text-slate-300 truncate max-w-xs block">{val}</span> },
+    { header: 'Purpose', key: 'purpose', render: (val) => val || '—' },
+    { header: 'Provider', key: 'provider' },
+    {
+      header: 'Status', key: 'status', sortable: false,
+      render: (val) => (
+        <span className={`flex items-center gap-1 font-semibold text-xs ${val === 'SENT' ? 'text-emerald-600' : val === 'FAILED' ? 'text-rose-600' : 'text-amber-600'}`}>
+          {val === 'SENT' ? <CheckCircle2 className="w-3.5 h-3.5" /> : val === 'FAILED' ? <XCircle className="w-3.5 h-3.5" /> : null}
+          {val}
+        </span>
+      ),
+    },
+    { header: 'Dispatch Time', key: 'createdAt', render: (val) => <span className="font-mono">{new Date(val).toLocaleString()}</span> },
   ];
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl font-bold text-slate-900 dark:text-white">DLT Bulk SMS Center</h1>
-          <p className="text-xs text-slate-500 dark:text-slate-400">TRAI DLT compliant bulk SMS broadcast center with recipient category filters</p>
+          <h1 className="text-xl font-bold text-slate-900 dark:text-white">Bulk SMS Center</h1>
+          <p className="text-xs text-slate-500 dark:text-slate-400">Broadcast SMS to absentees, fee defaulters, a course, all students, or staff</p>
         </div>
 
         <button
           onClick={() => setShowModal(true)}
-          className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-md transition-all"
+          className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-md"
         >
           <Send className="w-4 h-4" />
           <span>Compose Bulk SMS</span>
         </button>
       </div>
 
-      <DataTable columns={columns} data={smsLogs} />
-      <SMSComposeModal isOpen={showModal} onClose={() => setShowModal(false)} />
+      {loading ? (
+        <div className="flex justify-center py-16"><Loader2 className="w-7 h-7 animate-spin text-indigo-600" /></div>
+      ) : logs.length === 0 ? (
+        <EmptyState title="No SMS Sent Yet" description="Compose a bulk SMS to get started." icon={MessageSquare} />
+      ) : (
+        <DataTable columns={columns} data={logs} />
+      )}
+
+      <SMSComposeModal isOpen={showModal} onClose={() => { setShowModal(false); fetchLogs(); }} />
     </div>
   );
 };

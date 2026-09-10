@@ -30,7 +30,7 @@ export const StateWiseAnalyticsPage = () => {
   return (
     <div className="space-y-6">
       <PageHeader title="Indian State-wise SaaS Analytics" subtitle="Track regional penetration and revenue distribution across onboarded institutions." />
-      <ChartCard title="State Geographic Distribution" subtitle="Institutions onboarded per state" data={analytics?.stateDistribution || []} height={220} />
+      <ChartCard title="State Geographic Distribution" subtitle="Institutions onboarded per state" data={analytics?.stateDistribution || []} height={220} color="violet" showTrend={false} />
       {(analytics?.stateBreakdown || []).length === 0 ? (
         <div className="glass-card p-10 rounded-2xl border border-slate-200 dark:border-slate-800 text-center text-xs text-slate-500">
           No institutions onboarded yet.

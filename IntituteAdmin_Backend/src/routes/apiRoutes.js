@@ -29,9 +29,23 @@ const institutionProfileController = require('../controllers/institutionProfileC
 const eventController = require('../controllers/eventController');
 const feedbackController = require('../controllers/feedbackController');
 const jobPostingController = require('../controllers/jobPostingController');
+const researchController = require('../controllers/researchController');
+const alumniController = require('../controllers/alumniController');
+const affiliationController = require('../controllers/affiliationController');
+const degreeController = require('../controllers/degreeController');
+const textbookController = require('../controllers/textbookController');
 const grievanceController = require('../controllers/grievanceController');
 const clubController = require('../controllers/clubController');
 const homeworkController = require('../controllers/homeworkController');
+const enquiryController = require('../controllers/enquiryController');
+const payrollController = require('../controllers/payrollController');
+const disciplineController = require('../controllers/disciplineController');
+const healthController = require('../controllers/healthController');
+const visitorController = require('../controllers/visitorController');
+const galleryController = require('../controllers/galleryController');
+const gradeScaleController = require('../controllers/gradeScaleController');
+const broadcastController = require('../controllers/broadcastController');
+const templateController = require('../controllers/templateController');
 const {
   requireAuth, requireTenant, requireModule, handleForgotPassword, handleVerifyOtp, handleResetPassword,
   handleGetNotifications, handleGetUnreadCount, handleMarkNotificationRead, handleMarkAllNotificationsRead,
@@ -260,37 +274,127 @@ router.get('/announcements', announcementController.getAnnouncements);
 router.post('/announcements', announcementController.createAnnouncement);
 router.delete('/announcements/:id', announcementController.deleteAnnouncement);
 
-// Campus Events
-router.use('/events', requireModule('communication'));
+// Bulk SMS, Email & WhatsApp Broadcast
+router.use('/broadcast', requireModule('communication'));
+router.post('/broadcast/sms', broadcastController.broadcastSms);
+router.get('/broadcast/sms/logs', broadcastController.getSmsLogs);
+router.post('/broadcast/email', broadcastController.broadcastEmail);
+router.get('/broadcast/email/logs', broadcastController.getEmailLogs);
+router.post('/broadcast/whatsapp', broadcastController.broadcastWhatsapp);
+router.get('/broadcast/whatsapp/logs', broadcastController.getWhatsappLogs);
+
+// Message Template Library (SMS / Email / WhatsApp)
+router.use('/templates', requireModule('communication'));
+router.get('/templates', templateController.getTemplates);
+router.post('/templates', templateController.createTemplate);
+router.patch('/templates/:id', templateController.updateTemplate);
+router.delete('/templates/:id', templateController.deleteTemplate);
+
+// Campus Events & Clubs
+router.use('/events', requireModule('events_clubs'));
 router.get('/events', eventController.getEvents);
 router.post('/events', eventController.createEvent);
 router.delete('/events/:id', eventController.deleteEvent);
 
-// Student Grievances
-router.get('/grievances', grievanceController.getGrievances);
-router.patch('/grievances/:id', grievanceController.updateGrievance);
-
-// Clubs & Societies
-router.use('/clubs', requireModule('communication'));
+router.use('/clubs', requireModule('events_clubs'));
 router.get('/clubs', clubController.getClubs);
 router.post('/clubs', clubController.createClub);
 router.delete('/clubs/:id', clubController.deleteClub);
 
-// Anonymous Feedback Aggregates
-router.get('/feedback/summary', feedbackController.getFeedbackSummary);
+// Student Grievances & Course Feedback
+router.use('/grievances', requireModule('grievance_feedback'));
+router.get('/grievances', grievanceController.getGrievances);
+router.patch('/grievances/:id', grievanceController.updateGrievance);
+
+router.get('/feedback/summary', requireModule('grievance_feedback'), feedbackController.getFeedbackSummary);
+
+// Front Office — Admission Enquiries
+router.use('/enquiries', requireModule('front_office'));
+router.get('/enquiries', enquiryController.getEnquiries);
+router.post('/enquiries', enquiryController.createEnquiry);
+router.patch('/enquiries/:id', enquiryController.updateEnquiry);
+router.delete('/enquiries/:id', enquiryController.deleteEnquiry);
+
+// Payroll
+router.use('/payroll', requireModule('payroll'));
+router.get('/payroll', payrollController.getPayslips);
+router.post('/payroll', payrollController.generatePayslip);
+router.patch('/payroll/:id/pay', payrollController.markPayslipPaid);
+router.delete('/payroll/:id', payrollController.deletePayslip);
+
+// Student Discipline
+router.use('/discipline', requireModule('discipline'));
+router.get('/discipline', disciplineController.getDisciplineRecords);
+router.post('/discipline', disciplineController.createDisciplineRecord);
+router.patch('/discipline/:id', disciplineController.updateDisciplineRecord);
+router.delete('/discipline/:id', disciplineController.deleteDisciplineRecord);
+
+// Student Health Records
+router.use('/health-records', requireModule('health'));
+router.get('/health-records', healthController.getHealthRecords);
+router.post('/health-records', healthController.createHealthRecord);
+router.patch('/health-records/:id', healthController.updateHealthRecord);
+router.delete('/health-records/:id', healthController.deleteHealthRecord);
+
+// Visitor / Gate Management
+router.use('/visitors', requireModule('visitor_management'));
+router.get('/visitors', visitorController.getVisitorLogs);
+router.post('/visitors', visitorController.createVisitorLog);
+router.patch('/visitors/:id/checkout', visitorController.checkOutVisitor);
+
+// Photo Gallery
+router.use('/gallery', requireModule('gallery'));
+router.get('/gallery/albums', galleryController.getAlbums);
+router.post('/gallery/albums', galleryController.createAlbum);
+router.delete('/gallery/albums/:id', galleryController.deleteAlbum);
+router.get('/gallery/albums/:id/photos', galleryController.getAlbumPhotos);
+router.post('/gallery/albums/:id/photos', galleryController.addPhoto);
+router.delete('/gallery/photos/:photoId', galleryController.deletePhoto);
 
 // Placement Cell — Internships & Placements
+router.use('/postings', requireModule('placement'));
 router.get('/postings', jobPostingController.getPostings);
 router.post('/postings', jobPostingController.createPosting);
 router.patch('/postings/:id/close', jobPostingController.closePosting);
 router.get('/postings/:id/applications', jobPostingController.getApplications);
 router.patch('/postings/applications/:id', jobPostingController.updateApplicationStatus);
 
+// Research & Publications (institution-wide oversight — authoring happens on the Staff side)
+router.get('/research', requireModule('research'), researchController.getInstitutionResearch);
+
+// Alumni Network
+router.use('/alumni', requireModule('alumni'));
+router.get('/alumni', alumniController.getAlumni);
+router.get('/alumni/eligible-students', alumniController.getEligibleStudents);
+router.post('/alumni', alumniController.createAlumni);
+router.patch('/alumni/:id', alumniController.updateAlumni);
+router.delete('/alumni/:id', alumniController.deleteAlumni);
+
+// Convocation & Degree Issuance
+router.use('/degrees', requireModule('convocation'));
+router.get('/degrees', degreeController.getDegrees);
+router.post('/degrees', degreeController.createDegree);
+router.patch('/degrees/:id/issue', degreeController.issueDegree);
+router.patch('/degrees/:id/revoke', degreeController.revokeDegree);
+router.delete('/degrees/:id', degreeController.deleteDegree);
+
+// University Affiliation Oversight (real only for a UNIVERSITY-type institution)
+router.get('/affiliated-colleges', affiliationController.getAffiliatedColleges);
+
+// AI Study Tutor — Textbook Content Management
+router.use('/textbooks', requireModule('ai_tutor'));
+router.get('/textbooks', textbookController.getTextbooks);
+router.post('/textbooks', textbookController.createTextbook);
+router.patch('/textbooks/:id', textbookController.updateTextbook);
+router.delete('/textbooks/:id', textbookController.deleteTextbook);
+
 // Attendance Oversight
 router.use('/attendance', requireModule('attendance'));
 router.get('/attendance/register', attendanceController.getDailyRegister);
 router.get('/attendance/absentees', attendanceController.getAbsentees);
 router.post('/attendance/absentees/notify', attendanceController.notifyAbsentees);
+router.get('/attendance/consolidated-report', attendanceController.getConsolidatedAttendanceReport);
+router.get('/attendance/date-wise-report', attendanceController.getDateWiseAttendanceReport);
 
 // Dynamic Report Center
 router.get('/reports/catalog', reportController.getCatalog);
@@ -322,6 +426,16 @@ router.get('/exams', examController.getExams);
 router.post('/exams', examController.createExam);
 router.patch('/exams/:id/status', examController.updateExamStatus);
 router.get('/exams/:examId/rank-list', examController.getRankList);
+router.get('/exams/:examId/consolidated-report', examController.getConsolidatedMarksReport);
+router.get('/students/:studentId/marksheet', requireModule('examination'), examController.getStudentMarksheet);
+
+// Grade Scale (SGPA/CGPA point system)
+router.use('/grade-scale', requireModule('examination'));
+router.get('/grade-scale', gradeScaleController.getGradeScale);
+router.post('/grade-scale/seed-default', gradeScaleController.seedDefaultScale);
+router.post('/grade-scale', gradeScaleController.createGrade);
+router.patch('/grade-scale/:id', gradeScaleController.updateGrade);
+router.delete('/grade-scale/:id', gradeScaleController.deleteGrade);
 
 router.get('/exam-schedules', examController.getSchedules);
 router.post('/exam-schedules', examController.createSchedule);

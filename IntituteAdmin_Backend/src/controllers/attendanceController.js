@@ -2,7 +2,7 @@
  * Institute Admin Attendance Oversight Controller — read-only visibility across the
  * whole institution (recording itself happens on the Staff side, per subject/section).
  */
-const { prisma, sendSuccess, sendSMSNotification } = require('../../../shared');
+const { prisma, sendSuccess, sendSMSNotification, ValidationError } = require('../../../shared');
 
 const startOfDay = (d) => { const x = new Date(d); x.setHours(0, 0, 0, 0); return x; };
 const endOfDay = (d) => { const x = new Date(d); x.setHours(23, 59, 59, 999); return x; };
@@ -143,9 +143,152 @@ const getReports = async (req, res, next) => {
   }
 };
 
+// Priority order when a student has more than one session/period recorded on the same
+// day (e.g. period-wise attendance) — the worst status of the day wins, so a student
+// absent for even one period shows as ABSENT for that day rather than being averaged away.
+const DAY_STATUS_PRIORITY = ['ABSENT', 'HALF_DAY', 'LATE', 'LEAVE', 'PRESENT'];
+const collapseDayStatus = (statuses) => {
+  for (const s of DAY_STATUS_PRIORITY) if (statuses.includes(s)) return s;
+  return null;
+};
+
+/**
+ * Class-wise consolidated monthly attendance grid — one row per student, one column per
+ * calendar day of the month. Multiple sessions on the same day (period-wise attendance)
+ * collapse to a single day status via collapseDayStatus above.
+ */
+const getConsolidatedAttendanceReport = async (req, res, next) => {
+  try {
+    const { sectionId, month, year } = req.query;
+    if (!sectionId || !month || !year) throw new ValidationError('sectionId, month and year are required');
+
+    const monthNum = Number(month);
+    const yearNum = Number(year);
+    const monthStart = new Date(yearNum, monthNum - 1, 1);
+    const monthEnd = new Date(yearNum, monthNum, 0, 23, 59, 59, 999);
+    const daysInMonth = new Date(yearNum, monthNum, 0).getDate();
+
+    const students = await prisma.student.findMany({
+      where: { institutionId: req.institutionId, sectionId },
+      select: { id: true, firstName: true, lastName: true, rollNumber: true, admissionNumber: true },
+      orderBy: { rollNumber: 'asc' },
+    });
+
+    const records = await prisma.attendanceRecord.findMany({
+      where: { session: { institutionId: req.institutionId, sectionId, date: { gte: monthStart, lte: monthEnd } } },
+      select: { studentId: true, status: true, session: { select: { date: true } } },
+    });
+
+    // studentId -> day-of-month -> [statuses that day]
+    const byStudentDay = {};
+    records.forEach((r) => {
+      const day = new Date(r.session.date).getDate();
+      if (!byStudentDay[r.studentId]) byStudentDay[r.studentId] = {};
+      if (!byStudentDay[r.studentId][day]) byStudentDay[r.studentId][day] = [];
+      byStudentDay[r.studentId][day].push(r.status);
+    });
+
+    const days = Array.from({ length: daysInMonth }, (_, i) => {
+      const d = new Date(yearNum, monthNum - 1, i + 1);
+      return { day: i + 1, weekday: d.toLocaleDateString('en-US', { weekday: 'short' }) };
+    });
+
+    const rows = students.map((student) => {
+      const dayMap = byStudentDay[student.id] || {};
+      let presentDays = 0;
+      let markedDays = 0;
+      const attendance = days.map(({ day }) => {
+        const statuses = dayMap[day];
+        if (!statuses || statuses.length === 0) return null; // no session recorded that day at all
+        const dayStatus = collapseDayStatus(statuses);
+        markedDays += 1;
+        if (dayStatus === 'PRESENT' || dayStatus === 'LATE') presentDays += 1;
+        return dayStatus;
+      });
+      return {
+        studentId: student.id,
+        firstName: student.firstName,
+        lastName: student.lastName,
+        rollNumber: student.rollNumber,
+        admissionNumber: student.admissionNumber,
+        attendance,
+        presentDays,
+        markedDays,
+        percentage: markedDays > 0 ? Number(((presentDays / markedDays) * 100).toFixed(1)) : null,
+      };
+    });
+
+    return sendSuccess(res, { days, rows }, 'Consolidated attendance report retrieved successfully');
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * Date-wise attendance report — one whole class/section, one specific date: every
+ * student in the section as a row, with their collapsed status for that day (or
+ * "NOT_MARKED" if no session was taken for them at all that day), plus a summary.
+ */
+const getDateWiseAttendanceReport = async (req, res, next) => {
+  try {
+    const { sectionId, date } = req.query;
+    if (!sectionId || !date) throw new ValidationError('sectionId and date are required');
+
+    const targetDate = new Date(date);
+
+    const students = await prisma.student.findMany({
+      where: { institutionId: req.institutionId, sectionId },
+      select: { id: true, firstName: true, lastName: true, rollNumber: true, admissionNumber: true },
+      orderBy: { rollNumber: 'asc' },
+    });
+
+    const records = await prisma.attendanceRecord.findMany({
+      where: { session: { institutionId: req.institutionId, sectionId, date: { gte: startOfDay(targetDate), lte: endOfDay(targetDate) } } },
+      select: { studentId: true, status: true, session: { select: { subject: { select: { name: true } }, periodNumber: true } } },
+    });
+
+    const byStudent = {};
+    records.forEach((r) => {
+      if (!byStudent[r.studentId]) byStudent[r.studentId] = [];
+      byStudent[r.studentId].push(r.status);
+    });
+
+    const summary = { PRESENT: 0, ABSENT: 0, LATE: 0, LEAVE: 0, HALF_DAY: 0, NOT_MARKED: 0 };
+    const rows = students.map((student) => {
+      const statuses = byStudent[student.id];
+      const status = statuses && statuses.length > 0 ? collapseDayStatus(statuses) : 'NOT_MARKED';
+      summary[status] = (summary[status] || 0) + 1;
+      return {
+        studentId: student.id,
+        firstName: student.firstName,
+        lastName: student.lastName,
+        rollNumber: student.rollNumber,
+        admissionNumber: student.admissionNumber,
+        status,
+        sessionsRecorded: statuses ? statuses.length : 0,
+      };
+    });
+
+    const markedCount = students.length - summary.NOT_MARKED;
+    const presentCount = summary.PRESENT + summary.LATE;
+
+    return sendSuccess(res, {
+      date,
+      totalStudents: students.length,
+      summary,
+      percentage: markedCount > 0 ? Number(((presentCount / markedCount) * 100).toFixed(1)) : null,
+      rows,
+    }, 'Date-wise attendance report retrieved successfully');
+  } catch (err) {
+    next(err);
+  }
+};
+
 module.exports = {
   getDailyRegister,
   getAbsentees,
   notifyAbsentees,
   getReports,
+  getConsolidatedAttendanceReport,
+  getDateWiseAttendanceReport,
 };

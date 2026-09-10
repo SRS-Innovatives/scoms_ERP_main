@@ -5,6 +5,7 @@ import EmptyState from '../../components/common/EmptyState';
 import FormModal from '../../components/common/FormModal';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
 import { useNotification } from '../../context/NotificationContext';
+import { useInstitution } from '../../context/InstitutionContext';
 import courseService from '../../services/courseService';
 import departmentService from '../../services/departmentService';
 import { GraduationCap, Edit, Trash2 } from 'lucide-react';
@@ -13,6 +14,11 @@ const emptyForm = { departmentId: '', code: '', name: '', durationYears: '' };
 
 export const CourseClassSetupPage = () => {
   const { notifySuccess, notifyError } = useNotification();
+  const { institution } = useInstitution();
+  // A School sets up Classes (Class 10, Class 12...), not degree Courses — same underlying
+  // Course table, just the label an admin actually sees matching what they're really configuring.
+  const isSchool = institution?.type === 'SCHOOL';
+  const unit = isSchool ? 'Class' : 'Course';
   const [courses, setCourses] = useState([]);
   const [departments, setDepartments] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -59,15 +65,15 @@ export const CourseClassSetupPage = () => {
     try {
       if (editingId) {
         await courseService.update(editingId, form);
-        notifySuccess(`Course ${form.name} updated successfully!`);
+        notifySuccess(`${unit} ${form.name} updated successfully!`);
       } else {
         await courseService.create(form);
-        notifySuccess(`Course ${form.name} created successfully!`);
+        notifySuccess(`${unit} ${form.name} created successfully!`);
       }
       setModalOpen(false);
       fetchAll();
     } catch (error) {
-      notifyError(`Failed to save course: ${error.message}`);
+      notifyError(`Failed to save ${unit.toLowerCase()}: ${error.message}`);
     } finally {
       setSubmitting(false);
     }
@@ -77,7 +83,7 @@ export const CourseClassSetupPage = () => {
     if (!deleteTarget) return;
     try {
       await courseService.remove(deleteTarget.id);
-      notifySuccess(`Course ${deleteTarget.name} deleted.`);
+      notifySuccess(`${unit} ${deleteTarget.name} deleted.`);
       setDeleteTarget(null);
       fetchAll();
     } catch (error) {
@@ -87,8 +93,8 @@ export const CourseClassSetupPage = () => {
   };
 
   const columns = [
-    { header: 'Course Code', key: 'code', render: (val) => <span className="font-mono font-bold text-indigo-600">{val}</span> },
-    { header: 'Course Name', key: 'name', render: (val) => <span className="font-bold text-slate-900 dark:text-white">{val}</span> },
+    { header: `${unit} Code`, key: 'code', render: (val) => <span className="font-mono font-bold text-indigo-600">{val}</span> },
+    { header: `${unit} Name`, key: 'name', render: (val) => <span className="font-bold text-slate-900 dark:text-white">{val}</span> },
     { header: 'Department', key: 'department', sortable: false, render: (val) => val?.name || '-' },
     { header: 'Duration', key: 'durationYears', render: (val) => `${val} Year${val === 1 ? '' : 's'}` },
     { header: 'Students', key: '_count', sortable: false, render: (val) => `${val?.students ?? 0} Enrolled` },
@@ -115,31 +121,33 @@ export const CourseClassSetupPage = () => {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-bold text-slate-900 dark:text-white">Course & Class Setup</h1>
-        <p className="text-xs text-slate-500 dark:text-slate-400">Configure UG/PG degree programs, classes and duration</p>
+        <h1 className="text-xl font-bold text-slate-900 dark:text-white">{isSchool ? 'Class Setup' : 'Course Setup'}</h1>
+        <p className="text-xs text-slate-500 dark:text-slate-400">
+          {isSchool ? 'Configure classes/grades and their duration' : 'Configure UG/PG degree programs and duration'}
+        </p>
       </div>
 
       <SearchFilterBar
         searchQuery={search}
         onSearchChange={setSearch}
-        placeholder="Search courses..."
-        addLabel="Add New Course"
+        placeholder={`Search ${unit.toLowerCase()}s...`}
+        addLabel={`Add New ${unit}`}
         onAddClick={openAddModal}
         onRefreshClick={fetchAll}
       />
 
       {!loading && filtered.length === 0 ? (
-        <EmptyState title="No Courses Found" description="Add a course/degree program to get started. You'll need a department first." actionLabel="Add New Course" onAction={openAddModal} />
+        <EmptyState title={`No ${unit}s Found`} description={`Add a ${unit.toLowerCase()} to get started. You'll need a department first.`} actionLabel={`Add New ${unit}`} onAction={openAddModal} />
       ) : (
         <DataTable columns={columns} data={filtered} loading={loading} />
       )}
 
       <FormModal
         isOpen={modalOpen}
-        title={editingId ? 'Edit Course' : 'Add Course'}
-        subtitle="Define course code, name, department and duration"
+        title={editingId ? `Edit ${unit}` : `Add ${unit}`}
+        subtitle={`Define ${unit.toLowerCase()} code, name, department and duration`}
         icon={GraduationCap}
-        submitLabel={editingId ? 'Save Changes' : 'Create Course'}
+        submitLabel={editingId ? 'Save Changes' : `Create ${unit}`}
         isSubmitting={submitting}
         onClose={() => setModalOpen(false)}
         onSubmit={handleSubmit}
@@ -154,8 +162,8 @@ export const CourseClassSetupPage = () => {
             span: 'full',
             options: departments.map((d) => ({ value: d.id, label: `${d.name} (${d.code})` })),
           },
-          { name: 'code', label: 'Course Code (e.g. BTECH-CSE)', required: true },
-          { name: 'name', label: 'Course Name', required: true },
+          { name: 'code', label: isSchool ? 'Class Code (e.g. CLASS-10)' : 'Course Code (e.g. BTECH-CSE)', required: true },
+          { name: 'name', label: `${unit} Name`, required: true },
           { name: 'durationYears', label: 'Duration (Years)', type: 'number', required: true },
         ]}
       />

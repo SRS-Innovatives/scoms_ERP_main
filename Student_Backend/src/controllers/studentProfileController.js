@@ -185,10 +185,26 @@ const getIdCard = async (req, res, next) => {
   }
 };
 
+/** This student's own degree record(s) — pending or issued. Empty for most students most
+ * of the time; only ever populated once the institution actually creates a record for them. */
+const getMyDegrees = async (req, res, next) => {
+  try {
+    const degrees = await prisma.degreeRecord.findMany({
+      where: { studentId: req.user.studentId },
+      include: { issuingInstitution: { select: { id: true, name: true } } },
+      orderBy: { createdAt: 'desc' },
+    });
+    return sendSuccess(res, degrees, 'Degree records retrieved successfully');
+  } catch (err) {
+    next(err);
+  }
+};
+
 module.exports = {
   getProfile,
   updateProfile,
   getAttendanceSummary,
   getMySubjects,
   getIdCard,
+  getMyDegrees,
 };

@@ -5,6 +5,7 @@ import EmptyState from '../../components/common/EmptyState';
 import FormModal from '../../components/common/FormModal';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
 import { useNotification } from '../../context/NotificationContext';
+import { useInstitution } from '../../context/InstitutionContext';
 import semesterService from '../../services/semesterService';
 import courseService from '../../services/courseService';
 import academicYearService from '../../services/academicYearService';
@@ -14,6 +15,10 @@ const emptyForm = { courseId: '', academicYearId: '', name: '', semesterNumber: 
 
 export const SemesterSetupPage = () => {
   const { notifySuccess, notifyError } = useNotification();
+  const { institution } = useInstitution();
+  const isSchool = institution?.type === 'SCHOOL';
+  const termUnit = isSchool ? 'Term' : 'Semester';
+  const classUnit = isSchool ? 'Class' : 'Course';
   const [semesters, setSemesters] = useState([]);
   const [courses, setCourses] = useState([]);
   const [academicYears, setAcademicYears] = useState([]);
@@ -66,15 +71,15 @@ export const SemesterSetupPage = () => {
     try {
       if (editingId) {
         await semesterService.update(editingId, { name: form.name, semesterNumber: form.semesterNumber, academicYearId: form.academicYearId });
-        notifySuccess(`Semester ${form.name} updated successfully!`);
+        notifySuccess(`${termUnit} ${form.name} updated successfully!`);
       } else {
         await semesterService.create(form);
-        notifySuccess(`Semester ${form.name} created successfully!`);
+        notifySuccess(`${termUnit} ${form.name} created successfully!`);
       }
       setModalOpen(false);
       fetchAll();
     } catch (error) {
-      notifyError(`Failed to save semester: ${error.message}`);
+      notifyError(`Failed to save ${termUnit.toLowerCase()}: ${error.message}`);
     } finally {
       setSubmitting(false);
     }
@@ -84,7 +89,7 @@ export const SemesterSetupPage = () => {
     if (!deleteTarget) return;
     try {
       await semesterService.remove(deleteTarget.id);
-      notifySuccess(`Semester ${deleteTarget.name} deleted.`);
+      notifySuccess(`${termUnit} ${deleteTarget.name} deleted.`);
       setDeleteTarget(null);
       fetchAll();
     } catch (error) {
@@ -94,8 +99,8 @@ export const SemesterSetupPage = () => {
   };
 
   const columns = [
-    { header: 'Semester Title', key: 'name', render: (val) => <span className="font-bold text-slate-900 dark:text-white">{val}</span> },
-    { header: 'Course', key: 'course', sortable: false, render: (val) => val?.name || '-' },
+    { header: `${termUnit} Title`, key: 'name', render: (val) => <span className="font-bold text-slate-900 dark:text-white">{val}</span> },
+    { header: classUnit, key: 'course', sortable: false, render: (val) => val?.name || '-' },
     { header: 'Academic Year', key: 'academicYear', sortable: false, render: (val) => val?.yearName || '-' },
     { header: 'Sections', key: '_count', sortable: false, render: (val) => `${val?.sections ?? 0} Sections` },
     {
@@ -120,24 +125,24 @@ export const SemesterSetupPage = () => {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-bold text-slate-900 dark:text-white">Semester Setup</h1>
-        <p className="text-xs text-slate-500 dark:text-slate-400">Manage term schedules for each course/academic year</p>
+        <h1 className="text-xl font-bold text-slate-900 dark:text-white">{termUnit} Setup</h1>
+        <p className="text-xs text-slate-500 dark:text-slate-400">Manage term schedules for each {classUnit.toLowerCase()}/academic year</p>
       </div>
 
-      <SearchFilterBar searchQuery={search} onSearchChange={setSearch} addLabel="Add Semester" onAddClick={openAddModal} onRefreshClick={fetchAll} />
+      <SearchFilterBar searchQuery={search} onSearchChange={setSearch} addLabel={`Add ${termUnit}`} onAddClick={openAddModal} onRefreshClick={fetchAll} />
 
       {!loading && filtered.length === 0 ? (
-        <EmptyState title="No Semesters Found" description="Add a semester to get started. You'll need a course and academic year first." actionLabel="Add Semester" onAction={openAddModal} />
+        <EmptyState title={`No ${termUnit}s Found`} description={`Add a ${termUnit.toLowerCase()} to get started. You'll need a ${classUnit.toLowerCase()} and academic year first.`} actionLabel={`Add ${termUnit}`} onAction={openAddModal} />
       ) : (
         <DataTable columns={columns} data={filtered} loading={loading} />
       )}
 
       <FormModal
         isOpen={modalOpen}
-        title={editingId ? 'Edit Semester' : 'Add Semester'}
-        subtitle="Link a semester to its course and academic year"
+        title={editingId ? `Edit ${termUnit}` : `Add ${termUnit}`}
+        subtitle={`Link a ${termUnit.toLowerCase()} to its ${classUnit.toLowerCase()} and academic year`}
         icon={BookOpen}
-        submitLabel={editingId ? 'Save Changes' : 'Create Semester'}
+        submitLabel={editingId ? 'Save Changes' : `Create ${termUnit}`}
         isSubmitting={submitting}
         onClose={() => setModalOpen(false)}
         onSubmit={handleSubmit}
@@ -146,7 +151,7 @@ export const SemesterSetupPage = () => {
         fields={[
           {
             name: 'courseId',
-            label: 'Course',
+            label: classUnit,
             type: 'select',
             required: true,
             span: 'full',
@@ -161,14 +166,14 @@ export const SemesterSetupPage = () => {
             span: 'full',
             options: academicYears.map((y) => ({ value: y.id, label: y.yearName })),
           },
-          { name: 'name', label: 'Semester Title (e.g. Semester 1)', required: true },
-          { name: 'semesterNumber', label: 'Semester Number', type: 'number', required: true },
+          { name: 'name', label: `${termUnit} Title (e.g. ${isSchool ? 'Term 1' : 'Semester 1'})`, required: true },
+          { name: 'semesterNumber', label: `${termUnit} Number`, type: 'number', required: true },
         ]}
       />
 
       <ConfirmDialog
         isOpen={!!deleteTarget}
-        title="Delete Semester"
+        title={`Delete ${termUnit}`}
         message={`Are you sure you want to delete "${deleteTarget?.name}"? This cannot be undone.`}
         confirmText="Delete"
         onConfirm={handleDelete}

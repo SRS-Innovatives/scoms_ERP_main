@@ -1,4 +1,4 @@
-// Student Achievement / Event Certificate Entry Service — /api/v1/staff/achievements
+// Student Achievements / Event Certificate Entry Service — /api/v1/staff/achievements
 import apiCall from './api';
 
 export const achievementService = {

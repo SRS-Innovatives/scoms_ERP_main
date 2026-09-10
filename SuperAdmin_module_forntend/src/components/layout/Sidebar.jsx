@@ -97,6 +97,7 @@ export const Sidebar = ({ isOpen, setIsOpen }) => {
                 <NavLink
                   key={item.key}
                   to={item.path}
+                  end
                   title={!isOpen ? item.title : undefined}
                   className={({ isActive }) =>
                     `flex items-center rounded-xl text-xs font-semibold transition-all ${isOpen ? 'justify-between px-3 py-2.5' : 'justify-center py-2.5'} ${
@@ -157,6 +158,7 @@ export const Sidebar = ({ isOpen, setIsOpen }) => {
                       <NavLink
                         key={child.key}
                         to={child.path}
+                        end
                         className={({ isActive }) =>
                           `block px-3 py-2 rounded-lg text-[11px] font-medium transition-all ${
                             isActive

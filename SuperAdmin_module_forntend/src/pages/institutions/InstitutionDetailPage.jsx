@@ -15,6 +15,7 @@ export const InstitutionDetailPage = () => {
   const [moduleCatalog, setModuleCatalog] = useState([]);
   const [selectedModules, setSelectedModules] = useState([]);
   const [savingModules, setSavingModules] = useState(false);
+  const [updatingStatus, setUpdatingStatus] = useState(false);
 
   React.useEffect(() => {
     const fetchInst = async () => {
@@ -56,6 +57,20 @@ export const InstitutionDetailPage = () => {
       showError(err.message || 'Failed to update modules', 'Save Failed');
     } finally {
       setSavingModules(false);
+    }
+  };
+
+  const handleToggleStatus = async () => {
+    const nextStatus = inst.status === 'ACTIVE' ? 'SUSPENDED' : 'ACTIVE';
+    setUpdatingStatus(true);
+    try {
+      const res = await institutionService.updateInstitutionStatus(id, nextStatus);
+      setInst((prev) => ({ ...prev, status: res.data.status }));
+      success(`${inst.name} is now ${nextStatus === 'ACTIVE' ? 'Active' : 'Suspended'}.`, 'Status Updated');
+    } catch (err) {
+      showError(err.message || 'Failed to update institution status', 'Update Failed');
+    } finally {
+      setUpdatingStatus(false);
     }
   };
 
@@ -106,10 +121,13 @@ export const InstitutionDetailPage = () => {
 
         <div className="flex gap-2">
           <button
-            onClick={() => success(`Status of ${inst.name} toggled cleanly.`, 'Status Updated')}
-            className="px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl"
+            onClick={handleToggleStatus}
+            disabled={updatingStatus}
+            className={`px-4 py-2 text-xs font-bold text-white rounded-xl disabled:opacity-50 ${
+              inst.status === 'ACTIVE' ? 'bg-amber-600 hover:bg-amber-700' : 'bg-emerald-600 hover:bg-emerald-700'
+            }`}
           >
-            Manage Institution
+            {updatingStatus ? 'Updating...' : inst.status === 'ACTIVE' ? 'Suspend Institution' : 'Activate Institution'}
           </button>
         </div>
       </div>

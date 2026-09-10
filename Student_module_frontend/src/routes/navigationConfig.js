@@ -65,8 +65,8 @@ export const navigationConfig = [
     icon: Building,
     children: [
       { key: 'announcements', title: 'Announcements', path: '/student/announcements', module: 'communication' },
-      { key: 'events', title: 'Campus Events', path: '/student/events' },
-      { key: 'clubs', title: 'Clubs & Societies', path: '/student/clubs' },
+      { key: 'events', title: 'Campus Events', path: '/student/events', module: 'events_clubs' },
+      { key: 'clubs', title: 'Clubs & Societies', path: '/student/clubs', module: 'events_clubs' },
       { key: 'library', title: 'Digital Library', path: '/student/library', module: 'library' },
       { key: 'transport', title: 'Transport', path: '/student/transport', module: 'transport' },
       { key: 'hostel', title: 'Hostel & Mess', path: '/student/hostel', module: 'hostel' }
@@ -79,9 +79,9 @@ export const navigationConfig = [
     children: [
       { key: 'certificates', title: 'Certificates', path: '/student/certificates', module: 'certificates' },
       { key: 'requests', title: 'Service Requests', path: '/student/services' },
-      { key: 'grievances', title: 'Grievances & Complaints', path: '/student/grievances' },
-      { key: 'appointments', title: 'Counselling Appointments', path: '/student/appointments' },
-      { key: 'feedback', title: 'Faculty Feedback', path: '/student/feedback' }
+      { key: 'grievances', title: 'Grievances & Complaints', path: '/student/grievances', module: 'grievance_feedback' },
+      { key: 'appointments', title: 'Counselling Appointments', path: '/student/appointments', module: 'counselling' },
+      { key: 'feedback', title: 'Faculty Feedback', path: '/student/feedback', module: 'grievance_feedback' }
     ]
   },
   {
@@ -89,10 +89,10 @@ export const navigationConfig = [
     title: 'Career & Placement',
     icon: Briefcase,
     children: [
-      { key: 'resume', title: 'Resume Builder', path: '/student/resume' },
-      { key: 'internships', title: 'Internships', path: '/student/internships' },
-      { key: 'placements', title: 'Placements', path: '/student/placements' },
-      { key: 'achievements', title: 'Achievements Portfolio', path: '/student/achievements' }
+      { key: 'resume', title: 'Resume Builder', path: '/student/resume', module: 'career_portfolio' },
+      { key: 'internships', title: 'Internships', path: '/student/internships', module: 'placement' },
+      { key: 'placements', title: 'Placements', path: '/student/placements', module: 'placement' },
+      { key: 'achievements', title: 'Achievements Portfolio', path: '/student/achievements', module: 'career_portfolio' }
     ]
   },
   {
@@ -101,7 +101,7 @@ export const navigationConfig = [
     icon: Bot,
     badge: 'AI Powered',
     children: [
-      { key: 'ai-assistant', title: 'AI Study Assistant', path: '/student/ai' },
+      { key: 'ai-assistant', title: 'AI Study Assistant', path: '/student/ai', module: 'ai_tutor' },
       { key: 'ai-plan', title: 'AI Study Plan', path: '/student/ai/study-plan' },
       { key: 'study-progress', title: 'Study Progress Tracker', path: '/student/study-progress' }
     ]
@@ -112,7 +112,8 @@ export const navigationConfig = [
     icon: Folder,
     children: [
       { key: 'my-documents', title: 'My Document Vault', path: '/student/documents' },
-      { key: 'digital-id', title: 'Digital QR ID Card', path: '/student/id-card' }
+      { key: 'digital-id', title: 'Digital QR ID Card', path: '/student/id-card' },
+      { key: 'my-degree', title: 'My Degree', path: '/student/degree', module: 'convocation' }
     ]
   },
   {
@@ -120,8 +121,9 @@ export const navigationConfig = [
     title: 'Communication',
     icon: MessageSquare,
     children: [
-      { key: 'messages', title: 'Teacher Chat Messages', path: '/student/messages' },
-      { key: 'notifications', title: 'Notification Center', path: '/student/notifications' }
+      { key: 'messages', title: 'Teacher Chat Messages', path: '/student/messages', module: 'messaging' },
+      { key: 'notifications', title: 'Notification Center', path: '/student/notifications' },
+      { key: 'gallery', title: 'Photo Gallery', path: '/student/gallery', module: 'gallery' }
     ]
   },
   {

@@ -137,14 +137,26 @@ const generateQuestionPaper = async (req, res, next) => {
   }
 };
 
-const computeGrade = (marksObtained, maxMarks) => {
+// Sensible default curve — used only when the institution hasn't configured a real
+// GradeScale yet (Institute Admin → Examination → Grade Setup).
+const DEFAULT_GRADE_CURVE = [
+  { grade: 'A+', minPercentage: 90, maxPercentage: 100, gradePoint: 10 },
+  { grade: 'A', minPercentage: 75, maxPercentage: 89.99, gradePoint: 9 },
+  { grade: 'B', minPercentage: 60, maxPercentage: 74.99, gradePoint: 7 },
+  { grade: 'C', minPercentage: 45, maxPercentage: 59.99, gradePoint: 5 },
+  { grade: 'D', minPercentage: 35, maxPercentage: 44.99, gradePoint: 4 },
+  { grade: 'F', minPercentage: 0, maxPercentage: 34.99, gradePoint: 0 },
+];
+
+const getGradeScale = async (institutionId) => {
+  const real = await prisma.gradeScale.findMany({ where: { institutionId } });
+  return real.length > 0 ? real : DEFAULT_GRADE_CURVE;
+};
+
+const resolveGrade = (scale, marksObtained, maxMarks) => {
   const pct = maxMarks > 0 ? (marksObtained / maxMarks) * 100 : 0;
-  if (pct >= 90) return 'A+';
-  if (pct >= 75) return 'A';
-  if (pct >= 60) return 'B';
-  if (pct >= 45) return 'C';
-  if (pct >= 35) return 'D';
-  return 'F';
+  const match = scale.find((g) => pct >= g.minPercentage && pct <= g.maxPercentage);
+  return match ? match.grade : null;
 };
 
 /** Exam schedules for subjects this staff member is actually assigned to teach — their "exam duties". */
@@ -218,12 +230,14 @@ const saveMarks = async (req, res, next) => {
     const isAssigned = await prisma.subjectTeacherMapping.findFirst({ where: { staffId: req.user.staffId, subjectId: schedule.subjectId } });
     if (!isAssigned) throw new BusinessRuleError('You are not assigned to teach this subject');
 
+    const scale = await getGradeScale(req.institutionId);
+
     await prisma.$transaction(
       marks
         .filter((m) => m.marksObtained !== null && m.marksObtained !== undefined && m.marksObtained !== '')
         .map((m) => {
           const marksObtained = Number(m.marksObtained);
-          const grade = computeGrade(marksObtained, schedule.maxMarks);
+          const grade = resolveGrade(scale, marksObtained, schedule.maxMarks);
           return prisma.studentMark.upsert({
             where: { examScheduleId_studentId: { examScheduleId: scheduleId, studentId: m.studentId } },
             create: { examScheduleId: scheduleId, studentId: m.studentId, marksObtained, grade, remarks: m.remarks || null },

@@ -110,6 +110,8 @@ const handleGetMe = async (req, res, next) => {
             university: true,
             principalName: true,
             establishedYear: true,
+            affiliatedUniversityId: true,
+            affiliatedUniversity: { select: { id: true, name: true, code: true } },
           },
         },
         student: {

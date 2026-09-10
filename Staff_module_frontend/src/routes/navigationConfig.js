@@ -15,7 +15,8 @@ import {
   FlaskConical,
   BarChart3,
   Printer,
-  ShieldCheck
+  ShieldCheck,
+  Images
 } from 'lucide-react';
 
 export const navigationConfig = [
@@ -141,7 +142,6 @@ export const navigationConfig = [
       { key: 'class-notice', title: 'Class Notice Board', path: '/staff/communication/notices' },
       { key: 'parent-message', title: 'Parent Messaging', path: '/staff/communication/parent-messages' },
       { key: 'student-chat', title: 'Student Chat', path: '/staff/communication/student-chat' },
-      { key: 'appointment-requests', title: 'Appointment Requests', path: '/staff/appointments' },
       { key: 'sms-center', title: 'SMS Broadcast Center', path: '/staff/communication/sms' },
       { key: 'email-center', title: 'Email Broadcast Center', path: '/staff/communication/email' },
       { key: 'message-history', title: 'Message History', path: '/staff/communication/history' }
@@ -160,7 +160,7 @@ export const navigationConfig = [
     ]
   },
   {
-    key: 'events',
+    key: 'events_clubs',
     title: 'Events & Co-Curricular',
     icon: Award,
     children: [
@@ -170,6 +170,30 @@ export const navigationConfig = [
       { key: 'event-attd', title: 'Event Attendance', path: '/staff/events/attendance' },
       { key: 'certificates', title: 'Certificate Entry', path: '/staff/events/certificates' }
     ]
+  },
+  {
+    key: 'counselling',
+    title: 'Appointment Requests',
+    icon: Clock,
+    path: '/staff/appointments'
+  },
+  {
+    key: 'ptm',
+    title: 'Parent-Teacher Meetings',
+    icon: MessageSquare,
+    path: '/staff/performance/parent-notes'
+  },
+  {
+    key: 'career_portfolio',
+    title: 'Student Achievements',
+    icon: Award,
+    path: '/staff/performance/achievements'
+  },
+  {
+    key: 'gallery',
+    title: 'Photo Gallery',
+    icon: Images,
+    path: '/staff/gallery'
   },
   {
     key: 'self-attendance',
@@ -194,7 +218,7 @@ export const navigationConfig = [
     ]
   },
   {
-    key: 'lab',
+    key: 'inventory',
     title: 'Lab Staff & Assets',
     icon: FlaskConical,
     children: [
@@ -204,6 +228,12 @@ export const navigationConfig = [
       { key: 'lab-usage', title: 'Lab Usage Register', path: '/staff/lab/usage' },
       { key: 'lab-maintenance', title: 'Maintenance Register', path: '/staff/lab/maintenance' }
     ]
+  },
+  {
+    key: 'research',
+    title: 'My Publications',
+    icon: FlaskConical,
+    path: '/staff/research'
   },
   {
     key: 'reports',

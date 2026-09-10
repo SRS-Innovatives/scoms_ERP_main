@@ -68,6 +68,7 @@ export const ExamSetupPage = () => {
     { header: 'Exam Title', key: 'name', render: (val) => <span className="font-bold text-slate-900 dark:text-white">{val}</span> },
     { header: 'Category', key: 'examType', render: (val) => <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-slate-100 text-slate-700">{val?.replace('_', ' ')}</span> },
     { header: 'Academic Year', key: 'academicYear', sortable: false, render: (val) => val?.yearName },
+    { header: 'Conducted By', key: 'conductedByInstitution', sortable: false, render: (val) => val ? <span className="font-semibold text-indigo-600 dark:text-indigo-400">{val.name}</span> : <span className="text-slate-400">Self</span> },
     { header: 'Schedules', key: '_count', sortable: false, render: (val) => `${val?.schedules ?? 0} Subjects` },
     { header: 'Start Date', key: 'startDate', render: (val) => <span className="font-mono">{new Date(val).toLocaleDateString('en-IN')}</span> },
     { header: 'Status', key: 'status', render: (val) => <StatusBadge status={val} /> },

@@ -17,8 +17,8 @@ datasource db {
 enum InstitutionType {
   SCHOOL
   COLLEGE
+  AUTONOMOUS_COLLEGE
   UNIVERSITY
-  POLYTECHNIC
 }
 
 enum InstitutionStatus {
@@ -29,33 +29,34 @@ enum InstitutionStatus {
 }
 
 model Institution {
-  id                 String            @id @default(uuid())
-  code               String            @unique
-  name               String
-  type               InstitutionType   @default(SCHOOL)
-  registrationNumber String?
-  gstin              String? // Institution's own GSTIN, used to compute CGST/SGST vs IGST on invoices
-  affiliation        String?
-  board              String?
-  university         String?
-  email              String
-  phone              String
-  website            String?
-  logo               String?
-  address            String
-  city               String
-  district           String?
-  state              String
-  pincode            String
-  country            String            @default("India")
-  principalName      String?
-  establishedYear    Int?
-  planName           String?
-  modules            Json?
-  status             InstitutionStatus @default(ACTIVE)
-  createdAt          DateTime          @default(now())
-  updatedAt          DateTime          @updatedAt
-  deletedAt          DateTime?
+  id                     String            @id @default(uuid())
+  code                   String            @unique
+  name                   String
+  type                   InstitutionType   @default(SCHOOL)
+  registrationNumber     String?
+  gstin                  String? // Institution's own GSTIN, used to compute CGST/SGST vs IGST on invoices
+  affiliation            String? // free-text — for a real-world university SCOMS doesn't itself host as a tenant
+  board                  String?
+  university             String? // free-text legacy field — superseded by affiliatedUniversityId below when the affiliating university IS a SCOMS tenant
+  affiliatedUniversityId String? // set on a COLLEGE/AUTONOMOUS_COLLEGE row — the University Institution it's really affiliated to, when that university is itself onboarded in SCOMS (enables real oversight, not just a label)
+  email                  String? // optional at onboarding — only name/code and the admin login are truly required to create a usable tenant; the rest can be filled in later via Institute Profile
+  phone                  String?
+  website                String?
+  logo                   String?
+  address                String?
+  city                   String?
+  district               String?
+  state                  String?
+  pincode                String?
+  country                String            @default("India")
+  principalName          String?
+  establishedYear        Int?
+  planName               String?
+  modules                Json?
+  status                 InstitutionStatus @default(ACTIVE)
+  createdAt              DateTime          @default(now())
+  updatedAt              DateTime          @updatedAt
+  deletedAt              DateTime?
 
   // Relations
   users                           User[]
@@ -117,6 +118,26 @@ model Institution {
   institutionCertificateTemplates InstitutionCertificateTemplate[]
   feeCategories                   FeeCategory[]
   feeHeads                        FeeHead[]
+  researchPublications            ResearchPublication[]
+  alumniRecords                   AlumniRecord[]
+  degreeRecords                   DegreeRecord[]
+  textbookContents                TextbookContent[]
+  enquiries                       Enquiry[]
+  payslips                        Payslip[]
+  disciplineRecords               DisciplineRecord[]
+  healthRecords                   HealthRecord[]
+  visitorLogs                     VisitorLog[]
+  galleryAlbums                   GalleryAlbum[]
+  gradeScales                     GradeScale[]
+  messageTemplates                MessageTemplate[]
+
+  // Real University <-> College affiliation, when the university is itself a SCOMS tenant
+  // (not just a free-text label) — enables real oversight: a University can see every
+  // College affiliated to it, and an exam/degree can name who actually holds authority.
+  affiliatedUniversity    Institution?   @relation("UniversityAffiliation", fields: [affiliatedUniversityId], references: [id])
+  affiliatedColleges      Institution[]  @relation("UniversityAffiliation")
+  examsConductedForOthers Exam[]         @relation("ExamConductedBy")
+  degreesIssuedForOthers  DegreeRecord[] @relation("DegreeIssuedBy")
 
   @@index([code])
   @@index([status])
@@ -170,19 +191,20 @@ model User {
   deletedAt       DateTime?
 
   // Relations
-  institution           Institution?       @relation(fields: [institutionId], references: [id])
+  institution           Institution?           @relation(fields: [institutionId], references: [id])
   student               Student?
   staff                 Staff?
   parent                Parent?
   refreshTokens         RefreshToken[]
   auditLogs             AuditLog[]
-  sentMessages          Message[]          @relation("SentMessages")
+  sentMessages          Message[]              @relation("SentMessages")
   announcements         Announcement[]
   passwordResetOtps     PasswordResetOtp[]
   savedReports          SavedReport[]
-  reportRequestsMade    ReportRequest[]    @relation("ReportRequestedBy")
-  reportRequestsHandled ReportRequest[]    @relation("ReportRequestAssignedTo")
+  reportRequestsMade    ReportRequest[]        @relation("ReportRequestedBy")
+  reportRequestsHandled ReportRequest[]        @relation("ReportRequestAssignedTo")
   notifications         Notification[]
+  knowledgeBaseArticles KnowledgeBaseArticle[]
 
   @@unique([email])
   @@unique([mobile])
@@ -439,6 +461,10 @@ model Student {
   jobApplications     JobApplication[]
   parentMeetingNotes  ParentMeetingNote[]
   equipmentIssues     EquipmentIssue[]
+  alumniRecord        AlumniRecord?
+  degreeRecords       DegreeRecord[]
+  disciplineRecords   DisciplineRecord[]
+  healthRecords       HealthRecord[]
 
   @@unique([institutionId, admissionNumber])
   @@unique([sectionId, rollNumber]) // roll numbers are assigned per-class; NULLs (no section/no roll yet) never collide
@@ -514,24 +540,34 @@ model Staff {
   updatedAt                DateTime  @updatedAt
   deletedAt                DateTime?
 
-  user                   User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  institution            Institution             @relation(fields: [institutionId], references: [id])
-  department             Department?             @relation(fields: [departmentId], references: [id])
-  subjectTeacherMappings SubjectTeacherMapping[]
-  classTeacherOf         Section[]               @relation("SectionClassTeacher")
-  attendanceSessions     AttendanceSession[]
-  timetableEntries       TimetableEntry[]
-  assignments            Assignment[]
-  materials              StudyMaterial[]
-  leaveRequests          LeaveRequest[]
-  qualifications         StaffQualification[]
-  experiences            StaffExperience[]
-  salary                 StaffSalary?
-  selfAttendance         StaffAttendance[]
-  appointments           Appointment[]
-  parentMeetingNotes     ParentMeetingNote[]
-  sentSmsLogs            SmsLog[]
-  equipmentIssues        EquipmentIssue[]
+  user                      User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  institution               Institution             @relation(fields: [institutionId], references: [id])
+  department                Department?             @relation(fields: [departmentId], references: [id])
+  subjectTeacherMappings    SubjectTeacherMapping[]
+  classTeacherOf            Section[]               @relation("SectionClassTeacher")
+  attendanceSessions        AttendanceSession[]
+  timetableEntries          TimetableEntry[]
+  assignments               Assignment[]
+  materials                 StudyMaterial[]
+  leaveRequests             LeaveRequest[]
+  qualifications            StaffQualification[]
+  experiences               StaffExperience[]
+  salary                    StaffSalary?
+  selfAttendance            StaffAttendance[]
+  appointments              Appointment[]
+  parentMeetingNotes        ParentMeetingNote[]
+  sentSmsLogs               SmsLog[]
+  equipmentIssues           EquipmentIssue[]
+  researchPublications      ResearchPublication[]
+  textbookUploads           TextbookContent[]
+  loggedEnquiries           Enquiry[]
+  payslips                  Payslip[]               @relation("PayslipOwner")
+  generatedPayslips         Payslip[]               @relation("PayslipGeneratedBy")
+  reportedDisciplineRecords DisciplineRecord[]
+  recordedHealthRecords     HealthRecord[]
+  recordedVisitorLogs       VisitorLog[]
+  createdGalleryAlbums      GalleryAlbum[]
+  uploadedGalleryPhotos     GalleryPhoto[]
 
   @@unique([institutionId, employeeCode])
   @@index([institutionId, departmentId])
@@ -791,20 +827,27 @@ model QuestionBank {
 }
 
 model Exam {
-  id             String   @id @default(uuid())
-  institutionId  String
-  academicYearId String
-  name           String // e.g. "Mid Term Examination 2026"
-  examType       String // MID_TERM, FINAL, UNIT_TEST
-  startDate      DateTime
-  endDate        DateTime
-  status         String   @default("SCHEDULED")
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id                       String   @id @default(uuid())
+  institutionId            String
+  academicYearId           String
+  name                     String // e.g. "Mid Term Examination 2026"
+  examType                 String // MID_TERM, FINAL, UNIT_TEST
+  startDate                DateTime
+  endDate                  DateTime
+  status                   String   @default("SCHEDULED")
+  // Who actually holds authority over this exam — the paper, the evaluation, the result.
+  // Null (the common case) means the institution itself sets and conducts it: true for
+  // every School, every University, and an Autonomous College. Set only when a plain
+  // (non-autonomous) College's affiliating University is the real examining authority —
+  // the college still runs it inside SCOMS, this just records who legally owns it.
+  conductedByInstitutionId String?
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
 
-  institution  Institution    @relation(fields: [institutionId], references: [id])
-  academicYear AcademicYear   @relation(fields: [academicYearId], references: [id])
-  schedules    ExamSchedule[]
+  institution            Institution    @relation(fields: [institutionId], references: [id])
+  academicYear           AcademicYear   @relation(fields: [academicYearId], references: [id])
+  conductedByInstitution Institution?   @relation("ExamConductedBy", fields: [conductedByInstitutionId], references: [id])
+  schedules              ExamSchedule[]
 }
 
 model ExamSchedule {
@@ -1537,6 +1580,92 @@ model JobApplication {
   @@unique([jobPostingId, studentId])
 }
 
+// ------------------------------------------------------
+// RESEARCH & PUBLICATIONS — University-specific: faculty record their own papers,
+// patents, conference talks and book chapters; Institute Admin gets an institution-wide view.
+// ------------------------------------------------------
+model ResearchPublication {
+  id              String   @id @default(uuid())
+  institutionId   String
+  staffId         String
+  title           String
+  publicationType String   @default("JOURNAL") // JOURNAL, CONFERENCE, PATENT, BOOK_CHAPTER
+  journalName     String? // journal/conference/patent-office name, as applicable
+  publicationDate DateTime
+  doiOrLink       String? // DOI, patent number, or a URL — whatever the type has
+  coAuthors       String? // free text — other authors, since not all are SCOMS staff
+  description     String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  institution Institution @relation(fields: [institutionId], references: [id])
+  staff       Staff       @relation(fields: [staffId], references: [id], onDelete: Cascade)
+
+  @@index([institutionId, staffId])
+}
+
+// ------------------------------------------------------
+// ALUMNI NETWORK — graduated students tracked as their own real record (not a copy of
+// Student — many alumni predate SCOMS itself, so `student` link is optional).
+// ------------------------------------------------------
+model AlumniRecord {
+  id                 String   @id @default(uuid())
+  institutionId      String
+  studentId          String?  @unique // linked automatically when promoted from an existing SCOMS student
+  fullName           String
+  graduationYear     Int
+  courseName         String?
+  currentEmployer    String?
+  currentDesignation String?
+  email              String?
+  phone              String?
+  linkedinUrl        String?
+  testimonial        String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  institution Institution @relation(fields: [institutionId], references: [id])
+  student     Student?    @relation(fields: [studentId], references: [id])
+
+  @@index([institutionId, graduationYear])
+}
+
+enum DegreeStatus {
+  PENDING
+  ISSUED
+  REVOKED
+}
+
+// ------------------------------------------------------
+// CONVOCATION / DEGREE ISSUANCE — distinct from the Certificates module (TC/bonafide/
+// conduct, which any institution type issues); this is specifically the formal degree a
+// University (or an autonomous College) confers, with its own registry number and date.
+// ------------------------------------------------------
+model DegreeRecord {
+  id                   String       @id @default(uuid())
+  institutionId        String
+  studentId            String
+  degreeName           String // e.g. "Bachelor of Technology in Computer Science"
+  degreeNumber         String? // official registry number, assigned at issuance
+  convocationDate      DateTime?
+  issuedDate           DateTime?
+  status               DegreeStatus @default(PENDING)
+  // The legal issuer of this degree. Null means the institution itself confers it (true
+  // for a University or an Autonomous College). Set when a plain College's students'
+  // degrees are actually conferred by its affiliating University — defaults to that
+  // university automatically when the college has one on file.
+  issuingInstitutionId String?
+  createdAt            DateTime     @default(now())
+  updatedAt            DateTime     @updatedAt
+
+  institution        Institution  @relation(fields: [institutionId], references: [id])
+  student            Student      @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  issuingInstitution Institution? @relation("DegreeIssuedBy", fields: [issuingInstitutionId], references: [id])
+
+  @@unique([studentId, degreeName])
+  @@index([institutionId, status])
+}
+
 // Real forgot-password OTP flow, shared by all 4 portals' login pages (User is the one
 // table every role authenticates against, so this needs no per-portal duplication).
 model PasswordResetOtp {
@@ -1700,6 +1829,22 @@ model SupportTicket {
   @@index([status])
 }
 
+model KnowledgeBaseArticle {
+  id        String   @id @default(uuid())
+  title     String
+  category  String   @default("General")
+  content   String
+  author    String?
+  authorId  String?
+  views     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  authorUser User? @relation(fields: [authorId], references: [id])
+
+  @@index([category])
+}
+
 model PlatformSetting {
   id              String  @id @default("global")
   appName         String  @default("SCOMS Platform")
@@ -1735,6 +1880,47 @@ model AiUsageLog {
 
   @@index([institutionId, createdAt])
   @@index([module])
+}
+
+// Platform-wide AI provider config — one real API key/model the whole SaaS uses, set once
+// by Super Admin (billed centrally, usage tracked per-institution via AiUsageLog above).
+// Singleton row (id is always "singleton"). apiKey is write-only from the API's point of
+// view — GET responses never echo it back, only whether one is set.
+model PlatformAiSettings {
+  id          String   @id @default("singleton")
+  provider    String   @default("openai") // openai | gemini | anthropic — only openai actually wired up right now
+  apiKey      String?
+  model       String   @default("gpt-4o-mini")
+  temperature Float    @default(0.3)
+  updatedBy   String?
+  updatedAt   DateTime @updatedAt
+}
+
+enum TextbookLanguage {
+  TAMIL
+  ENGLISH
+}
+
+// The actual syllabus content the AI Tutor grounds its answers in — uploaded once per
+// class+subject+language, referenced live at question time (RAG), never used to "train"
+// a model. This is what makes the tutor answer from *this school's* Std 5-12 books instead
+// of guessing from general knowledge.
+model TextbookContent {
+  id            String           @id @default(uuid())
+  institutionId String
+  classGrade    Int // 5-12
+  subject       String
+  language      TextbookLanguage
+  chapterTitle  String
+  content       String // the chapter text itself — what gets fed to the AI as context
+  uploadedById  String?
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  institution Institution @relation(fields: [institutionId], references: [id])
+  uploadedBy  Staff?      @relation(fields: [uploadedById], references: [id])
+
+  @@index([institutionId, classGrade, subject, language])
 }
 
 model SmsLog {
@@ -2371,4 +2557,227 @@ model InstitutionCertificateTemplate {
 
   @@unique([institutionId, templateId])
   @@index([institutionId])
+}
+
+// ------------------------------------------------------
+// 21. FRONT OFFICE / ADMISSION ENQUIRY
+// ------------------------------------------------------
+
+model Enquiry {
+  id                 String    @id @default(uuid())
+  institutionId      String
+  studentName        String
+  parentName         String?
+  phone              String
+  email              String?
+  classAppliedFor    String?
+  source             String    @default("WALK_IN") // WALK_IN, PHONE, WEBSITE, REFERRAL, SOCIAL_MEDIA, OTHER
+  status             String    @default("NEW") // NEW, CONTACTED, FOLLOW_UP, CONVERTED, LOST
+  followUpDate       DateTime?
+  notes              String?
+  convertedStudentId String?
+  createdById        String? // Staff who logged the enquiry
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  institution Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  createdBy   Staff?      @relation(fields: [createdById], references: [id])
+
+  @@index([institutionId, status])
+}
+
+// ------------------------------------------------------
+// 22. PAYROLL
+// ------------------------------------------------------
+
+model Payslip {
+  id              String    @id @default(uuid())
+  institutionId   String
+  staffId         String
+  month           Int // 1-12
+  year            Int
+  basicPay        Float     @default(0)
+  hra             Float     @default(0)
+  da              Float     @default(0)
+  otherAllowances Float     @default(0)
+  deductions      Float     @default(0)
+  leaveDeduction  Float     @default(0)
+  netPay          Float     @default(0)
+  status          String    @default("GENERATED") // GENERATED, PAID
+  generatedById   String?
+  paidAt          DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  institution Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  staff       Staff       @relation("PayslipOwner", fields: [staffId], references: [id], onDelete: Cascade)
+  generatedBy Staff?      @relation("PayslipGeneratedBy", fields: [generatedById], references: [id])
+
+  @@unique([staffId, month, year])
+  @@index([institutionId, month, year])
+}
+
+// ------------------------------------------------------
+// 23. STUDENT DISCIPLINE
+// ------------------------------------------------------
+
+model DisciplineRecord {
+  id            String   @id @default(uuid())
+  institutionId String
+  studentId     String
+  incidentDate  DateTime @default(now())
+  category      String   @default("MINOR") // MINOR, MAJOR, SEVERE
+  description   String
+  actionTaken   String?
+  status        String   @default("OPEN") // OPEN, RESOLVED
+  reportedById  String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  institution Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  student     Student     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  reportedBy  Staff?      @relation(fields: [reportedById], references: [id])
+
+  @@index([institutionId, studentId])
+}
+
+// ------------------------------------------------------
+// 24. STUDENT HEALTH
+// ------------------------------------------------------
+
+model HealthRecord {
+  id                 String   @id @default(uuid())
+  institutionId      String
+  studentId          String
+  visitDate          DateTime @default(now())
+  symptoms           String?
+  diagnosis          String?
+  actionTaken        String?
+  referredToHospital Boolean  @default(false)
+  parentNotified     Boolean  @default(false)
+  recordedById       String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  institution Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  student     Student     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  recordedBy  Staff?      @relation(fields: [recordedById], references: [id])
+
+  @@index([institutionId, studentId])
+}
+
+// ------------------------------------------------------
+// 25. VISITOR / GATE MANAGEMENT
+// ------------------------------------------------------
+
+model VisitorLog {
+  id            String    @id @default(uuid())
+  institutionId String
+  visitorName   String
+  phone         String?
+  purpose       String
+  whomToMeet    String?
+  idProofType   String?
+  idProofNumber String?
+  checkInTime   DateTime  @default(now())
+  checkOutTime  DateTime?
+  recordedById  String?
+  createdAt     DateTime  @default(now())
+
+  institution Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  recordedBy  Staff?      @relation(fields: [recordedById], references: [id])
+
+  @@index([institutionId, checkInTime])
+}
+
+// ------------------------------------------------------
+// 26. PHOTO GALLERY
+// ------------------------------------------------------
+
+model GalleryAlbum {
+  id            String   @id @default(uuid())
+  institutionId String
+  title         String
+  description   String?
+  category      String   @default("GENERAL") // EVENTS, SPORTS, ACADEMICS, CULTURAL, GENERAL
+  createdById   String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  institution Institution    @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  createdBy   Staff?         @relation(fields: [createdById], references: [id])
+  photos      GalleryPhoto[]
+
+  @@index([institutionId, category])
+}
+
+model GalleryPhoto {
+  id           String   @id @default(uuid())
+  albumId      String
+  imageData    String // base64 data URI — same convention as Institution.logo, no external storage needed
+  caption      String?
+  uploadedById String?
+  createdAt    DateTime @default(now())
+
+  album      GalleryAlbum @relation(fields: [albumId], references: [id], onDelete: Cascade)
+  uploadedBy Staff?       @relation(fields: [uploadedById], references: [id])
+
+  @@index([albumId])
+}
+
+// ------------------------------------------------------
+// 27. GRADING SYSTEM
+// ------------------------------------------------------
+
+/// Institution-configurable letter-grade / grade-point scale. Drives both the letter
+/// grade shown against each subject mark and real SGPA/CGPA computation on marksheets —
+/// replacing what used to be a hardcoded, non-editable scale.
+model GradeScale {
+  id            String   @id @default(uuid())
+  institutionId String
+  grade         String // e.g. O, A+, A, B+, B, F
+  minPercentage Float
+  maxPercentage Float
+  gradePoint    Float // on a 10-point scale
+  description   String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  institution Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+
+  @@unique([institutionId, grade])
+  @@index([institutionId])
+}
+
+// ------------------------------------------------------
+// 28. MESSAGE TEMPLATES (SMS / Email / WhatsApp)
+// ------------------------------------------------------
+
+enum MessageChannel {
+  SMS
+  EMAIL
+  WHATSAPP
+}
+
+/// A reusable message template for bulk broadcast. `institutionId` null = a platform
+/// default (isSystem: true, seeded once, visible to every institution, never editable
+/// by an Institute Admin); a real institutionId = that institution's own custom
+/// template, fully editable/deletable by them. `body` may contain {{name}} which the
+/// broadcast sender substitutes with each real recipient's name at send time.
+model MessageTemplate {
+  id            String         @id @default(uuid())
+  institutionId String?
+  channel       MessageChannel
+  category      String // OTP_LOGIN, WELCOME_CREDENTIALS, FEE_DUE, ATTENDANCE_ABSENT, EXAM_SCHEDULE, ...
+  title         String
+  subject       String? // EMAIL only
+  body          String
+  isSystem      Boolean        @default(false)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  institution Institution? @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+
+  @@index([institutionId, channel])
+  @@index([channel, category])
 }

@@ -20,6 +20,9 @@ import SectionSetupPage from '../pages/setup/SectionSetupPage';
 import SubjectSetupPage from '../pages/setup/SubjectSetupPage';
 import BatchSetupPage from '../pages/setup/BatchSetupPage';
 import HouseGroupSetupPage from '../pages/setup/HouseGroupSetupPage';
+import AffiliatedCollegesPage from '../pages/setup/AffiliatedCollegesPage';
+import VisitorManagementPage from '../pages/setup/VisitorManagementPage';
+import EnquiryManagementPage from '../pages/admissions/EnquiryManagementPage';
 
 // Student
 import StudentAdmissionPage from '../pages/student/StudentAdmissionPage';
@@ -32,6 +35,9 @@ import IDCardPreviewPage from '../pages/student/IDCardPreviewPage';
 import StudentDocumentsPage from '../pages/student/StudentDocumentsPage';
 import PromoteStudentsPage from '../pages/student/PromoteStudentsPage';
 import AlumniManagementPage from '../pages/student/AlumniManagementPage';
+import DegreeIssuancePage from '../pages/student/DegreeIssuancePage';
+import DisciplineRecordsPage from '../pages/student/DisciplineRecordsPage';
+import HealthRecordsPage from '../pages/student/HealthRecordsPage';
 
 // Staff
 import StaffRegistrationPage from '../pages/staff/StaffRegistrationPage';
@@ -46,6 +52,9 @@ import StaffAttendancePage from '../pages/staff/StaffAttendancePage';
 import StaffIDCardPage from '../pages/staff/StaffIDCardPage';
 import ServiceCertificatePage from '../pages/staff/ServiceCertificatePage';
 import TeacherAssignmentsPage from '../pages/staff/TeacherAssignmentsPage';
+import ResearchOversightPage from '../pages/staff/ResearchOversightPage';
+import AiTutorContentPage from '../pages/staff/AiTutorContentPage';
+import PayrollPage from '../pages/staff/PayrollPage';
 
 // Attendance
 import DailyAttendancePage from '../pages/attendance/DailyAttendancePage';
@@ -97,8 +106,10 @@ import CircularsPage from '../pages/communication/CircularsPage';
 import SMSCenterPage from '../pages/communication/SMSCenterPage';
 import EmailCenterPage from '../pages/communication/EmailCenterPage';
 import WhatsAppNoticePage from '../pages/communication/WhatsAppNoticePage';
+import TemplateLibraryPage from '../pages/communication/TemplateLibraryPage';
 import EventNotificationsPage from '../pages/communication/EventNotificationsPage';
 import GrievanceManagementPage from '../pages/communication/GrievanceManagementPage';
+import GalleryManagementPage from '../pages/communication/GalleryManagementPage';
 import ClubManagementPage from '../pages/communication/ClubManagementPage';
 
 // Library
@@ -158,6 +169,9 @@ import StaffReportPage from '../pages/reports/StaffReportPage';
 import TransportReportPage from '../pages/reports/TransportReportPage';
 import LibraryReportPage from '../pages/reports/LibraryReportPage';
 import FeedbackSummaryPage from '../pages/reports/FeedbackSummaryPage';
+import ConsolidatedMarksReportPage from '../pages/reports/ConsolidatedMarksReportPage';
+import ConsolidatedAttendanceReportPage from '../pages/reports/ConsolidatedAttendanceReportPage';
+import DateWiseAttendanceReportPage from '../pages/reports/DateWiseAttendanceReportPage';
 
 // Settings
 import UserRolesPage from '../pages/settings/UserRolesPage';
@@ -200,6 +214,11 @@ export const AppRoutes = () => {
         <Route path="setup/subject" element={<SubjectSetupPage />} />
         <Route path="setup/batch" element={<BatchSetupPage />} />
         <Route path="setup/house" element={<HouseGroupSetupPage />} />
+        <Route path="setup/affiliated-colleges" element={<AffiliatedCollegesPage />} />
+        <Route path="setup/visitors" element={<VisitorManagementPage />} />
+
+        {/* Front Office */}
+        <Route path="admissions/enquiries" element={<EnquiryManagementPage />} />
 
         {/* Student Management */}
         <Route path="student/admission" element={<StudentAdmissionPage />} />
@@ -212,6 +231,9 @@ export const AppRoutes = () => {
         <Route path="student/documents" element={<StudentDocumentsPage />} />
         <Route path="student/promote" element={<PromoteStudentsPage />} />
         <Route path="student/alumni" element={<AlumniManagementPage />} />
+        <Route path="student/degrees" element={<DegreeIssuancePage />} />
+        <Route path="student/discipline" element={<DisciplineRecordsPage />} />
+        <Route path="student/health" element={<HealthRecordsPage />} />
 
         {/* Staff Management */}
         <Route path="staff/registration" element={<StaffRegistrationPage />} />
@@ -226,6 +248,9 @@ export const AppRoutes = () => {
         <Route path="staff/id-card" element={<StaffIDCardPage />} />
         <Route path="staff/service-cert" element={<ServiceCertificatePage />} />
         <Route path="staff/assignments" element={<TeacherAssignmentsPage />} />
+        <Route path="staff/research" element={<ResearchOversightPage />} />
+        <Route path="staff/ai-tutor-content" element={<AiTutorContentPage />} />
+        <Route path="staff/payroll" element={<PayrollPage />} />
 
         {/* Attendance */}
         <Route path="attendance/daily" element={<DailyAttendancePage />} />
@@ -276,8 +301,10 @@ export const AppRoutes = () => {
         <Route path="communication/sms-center" element={<SMSCenterPage />} />
         <Route path="communication/email-center" element={<EmailCenterPage />} />
         <Route path="communication/whatsapp" element={<WhatsAppNoticePage />} />
+        <Route path="communication/templates" element={<TemplateLibraryPage />} />
         <Route path="communication/events" element={<EventNotificationsPage />} />
         <Route path="communication/grievances" element={<GrievanceManagementPage />} />
+        <Route path="communication/gallery" element={<GalleryManagementPage />} />
         <Route path="communication/clubs" element={<ClubManagementPage />} />
 
         {/* Library */}
@@ -330,9 +357,12 @@ export const AppRoutes = () => {
         <Route path="reports/request" element={<ReportRequestPage />} />
         <Route path="reports/admission" element={<AdmissionReportPage />} />
         <Route path="reports/attendance" element={<AttendanceReportPage />} />
+        <Route path="reports/attendance-datewise" element={<DateWiseAttendanceReportPage />} />
+        <Route path="reports/attendance-consolidated" element={<ConsolidatedAttendanceReportPage />} />
         <Route path="reports/fee-collection" element={<FeeCollectionReportPage />} />
         <Route path="reports/outstanding" element={<OutstandingReportPage />} />
         <Route path="reports/exam-results" element={<ExamResultReportPage />} />
+        <Route path="reports/marks-consolidated" element={<ConsolidatedMarksReportPage />} />
         <Route path="reports/staff" element={<StaffReportPage />} />
         <Route path="reports/transport" element={<TransportReportPage />} />
         <Route path="reports/library" element={<LibraryReportPage />} />

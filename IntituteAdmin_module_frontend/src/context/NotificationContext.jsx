@@ -3,6 +3,33 @@ import { CheckCircle2, AlertCircle, Info, X, AlertTriangle } from 'lucide-react'
 
 const NotificationContext = createContext();
 
+const TOAST_STYLES = {
+  success: {
+    icon: CheckCircle2,
+    accent: 'bg-emerald-500',
+    iconWrap: 'bg-emerald-100 dark:bg-emerald-500/15 text-emerald-600 dark:text-emerald-400',
+    bar: 'bg-emerald-500',
+  },
+  error: {
+    icon: AlertCircle,
+    accent: 'bg-rose-500',
+    iconWrap: 'bg-rose-100 dark:bg-rose-500/15 text-rose-600 dark:text-rose-400',
+    bar: 'bg-rose-500',
+  },
+  warning: {
+    icon: AlertTriangle,
+    accent: 'bg-amber-500',
+    iconWrap: 'bg-amber-100 dark:bg-amber-500/15 text-amber-600 dark:text-amber-400',
+    bar: 'bg-amber-500',
+  },
+  info: {
+    icon: Info,
+    accent: 'bg-indigo-500',
+    iconWrap: 'bg-indigo-100 dark:bg-indigo-500/15 text-indigo-600 dark:text-indigo-400',
+    bar: 'bg-indigo-500',
+  },
+};
+
 export const NotificationProvider = ({ children }) => {
   const [toasts, setToasts] = useState([]);
 
@@ -32,40 +59,37 @@ export const NotificationProvider = ({ children }) => {
       {/* Toast Notification Container */}
       <div className="fixed bottom-5 right-5 z-50 flex flex-col gap-3 max-w-sm w-full pointer-events-none no-print">
         {toasts.map((toast) => {
-          const isSuccess = toast.type === 'success';
-          const isError = toast.type === 'error';
-          const isWarning = toast.type === 'warning';
-
-          let bgClass = 'bg-slate-900 border-slate-700 text-white';
-          let icon = <Info className="w-5 h-5 text-blue-400 shrink-0" />;
-
-          if (isSuccess) {
-            bgClass = 'bg-emerald-900/90 border-emerald-600 text-emerald-100';
-            icon = <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />;
-          } else if (isError) {
-            bgClass = 'bg-rose-900/90 border-rose-600 text-rose-100';
-            icon = <AlertCircle className="w-5 h-5 text-rose-400 shrink-0" />;
-          } else if (isWarning) {
-            bgClass = 'bg-amber-900/90 border-amber-600 text-amber-100';
-            icon = <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0" />;
-          }
+          const style = TOAST_STYLES[toast.type] || TOAST_STYLES.info;
+          const Icon = style.icon;
 
           return (
             <div
               key={toast.id}
-              className={`pointer-events-auto flex items-start gap-3 p-4 rounded-xl border shadow-xl backdrop-blur-md transition-all duration-300 transform translate-y-0 animate-slide-up ${bgClass}`}
+              className="pointer-events-auto relative w-full overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 shadow-2xl shadow-slate-900/10 dark:shadow-black/40 backdrop-blur-md animate-toast-in"
             >
-              {icon}
-              <div className="flex-1 min-w-0">
-                {toast.title && <h4 className="text-sm font-semibold mb-0.5">{toast.title}</h4>}
-                <p className="text-xs opacity-90 leading-relaxed">{toast.message}</p>
+              <span className={`absolute inset-y-0 left-0 w-1 ${style.accent}`} />
+              <div className="flex items-start gap-3 p-4 pl-4">
+                <div className={`shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${style.iconWrap}`}>
+                  <Icon className="w-4 h-4" />
+                </div>
+                <div className="flex-1 min-w-0 pt-0.5">
+                  {toast.title && (
+                    <h4 className="text-sm font-bold text-slate-900 dark:text-white">{toast.title}</h4>
+                  )}
+                  <p className="text-xs text-slate-600 dark:text-slate-300 mt-0.5 leading-relaxed">
+                    {toast.message}
+                  </p>
+                </div>
+                <button
+                  onClick={() => removeToast(toast.id)}
+                  className="shrink-0 -mr-1 -mt-1 p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
               </div>
-              <button
-                onClick={() => removeToast(toast.id)}
-                className="text-slate-400 hover:text-white p-1 rounded-lg transition-colors"
-              >
-                <X className="w-4 h-4" />
-              </button>
+              <div className="h-0.5 w-full bg-slate-100 dark:bg-slate-800">
+                <div className={`h-full ${style.bar} toast-progress-bar`} />
+              </div>
             </div>
           );
         })}
