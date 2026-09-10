@@ -15,10 +15,36 @@
 const nodemailer = require('nodemailer');
 const logger = require('./logger');
 const prisma = require('../database/client');
+const { ROLES } = require('../constants/roles');
+const { pushNotificationToMany } = require('./notificationCenter');
 
 // ============================================================
 // Generic per-channel wallet + logging helpers
 // ============================================================
+
+// Fires once per landmark so the Institute Admin isn't notified on every single send below
+// the line — only when the balance actually crosses one of these thresholds downward.
+const LOW_CREDIT_LANDMARKS = [20, 10, 5, 1];
+
+const notifyLowCreditBalance = async (institutionId, channelLabel, balance) => {
+  if (!LOW_CREDIT_LANDMARKS.includes(balance)) return;
+  try {
+    const admins = await prisma.user.findMany({
+      where: { institutionId, role: ROLES.INSTITUTE_ADMIN, status: 'ACTIVE' },
+      select: { id: true },
+    });
+    await pushNotificationToMany({
+      userIds: admins.map((a) => a.id),
+      institutionId,
+      title: `Low ${channelLabel.toUpperCase()} Credit Balance`,
+      message: `Only ${balance} ${channelLabel} credit${balance === 1 ? '' : 's'} left. Top up soon to avoid interrupted delivery.`,
+      type: 'SMS_CREDIT',
+      link: '/admin/settings/sms',
+    });
+  } catch (err) {
+    logger.error('Failed to send low-credit notification:', err);
+  }
+};
 
 /** Decrements an institution's wallet balance by 1, if a wallet exists for it. */
 const consumeInstitutionCredit = async (walletModel, institutionId, channelLabel) => {
@@ -35,6 +61,10 @@ const consumeInstitutionCredit = async (walletModel, institutionId, channelLabel
   if (result.count === 0) {
     return { allowed: false, reason: `Institution ${channelLabel} credit balance exhausted` };
   }
+
+  const updated = await walletModel.findUnique({ where: { institutionId }, select: { balance: true } });
+  if (updated) notifyLowCreditBalance(institutionId, channelLabel, updated.balance).catch(() => {});
+
   return { allowed: true };
 };
 

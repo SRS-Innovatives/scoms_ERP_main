@@ -26,7 +26,10 @@ const achievementController = require('../controllers/achievementController');
 const feedbackController = require('../controllers/feedbackController');
 const appointmentController = require('../controllers/appointmentController');
 const jobPostingController = require('../controllers/jobPostingController');
-const { requireAuth, requireTenant, requireModule, handleForgotPassword, handleVerifyOtp, handleResetPassword } = require('../../../shared');
+const {
+  requireAuth, requireTenant, requireModule, handleForgotPassword, handleVerifyOtp, handleResetPassword,
+  handleGetNotifications, handleGetUnreadCount, handleMarkNotificationRead, handleMarkAllNotificationsRead,
+} = require('../../../shared');
 
 // Standalone Auth Routes
 router.post('/auth/login', authController.login);
@@ -44,9 +47,16 @@ router.get('/auth/me', authController.getMe);
 router.post('/auth/change-password', authController.changePassword);
 router.patch('/auth/profile', authController.updateProfile);
 
+// Notification Center
+router.get('/notifications', handleGetNotifications);
+router.get('/notifications/unread-count', handleGetUnreadCount);
+router.patch('/notifications/:id/read', handleMarkNotificationRead);
+router.patch('/notifications/read-all', handleMarkAllNotificationsRead);
+
 // Profile Route (core — always accessible)
 router.get('/profile', studentProfileController.getProfile);
 router.patch('/profile', studentProfileController.updateProfile);
+router.get('/profile/id-card', studentProfileController.getIdCard);
 router.get('/subjects', studentProfileController.getMySubjects);
 
 // Attendance
@@ -78,7 +88,8 @@ router.post('/library/renew', requireModule('library'), campusController.renewBo
 router.get('/transport', requireModule('transport'), campusController.getMyTransport);
 router.get('/hostel', requireModule('hostel'), campusController.getMyHostel);
 
-// Assignments
+// Assignments / Homework
+router.use('/assignments', requireModule('homework'));
 router.get('/assignments', assignmentController.getMyAssignments);
 router.post('/assignments/submit', assignmentController.submitAssignment);
 

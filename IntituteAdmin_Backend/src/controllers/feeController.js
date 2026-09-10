@@ -16,6 +16,8 @@ const {
   generateChallanNumber,
   NotFoundError,
   ValidationError,
+  pushNotification,
+  pushNotificationToMany,
 } = require('../../../shared');
 
 // ============================================================
@@ -177,6 +179,16 @@ const assignFeeToStudent = async (req, res, next) => {
         scholarshipRef: scholarshipRef || null,
       },
     });
+
+    pushNotification({
+      userId: student.userId,
+      institutionId: req.institutionId,
+      title: 'New Fee Due',
+      message: `${structure.name}: ₹${assignment.dueAmount} due by ${structure.dueDate ? new Date(structure.dueDate).toLocaleDateString('en-IN') : 'the scheduled date'}.`,
+      type: 'FEE',
+      link: '/student/fees',
+    }).catch(() => {});
+
     return sendSuccess(res, assignment, 'Fee assigned to student successfully', 201);
   } catch (err) {
     next(err);
@@ -193,7 +205,7 @@ const bulkAssignFee = async (req, res, next) => {
 
     const students = await prisma.student.findMany({
       where: { institutionId: req.institutionId, courseId, status: 'ACTIVE', ...(sectionId && { sectionId }) },
-      select: { id: true },
+      select: { id: true, userId: true },
     });
     if (students.length === 0) throw new ValidationError('No active students found for the selected course/section');
 
@@ -212,6 +224,15 @@ const bulkAssignFee = async (req, res, next) => {
           ...computeAssignment(structure),
         })),
       });
+
+      pushNotificationToMany({
+        userIds: toAssign.map((s) => s.userId),
+        institutionId: req.institutionId,
+        title: 'New Fee Due',
+        message: `${structure.name}: ₹${structure.totalAmount} due by ${structure.dueDate ? new Date(structure.dueDate).toLocaleDateString('en-IN') : 'the scheduled date'}.`,
+        type: 'FEE',
+        link: '/student/fees',
+      }).catch(() => {});
     }
 
     return sendSuccess(

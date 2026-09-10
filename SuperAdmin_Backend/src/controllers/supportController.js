@@ -1,7 +1,7 @@
 /**
  * Super Admin Support Desk Controller
  */
-const { prisma, sendSuccess, NotFoundError } = require('../../../shared');
+const { prisma, sendSuccess, NotFoundError, ROLES, pushNotificationToMany } = require('../../../shared');
 
 const generateTicketNumber = () => `TKT-${Date.now().toString(36).toUpperCase()}`;
 
@@ -39,6 +39,16 @@ const createTicket = async (req, res, next) => {
         raisedByEmail,
       },
     });
+
+    prisma.user.findMany({ where: { role: { in: [ROLES.SUPER_ADMIN, ROLES.PLATFORM_ADMIN] }, status: 'ACTIVE' }, select: { id: true } })
+      .then((admins) => pushNotificationToMany({
+        userIds: admins.map((a) => a.id),
+        title: `New Support Ticket: ${ticket.ticketNumber}`,
+        message: `${subject} — raised by ${raisedByEmail || 'unknown'} (${priority || 'MEDIUM'} priority)`,
+        type: 'SUPPORT_TICKET',
+        link: `/super-admin/tickets/${ticket.id}`,
+      }))
+      .catch(() => {});
 
     return sendSuccess(res, ticket, 'Ticket created successfully', 201);
   } catch (err) {

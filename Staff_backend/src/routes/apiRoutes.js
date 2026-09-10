@@ -22,7 +22,10 @@ const appointmentController = require('../controllers/appointmentController');
 const parentMeetingController = require('../controllers/parentMeetingController');
 const smsController = require('../controllers/smsController');
 const achievementController = require('../controllers/achievementController');
-const { requireAuth, requireTenant, requireModule, handleForgotPassword, handleVerifyOtp, handleResetPassword } = require('../../../shared');
+const {
+  requireAuth, requireTenant, requireModule, handleForgotPassword, handleVerifyOtp, handleResetPassword,
+  handleGetNotifications, handleGetUnreadCount, handleMarkNotificationRead, handleMarkAllNotificationsRead,
+} = require('../../../shared');
 
 // Standalone Auth Routes
 router.post('/auth/login', authController.login);
@@ -40,6 +43,12 @@ router.get('/auth/me', authController.getMe);
 router.post('/auth/change-password', authController.changePassword);
 router.patch('/auth/profile', authController.updateProfile);
 
+// Notification Center
+router.get('/notifications', handleGetNotifications);
+router.get('/notifications/unread-count', handleGetUnreadCount);
+router.patch('/notifications/:id/read', handleMarkNotificationRead);
+router.patch('/notifications/read-all', handleMarkAllNotificationsRead);
+
 // Profile (self-service)
 router.get('/profile/me', profileController.getMyProfile);
 router.patch('/profile/me', profileController.updateMyProfile);
@@ -53,6 +62,7 @@ router.post('/leave', profileController.applyMyLeave);
 // Attendance Routes
 router.use('/attendance', requireModule('attendance'));
 router.get('/attendance/self', profileController.getMyAttendance);
+router.get('/attendance/sms-status', attendanceController.getSmsStatus);
 router.get('/attendance/my-classes', attendanceController.getMyClasses);
 router.get('/attendance/roster', attendanceController.getRoster);
 router.get('/attendance/session', attendanceController.getSession);
@@ -61,7 +71,8 @@ router.get('/attendance/monthly-grid', attendanceController.getMonthlyGrid);
 router.post('/attendance/mark', attendanceController.markAttendance);
 router.patch('/attendance/:sessionId', attendanceController.updateAttendance);
 
-// Assignment Routes
+// Assignment / Homework Routes
+router.use('/assignments', requireModule('homework'));
 router.get('/assignments/my-classes', assignmentController.getMyClasses);
 router.get('/assignments', assignmentController.getAssignments);
 router.post('/assignments', assignmentController.createAssignment);

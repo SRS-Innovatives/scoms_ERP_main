@@ -433,8 +433,10 @@ const getTeacherAssignments = async (req, res, next) => {
       where: { staff: { institutionId: req.institutionId } },
       include: {
         staff: { include: { user: { select: { email: true } } } },
-        subject: { include: { course: true } }
-      }
+        subject: { include: { course: true } },
+        section: { select: { id: true, name: true, semester: { select: { name: true, course: { select: { name: true } } } } } },
+      },
+      orderBy: { createdAt: 'desc' },
     });
     return sendSuccess(res, assignments, 'Teacher assignments retrieved');
   } catch (err) {
@@ -458,15 +460,28 @@ const assignTeacher = async (req, res, next) => {
     });
     if (!subject) throw new Error('Subject not found or access denied');
 
-    const assignment = await prisma.subjectTeacherMapping.create({
-      data: {
-        staffId,
-        subjectId,
-        sectionId,
-      }
-    });
+    // A subject can only have one teacher per section — re-assigning replaces the
+    // previous mapping instead of leaving two teachers silently attached to one class.
+    const existing = await prisma.subjectTeacherMapping.findFirst({ where: { subjectId, sectionId } });
+    const assignment = existing
+      ? await prisma.subjectTeacherMapping.update({ where: { id: existing.id }, data: { staffId } })
+      : await prisma.subjectTeacherMapping.create({ data: { staffId, subjectId, sectionId } });
 
-    return sendSuccess(res, assignment, 'Teacher assigned successfully', 201);
+    return sendSuccess(res, assignment, existing ? 'Teacher re-assigned successfully' : 'Teacher assigned successfully', existing ? 200 : 201);
+  } catch (err) {
+    next(err);
+  }
+};
+
+const removeTeacherAssignment = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const existing = await prisma.subjectTeacherMapping.findFirst({
+      where: { id, staff: { institutionId: req.institutionId } },
+    });
+    if (!existing) throw new Error('Assignment not found or access denied');
+    await prisma.subjectTeacherMapping.delete({ where: { id } });
+    return sendSuccess(res, null, 'Teacher assignment removed successfully');
   } catch (err) {
     next(err);
   }
@@ -488,4 +503,5 @@ module.exports = {
   updateLeaveStatus,
   getTeacherAssignments,
   assignTeacher,
+  removeTeacherAssignment,
 };

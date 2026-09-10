@@ -1,12 +1,10 @@
 import React, { useState } from 'react';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
-import { useNotification } from '../../context/NotificationContext';
-import { mockSupportTickets } from '../../data/mockSupportData';
+import NotificationBell from './NotificationBell';
 import {
   Sun,
   Moon,
-  Bell,
   Search,
   ChevronDown,
   User,
@@ -21,10 +19,8 @@ import { Link, useNavigate } from 'react-router-dom';
 export const Topbar = ({ sidebarOpen, setSidebarOpen }) => {
   const { isDark, toggleTheme } = useTheme();
   const { user, logout } = useAuth();
-  const { info } = useNotification();
   const navigate = useNavigate();
 
-  const [showNotifications, setShowNotifications] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
 
   return (
@@ -82,45 +78,8 @@ export const Topbar = ({ sidebarOpen, setSidebarOpen }) => {
             {isDark ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-slate-600" />}
           </button>
 
-          {/* Notifications Dropdown */}
-          <div className="relative">
-            <button
-              onClick={() => setShowNotifications(!showNotifications)}
-              className="p-2 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors relative"
-            >
-              <Bell className="w-4 h-4" />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-rose-500 rounded-full ring-2 ring-white dark:ring-slate-900"></span>
-            </button>
-
-            {showNotifications && (
-              <div className="absolute right-0 mt-2 w-80 sm:w-96 glass-card rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 p-4 z-50 animate-fadeIn bg-white dark:bg-slate-900">
-                <div className="flex items-center justify-between mb-3 border-b border-slate-200 dark:border-slate-800 pb-2">
-                  <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100">Platform Notifications</h4>
-                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300">
-                    3 Pending
-                  </span>
-                </div>
-                <div className="space-y-2 max-h-72 overflow-y-auto pr-1 text-xs">
-                  {mockSupportTickets.map((tck) => (
-                    <div
-                      key={tck.id}
-                      onClick={() => {
-                        info(`Opened Ticket ${tck.id}: ${tck.subject}`, tck.institution);
-                        setShowNotifications(false);
-                      }}
-                      className="p-2.5 rounded-xl border border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/60 cursor-pointer transition-all"
-                    >
-                      <div className="flex justify-between items-start">
-                        <h5 className="font-semibold text-slate-800 dark:text-slate-200">{tck.institution}</h5>
-                        <span className="text-[10px] text-slate-400">{tck.createdDate}</span>
-                      </div>
-                      <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-1">{tck.subject}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
+          {/* Notifications */}
+          <NotificationBell />
 
           {/* Profile Dropdown */}
           <div className="relative">

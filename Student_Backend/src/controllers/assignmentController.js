@@ -5,7 +5,7 @@
  * "my assignments" resolves the student's own course+section into that exact label and
  * matches on it, so a student only ever sees assignments actually targeted at their class.
  */
-const { prisma, sendSuccess, NotFoundError, ValidationError, formatClassLabel } = require('../../../shared');
+const { prisma, sendSuccess, NotFoundError, ValidationError, formatClassLabel, pushNotification } = require('../../../shared');
 
 const getMyAssignments = async (req, res, next) => {
   try {
@@ -48,6 +48,7 @@ const submitAssignment = async (req, res, next) => {
 
     const assignment = await prisma.assignment.findFirst({
       where: { id: assignmentId, institutionId: req.institutionId, className: className || undefined },
+      include: { staff: { select: { userId: true } } },
     });
     if (!assignment) throw new NotFoundError('Assignment not found or not assigned to your class');
 
@@ -58,6 +59,17 @@ const submitAssignment = async (req, res, next) => {
       create: { assignmentId, studentId: req.user.studentId, content, fileUrl, status: isLate ? 'LATE' : 'SUBMITTED' },
       update: { content, fileUrl, submittedAt: new Date(), status: isLate ? 'LATE' : 'SUBMITTED' },
     });
+
+    if (assignment.staff?.userId) {
+      pushNotification({
+        userId: assignment.staff.userId,
+        institutionId: req.institutionId,
+        title: 'Homework Submission Received',
+        message: `${student?.firstName || 'A student'} ${student?.lastName || ''} submitted "${assignment.title}"${isLate ? ' (late)' : ''}.`,
+        type: 'HOMEWORK',
+        link: `/staff/assignments/details?id=${assignment.id}`,
+      }).catch(() => {});
+    }
 
     return sendSuccess(res, submission, 'Homework submitted successfully', 201);
   } catch (err) {

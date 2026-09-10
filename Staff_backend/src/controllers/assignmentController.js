@@ -12,6 +12,7 @@ const {
   NotFoundError,
   ValidationError,
   formatClassLabel,
+  pushNotificationToMany,
 } = require('../../../shared');
 
 /** Subject+section combinations this staff member actually teaches — used to populate
@@ -37,10 +38,24 @@ const getMyClasses = async (req, res, next) => {
   }
 };
 
+// Homework attachments — image, PDF, or Word doc, sent as a base64 data URI (the same
+// convention used for photos/logos elsewhere, since this platform has no file-storage
+// server). Roughly 5MB raw caps a data URI comfortably under the 8mb JSON body limit.
+const ATTACHMENT_MIME_PATTERN = /^data:(image\/(png|jpeg|jpg)|application\/pdf|application\/msword|application\/vnd\.openxmlformats-officedocument\.wordprocessingml\.document);base64,/;
+const MAX_ATTACHMENT_BASE64_CHARS = 7 * 1024 * 1024; // ~5MB raw file, base64-inflated
+
 const createAssignment = async (req, res, next) => {
   try {
     const { title, description, subjectId, sectionId, dueDate, totalMarks, attachmentUrl } = req.body;
     if (!title || !subjectId || !sectionId || !dueDate) throw new ValidationError('title, subjectId, sectionId, dueDate are required');
+    if (attachmentUrl) {
+      if (!ATTACHMENT_MIME_PATTERN.test(attachmentUrl)) {
+        throw new ValidationError('Attachment must be a PNG, JPEG, PDF, or Word document');
+      }
+      if (attachmentUrl.length > MAX_ATTACHMENT_BASE64_CHARS) {
+        throw new ValidationError('Attachment is too large — please keep it under 5MB');
+      }
+    }
 
     const mapping = await prisma.subjectTeacherMapping.findFirst({
       where: { staffId: req.user.staffId, subjectId, sectionId },
@@ -61,6 +76,17 @@ const createAssignment = async (req, res, next) => {
         attachmentUrl,
       },
     });
+
+    prisma.student.findMany({ where: { sectionId, status: 'ACTIVE' }, select: { userId: true } })
+      .then((students) => pushNotificationToMany({
+        userIds: students.map((s) => s.userId),
+        institutionId: req.institutionId,
+        title: 'New Homework Posted',
+        message: `${mapping.subject.name}: ${title} — due ${new Date(dueDate).toLocaleDateString('en-IN')}.`,
+        type: 'HOMEWORK',
+        link: `/student/assignments`,
+      }))
+      .catch(() => {});
 
     return sendSuccess(res, assignment, 'Assignment created and published successfully', 201);
   } catch (err) {

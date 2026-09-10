@@ -15,7 +15,8 @@ import {
   FileCheck,
   BarChart3,
   Settings,
-  Briefcase
+  Briefcase,
+  ClipboardList
 } from 'lucide-react';
 
 export const navigationConfig = [
@@ -70,6 +71,7 @@ export const navigationConfig = [
       { key: 'teaching', title: 'Teaching Staff', path: '/admin/staff/teaching' },
       { key: 'non-teaching', title: 'Non-Teaching Staff', path: '/admin/staff/non-teaching' },
       { key: 'staff-profile', title: 'Staff Profile', path: '/admin/staff/profile' },
+      { key: 'assignments', title: 'Teacher Assignments', path: '/admin/staff/assignments' },
       { key: 'qualifications', title: 'Qualification Details', path: '/admin/staff/qualifications' },
       { key: 'experience', title: 'Experience Records', path: '/admin/staff/experience' },
       { key: 'salary', title: 'Salary Structure', path: '/admin/staff/salary' },
@@ -78,6 +80,12 @@ export const navigationConfig = [
       { key: 'staff-id', title: 'Staff ID Card', path: '/admin/staff/id-card' },
       { key: 'service-cert', title: 'Service Certificate', path: '/admin/staff/service-cert' }
     ]
+  },
+  {
+    key: 'homework',
+    title: 'Homework',
+    icon: ClipboardList,
+    path: '/admin/homework'
   },
   {
     key: 'attendance',

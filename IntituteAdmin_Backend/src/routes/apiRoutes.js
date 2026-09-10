@@ -31,7 +31,11 @@ const feedbackController = require('../controllers/feedbackController');
 const jobPostingController = require('../controllers/jobPostingController');
 const grievanceController = require('../controllers/grievanceController');
 const clubController = require('../controllers/clubController');
-const { requireAuth, requireTenant, requireModule, handleForgotPassword, handleVerifyOtp, handleResetPassword } = require('../../../shared');
+const homeworkController = require('../controllers/homeworkController');
+const {
+  requireAuth, requireTenant, requireModule, handleForgotPassword, handleVerifyOtp, handleResetPassword,
+  handleGetNotifications, handleGetUnreadCount, handleMarkNotificationRead, handleMarkAllNotificationsRead,
+} = require('../../../shared');
 
 // Standalone Auth Routes
 router.post('/auth/login', authController.login);
@@ -48,6 +52,12 @@ router.use(requireTenant);
 router.get('/auth/me', authController.getMe);
 router.post('/auth/change-password', authController.changePassword);
 router.patch('/auth/profile', authController.updateProfile);
+
+// Notification Center
+router.get('/notifications', handleGetNotifications);
+router.get('/notifications/unread-count', handleGetUnreadCount);
+router.patch('/notifications/:id/read', handleMarkNotificationRead);
+router.patch('/notifications/read-all', handleMarkAllNotificationsRead);
 
 // Dashboard
 router.get('/dashboard', dashboardController.getDashboard);
@@ -107,6 +117,7 @@ router.post('/staff/leave', staffController.createLeaveRequest);
 router.patch('/staff/leave/:id', staffController.updateLeaveStatus);
 router.get('/staff/assignments', staffController.getTeacherAssignments);
 router.post('/staff/assignments', staffController.assignTeacher);
+router.delete('/staff/assignments/:id', staffController.removeTeacherAssignment);
 router.get('/staff/:id', staffController.getStaffById);
 router.patch('/staff/:id', staffController.updateStaff);
 router.post('/staff/:staffId/qualifications', staffController.addQualification);
@@ -159,6 +170,11 @@ router.get('/students/:id/fee-items', feeEngineController.getStudentFeeItems);
 
 router.post('/fee-payments', feeEngineController.collectFeePaymentV2);
 router.post('/fee-receipts/:id/reprint', feeEngineController.reprintReceiptV2);
+
+// Homework — read-only institution-wide oversight of what staff have posted
+router.use('/homework', requireModule('homework'));
+router.get('/homework', homeworkController.getHomeworkList);
+router.get('/homework/:id', homeworkController.getHomeworkById);
 
 // Library
 router.use('/library', requireModule('library'));

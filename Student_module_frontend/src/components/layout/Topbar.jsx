@@ -6,7 +6,7 @@ import announcementService from '../../services/announcementService';
 import {
   Sun,
   Moon,
-  Bell,
+  Megaphone,
   Search,
   ChevronDown,
   User,
@@ -16,6 +16,7 @@ import {
   QrCode
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
+import NotificationBell from './NotificationBell';
 
 export const Topbar = ({ sidebarOpen, setSidebarOpen }) => {
   const { isDark, toggleTheme } = useTheme();
@@ -88,13 +89,17 @@ export const Topbar = ({ sidebarOpen, setSidebarOpen }) => {
             {isDark ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-slate-600" />}
           </button>
 
-          {/* Notifications Dropdown — real institution announcements */}
+          {/* Personal notifications — homework posted, absence marks, fee dues */}
+          <NotificationBell />
+
+          {/* Announcements — real institution-wide notices, distinct from personal notifications */}
           <div className="relative">
             <button
               onClick={() => setShowNotifications(!showNotifications)}
               className="p-2 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors relative"
+              title="Announcements"
             >
-              <Bell className="w-4 h-4" />
+              <Megaphone className="w-4 h-4" />
               {announcements.length > 0 && (
                 <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-rose-500 rounded-full ring-2 ring-white dark:ring-slate-900"></span>
               )}

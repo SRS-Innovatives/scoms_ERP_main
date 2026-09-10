@@ -8,8 +8,24 @@ const {
   ConflictError,
   NotFoundError,
   sendSMSNotification,
+  pushNotificationToMany,
   logger,
 } = require('../../../shared');
+
+/** Whether the Institute Admin currently allows staff-triggered absence SMS — the "Take
+ * Attendance" screen reads this to tell staff the truth about what pressing Save will do. */
+const getSmsStatus = async (req, res, next) => {
+  try {
+    const settings = await prisma.institutionSettings.findUnique({
+      where: { institutionId: req.institutionId },
+      select: { staffAttendanceSmsEnabled: true },
+    });
+    const enabled = settings ? settings.staffAttendanceSmsEnabled !== false : true;
+    return sendSuccess(res, { enabled }, 'SMS status retrieved successfully');
+  } catch (err) {
+    next(err);
+  }
+};
 
 /**
  * The classes (section + subject) this staff member is assigned to teach, so the
@@ -278,11 +294,34 @@ const notifyAbsentParents = async (records, institutionId, staffId) => {
     const students = await prisma.student.findMany({
       where: { id: { in: absentIds } },
       select: {
+        userId: true,
         firstName: true,
         lastName: true,
         parents: { include: { parent: { select: { fatherPhone: true, motherPhone: true, guardianPhone: true } } } },
       },
     });
+
+    // The student's own in-app notification is independent of the parent-SMS toggle below —
+    // it's the student's own account, not the SMS feature the Institute Admin is gating.
+    pushNotificationToMany({
+      userIds: students.map((s) => s.userId),
+      institutionId,
+      title: 'Marked Absent',
+      message: "You were marked ABSENT for today's class. Contact your class teacher if this is unexpected.",
+      type: 'ATTENDANCE',
+      link: '/student/attendance',
+    }).catch(() => {});
+
+    // The Institute Admin decides whether staff can trigger this SMS at all (Settings →
+    // SMS Gateway) — off by default is never assumed, so a missing settings row still sends.
+    const settings = await prisma.institutionSettings.findUnique({
+      where: { institutionId },
+      select: { staffAttendanceSmsEnabled: true },
+    });
+    if (settings && settings.staffAttendanceSmsEnabled === false) {
+      logger.info(`📱 [SMS SKIPPED] Staff attendance SMS is disabled by the Institute Admin for institution ${institutionId}`);
+      return;
+    }
 
     for (const student of students) {
       const phone = student.parents[0]?.parent?.fatherPhone || student.parents[0]?.parent?.motherPhone || student.parents[0]?.parent?.guardianPhone;
@@ -301,6 +340,7 @@ const notifyAbsentParents = async (records, institutionId, staffId) => {
 };
 
 module.exports = {
+  getSmsStatus,
   getMyClasses,
   getRoster,
   getSession,

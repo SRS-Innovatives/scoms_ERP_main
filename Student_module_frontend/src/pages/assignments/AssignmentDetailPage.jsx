@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import PageHeader from '../../components/common/PageHeader';
 import StatusBadge from '../../components/common/StatusBadge';
-import { ArrowLeft, Loader2, Calendar, FileText, MessageSquare } from 'lucide-react';
+import { ArrowLeft, Loader2, Calendar, FileText, MessageSquare, Paperclip, Download } from 'lucide-react';
 import { useNotification } from '../../context/NotificationContext';
 import assignmentService from '../../services/assignmentService';
 
@@ -37,6 +37,15 @@ export const AssignmentDetailPage = () => {
 
   const status = asn.mySubmission ? (asn.mySubmission.status === 'REVIEWED' ? 'Graded' : (asn.mySubmission.status === 'LATE' ? 'Late' : 'Submitted')) : 'Pending';
 
+  const isImageAttachment = asn.attachmentUrl?.startsWith('data:image');
+  const attachmentExt = asn.attachmentUrl?.startsWith('data:application/pdf')
+    ? 'pdf'
+    : asn.attachmentUrl?.includes('wordprocessingml')
+      ? 'docx'
+      : asn.attachmentUrl?.startsWith('data:application/msword')
+        ? 'doc'
+        : isImageAttachment ? (asn.attachmentUrl.includes('png') ? 'png' : 'jpg') : 'file';
+
   return (
     <div className="space-y-6 max-w-2xl">
       <PageHeader title={asn.title} subtitle={`${asn.className} • ${asn.subjectName}`} />
@@ -59,6 +68,35 @@ export const AssignmentDetailPage = () => {
             <p className="font-bold text-slate-900 dark:text-slate-100">{asn.mySubmission?.marksObtained ?? '—'} / {asn.totalMarks}</p>
           </div>
         </div>
+
+        {asn.description && (
+          <div className="p-4 bg-slate-50 dark:bg-slate-800/60 rounded-xl text-xs">
+            <p className="font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Instructions</p>
+            <p className="text-slate-600 dark:text-slate-300 whitespace-pre-wrap">{asn.description}</p>
+          </div>
+        )}
+
+        {asn.attachmentUrl && (
+          <div className="p-4 bg-slate-50 dark:bg-slate-800/60 rounded-xl text-xs">
+            <p className="font-semibold text-slate-700 dark:text-slate-300 mb-2 flex items-center gap-1.5">
+              <Paperclip className="w-3.5 h-3.5" /> Attachment
+            </p>
+            {isImageAttachment ? (
+              <a href={asn.attachmentUrl} target="_blank" rel="noreferrer" className="block">
+                <img src={asn.attachmentUrl} alt="Homework attachment" className="max-h-64 rounded-lg border border-slate-200 dark:border-slate-700" />
+              </a>
+            ) : (
+              <a
+                href={asn.attachmentUrl}
+                download={`${asn.title.replace(/[^a-z0-9]+/gi, '_')}.${attachmentExt}`}
+                className="inline-flex items-center gap-2 px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg font-semibold text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/40"
+              >
+                <FileText className="w-4 h-4" /> Download Attachment ({attachmentExt.toUpperCase()})
+                <Download className="w-3.5 h-3.5" />
+              </a>
+            )}
+          </div>
+        )}
 
         {asn.mySubmission && (
           <div className="p-4 bg-indigo-50/60 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900 rounded-xl text-xs space-y-2">

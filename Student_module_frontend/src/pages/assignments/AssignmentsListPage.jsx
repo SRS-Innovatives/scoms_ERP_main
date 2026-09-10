@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import PageHeader from '../../components/common/PageHeader';
 import StatusBadge from '../../components/common/StatusBadge';
 import SubmitAssignmentModal from '../../components/modals/SubmitAssignmentModal';
-import { FileText, Upload, CheckCircle2, Loader2, ClipboardList } from 'lucide-react';
+import { FileText, Upload, CheckCircle2, Loader2, ClipboardList, Paperclip } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useNotification } from '../../context/NotificationContext';
 import assignmentService from '../../services/assignmentService';
@@ -58,6 +58,11 @@ export const AssignmentsListPage = () => {
                   <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">{asn.title}</h3>
                   <p className="text-xs text-slate-500 mt-1">{asn.className} • Faculty: {asn.staff?.firstName} {asn.staff?.lastName}</p>
                   {asn.description && <p className="text-xs text-slate-600 dark:text-slate-300 mt-2 leading-relaxed line-clamp-2">{asn.description}</p>}
+                  {asn.attachmentUrl && (
+                    <span className="inline-flex items-center gap-1 mt-2 text-[10px] font-semibold text-sky-600 dark:text-sky-400">
+                      <Paperclip className="w-3 h-3" /> Attachment included
+                    </span>
+                  )}
                 </div>
 
                 <div className="space-y-3 pt-3 border-t border-slate-100 dark:border-slate-800">

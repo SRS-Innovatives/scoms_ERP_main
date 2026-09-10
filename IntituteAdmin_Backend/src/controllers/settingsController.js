@@ -13,6 +13,7 @@ const {
   sendSuccess,
   ROLES,
   ROLE_PERMISSIONS,
+  ValidationError,
 } = require('../../../shared');
 
 // ============================================================
@@ -90,14 +91,41 @@ const getSettings = async (req, res, next) => {
   }
 };
 
+const ID_CARD_ORIENTATIONS = ['VERTICAL', 'HORIZONTAL'];
+const ID_CARD_TEMPLATES = ['CLASSIC', 'MODERN', 'MINIMAL'];
+
 const updateSettings = async (req, res, next) => {
   try {
-    const { smtpHost, smtpPort, smtpFromEmail, smsProvider, smsSenderId, smsDltEntityId, paymentGatewayProvider, paymentKeyId } = req.body;
+    const {
+      smtpHost, smtpPort, smtpFromEmail, smsProvider, smsSenderId, smsDltEntityId,
+      staffAttendanceSmsEnabled, idCardOrientation, idCardTemplate,
+      paymentGatewayProvider, paymentKeyId,
+    } = req.body;
+    const smsToggle = staffAttendanceSmsEnabled === undefined ? undefined : Boolean(staffAttendanceSmsEnabled);
+
+    if (idCardOrientation !== undefined && !ID_CARD_ORIENTATIONS.includes(idCardOrientation)) {
+      throw new ValidationError(`idCardOrientation must be one of: ${ID_CARD_ORIENTATIONS.join(', ')}`);
+    }
+    if (idCardTemplate !== undefined && !ID_CARD_TEMPLATES.includes(idCardTemplate)) {
+      throw new ValidationError(`idCardTemplate must be one of: ${ID_CARD_TEMPLATES.join(', ')}`);
+    }
 
     const settings = await prisma.institutionSettings.upsert({
       where: { institutionId: req.institutionId },
-      create: { institutionId: req.institutionId, smtpHost, smtpPort, smtpFromEmail, smsProvider, smsSenderId, smsDltEntityId, paymentGatewayProvider, paymentKeyId },
-      update: { smtpHost, smtpPort, smtpFromEmail, smsProvider, smsSenderId, smsDltEntityId, paymentGatewayProvider, paymentKeyId },
+      create: {
+        institutionId: req.institutionId, smtpHost, smtpPort, smtpFromEmail, smsProvider, smsSenderId, smsDltEntityId,
+        staffAttendanceSmsEnabled: smsToggle ?? true,
+        idCardOrientation: idCardOrientation || 'VERTICAL',
+        idCardTemplate: idCardTemplate || 'CLASSIC',
+        paymentGatewayProvider, paymentKeyId,
+      },
+      update: {
+        smtpHost, smtpPort, smtpFromEmail, smsProvider, smsSenderId, smsDltEntityId,
+        ...(smsToggle !== undefined && { staffAttendanceSmsEnabled: smsToggle }),
+        ...(idCardOrientation !== undefined && { idCardOrientation }),
+        ...(idCardTemplate !== undefined && { idCardTemplate }),
+        paymentGatewayProvider, paymentKeyId,
+      },
     });
     return sendSuccess(res, settings, 'Settings saved successfully');
   } catch (err) {

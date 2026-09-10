@@ -16,6 +16,7 @@ const {
   sendSMSNotification,
   NotFoundError,
   ValidationError,
+  pushNotificationToMany,
 } = require('../../../shared');
 
 const getStudents = async (req, res, next) => {
@@ -84,12 +85,32 @@ const admitStudentWithinTx = async (tx, institutionId, actingUserId, data) => {
     firstName, lastName, dob, gender, bloodGroup, email, phone,
     address, city, state, pincode,
     fatherName, motherName, guardianName, parentPhone, parentEmail,
-    departmentId, courseId, semesterId, sectionId, rollNumber, password,
+    departmentId, courseId, semesterId, sectionId, rollNumber, registerNumber, password,
+    // Identity & personal
+    religion, nationality, motherTongue, aadhaarNumber, category, subCaste, alternatePhone,
+    // Contact
+    district, permanentAddress, landmark,
+    // Prior academic record
+    previousSchoolName, previousSchoolBoard, lastQualificationExam, qualifyingScore,
+    admissionQuota, scholarshipType, emisId,
+    // Health & emergency
+    medicalConditions, allergies, emergencyContactName, emergencyContactPhone,
+    // Bank (scholarship/refund disbursal)
+    bankAccountNumber, bankIfscCode, bankName,
+    // Service intent
+    transportRequired, hostelRequired,
+    // Parent/guardian — extended
+    fatherOccupation, motherOccupation, fatherEmail, motherEmail, guardianRelation, annualIncome, parentAddress,
+    // Photo — same base64 data-URI convention used by every profile-photo upload elsewhere
+    photo,
   } = data;
 
   if (!firstName || !lastName) throw new ValidationError('firstName and lastName are required');
   if (!email) throw new ValidationError('email is required');
   if (!dob || isNaN(new Date(dob).getTime())) throw new ValidationError('A valid dob is required');
+  if (photo && !/^data:image\/(png|jpeg|jpg);base64,/.test(photo)) {
+    throw new ValidationError('Student photo must be a PNG or JPEG image');
+  }
 
   // 1. Validate Academic setup belongs to Tenant
   if (sectionId) {
@@ -119,6 +140,7 @@ const admitStudentWithinTx = async (tx, institutionId, actingUserId, data) => {
       password: hashedPassword,
       role: ROLES.STUDENT,
       status: 'ACTIVE',
+      avatar: photo || null,
     },
   });
 
@@ -128,6 +150,7 @@ const admitStudentWithinTx = async (tx, institutionId, actingUserId, data) => {
       userId: user.id,
       institutionId,
       admissionNumber,
+      registerNumber,
       rollNumber,
       firstName,
       lastName,
@@ -144,6 +167,38 @@ const admitStudentWithinTx = async (tx, institutionId, actingUserId, data) => {
       courseId,
       semesterId,
       sectionId,
+      // Identity & personal
+      religion,
+      nationality,
+      motherTongue,
+      aadhaarNumber,
+      category,
+      subCaste,
+      alternatePhone,
+      // Contact
+      district,
+      permanentAddress,
+      landmark,
+      // Prior academic record
+      previousSchoolName,
+      previousSchoolBoard,
+      lastQualificationExam,
+      qualifyingScore,
+      admissionQuota,
+      scholarshipType,
+      emisId,
+      // Health & emergency
+      medicalConditions,
+      allergies,
+      emergencyContactName,
+      emergencyContactPhone,
+      // Bank
+      bankAccountNumber,
+      bankIfscCode,
+      bankName,
+      // Service intent
+      transportRequired: Boolean(transportRequired),
+      hostelRequired: Boolean(hostelRequired),
     },
   });
 
@@ -168,10 +223,17 @@ const admitStudentWithinTx = async (tx, institutionId, actingUserId, data) => {
       data: {
         userId: parentUser.id,
         fatherName,
+        fatherOccupation,
+        fatherEmail,
         motherName,
+        motherOccupation,
+        motherEmail,
         guardianName,
+        guardianRelation,
+        annualIncome,
         fatherPhone: parentPhone,
-        address,
+        guardianPhone: guardianName ? parentPhone : undefined,
+        address: parentAddress || address,
       }
     });
 
@@ -202,20 +264,13 @@ const admitStudentWithinTx = async (tx, institutionId, actingUserId, data) => {
 
 const createStudentAdmission = async (req, res, next) => {
   try {
-    const {
-      firstName, lastName, dob, gender, bloodGroup, email, phone,
-      address, city, state, pincode,
-      fatherName, motherName, guardianName, parentPhone, parentEmail,
-      departmentId, courseId, semesterId, sectionId, rollNumber, password,
-    } = req.body;
+    // admitStudentWithinTx destructures exactly the fields it persists (and ignores
+    // anything else), so the full ~55-field admission form can be forwarded as-is here
+    // without this handler having to re-list every field and risk falling out of sync.
+    const { firstName, lastName, email, phone, password } = req.body;
 
     const result = await prisma.$transaction((tx) =>
-      admitStudentWithinTx(tx, req.institutionId, req.user.id, {
-        firstName, lastName, dob, gender, bloodGroup, email, phone,
-        address, city, state, pincode,
-        fatherName, motherName, guardianName, parentPhone, parentEmail,
-        departmentId, courseId, semesterId, sectionId, rollNumber, password,
-      })
+      admitStudentWithinTx(tx, req.institutionId, req.user.id, req.body)
     );
 
     // Send email & SMS notifications to student with credentials
@@ -238,6 +293,17 @@ const createStudentAdmission = async (req, res, next) => {
         purpose: 'WELCOME_CREDENTIALS'
       }).catch(err => console.error('Error sending student welcome SMS:', err));
     }
+
+    prisma.user.findMany({ where: { institutionId: req.institutionId, role: ROLES.INSTITUTE_ADMIN, status: 'ACTIVE' }, select: { id: true } })
+      .then((admins) => pushNotificationToMany({
+        userIds: admins.map((a) => a.id),
+        institutionId: req.institutionId,
+        title: 'New Student Admission',
+        message: `${firstName} ${lastName} was admitted (${result.student.admissionNumber}).`,
+        type: 'ADMISSION',
+        link: `/admin/student/list`,
+      }))
+      .catch(() => {});
 
     return sendSuccess(res, result, 'Student admitted successfully', 201);
   } catch (err) {

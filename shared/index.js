@@ -28,6 +28,13 @@ const { formatClassLabel } = require('./utils/classLabel');
 const { getHealthPayload } = require('./utils/health');
 const reportEngine = require('./reportEngine');
 const certificateEngine = require('./certificateEngine');
+const { pushNotification, pushNotificationToMany } = require('./utils/notificationCenter');
+const {
+  handleGetNotifications,
+  handleGetUnreadCount,
+  handleMarkNotificationRead,
+  handleMarkAllNotificationsRead,
+} = require('./notifications/notificationControllerBase');
 
 module.exports = {
   ROLES,
@@ -65,4 +72,10 @@ module.exports = {
   requireRole,
   errorHandler,
   schemas,
+  pushNotification,
+  pushNotificationToMany,
+  handleGetNotifications,
+  handleGetUnreadCount,
+  handleMarkNotificationRead,
+  handleMarkAllNotificationsRead,
 };

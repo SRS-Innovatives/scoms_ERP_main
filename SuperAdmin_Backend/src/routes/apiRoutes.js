@@ -20,7 +20,10 @@ const emailController = require('../controllers/emailController');
 const whatsappController = require('../controllers/whatsappController');
 const announcementController = require('../controllers/announcementController');
 const reportManagementController = require('../controllers/reportManagementController');
-const { requireAuth, requireRole, ROLES, handleForgotPassword, handleVerifyOtp, handleResetPassword } = require('../../../shared');
+const {
+  requireAuth, requireRole, ROLES, handleForgotPassword, handleVerifyOtp, handleResetPassword,
+  handleGetNotifications, handleGetUnreadCount, handleMarkNotificationRead, handleMarkAllNotificationsRead,
+} = require('../../../shared');
 
 // Standalone Auth Routes
 router.post('/auth/login', authController.login);
@@ -37,6 +40,12 @@ router.use(requireRole(ROLES.SUPER_ADMIN, ROLES.PLATFORM_ADMIN));
 router.get('/auth/me', authController.getMe);
 router.post('/auth/change-password', authController.changePassword);
 router.patch('/auth/profile', authController.updateProfile);
+
+// Notification Center
+router.get('/notifications', handleGetNotifications);
+router.get('/notifications/unread-count', handleGetUnreadCount);
+router.patch('/notifications/:id/read', handleMarkNotificationRead);
+router.patch('/notifications/read-all', handleMarkAllNotificationsRead);
 
 // Dynamic Report Engine — Catalog Management
 router.get('/reports', reportManagementController.getReports);

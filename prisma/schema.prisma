@@ -182,6 +182,7 @@ model User {
   savedReports          SavedReport[]
   reportRequestsMade    ReportRequest[]    @relation("ReportRequestedBy")
   reportRequestsHandled ReportRequest[]    @relation("ReportRequestAssignedTo")
+  notifications         Notification[]
 
   @@unique([email])
   @@unique([mobile])
@@ -276,14 +277,16 @@ model Semester {
 }
 
 model Section {
-  id         String   @id @default(uuid())
-  semesterId String
-  name       String // e.g. "Section A"
-  capacity   Int      @default(60)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id             String   @id @default(uuid())
+  semesterId     String
+  name           String // e.g. "Section A"
+  capacity       Int      @default(60)
+  classTeacherId String? // the homeroom/class advisor — distinct from per-subject teachers below
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   semester           Semester                @relation(fields: [semesterId], references: [id], onDelete: Cascade)
+  classTeacher       Staff?                  @relation("SectionClassTeacher", fields: [classTeacherId], references: [id])
   students           Student[]
   attendanceSessions AttendanceSession[]
   timetables         Timetable[]
@@ -359,6 +362,46 @@ model Student {
   updatedAt       DateTime  @updatedAt
   deletedAt       DateTime?
 
+  // Identity & personal — the fuller demographic/government-ID detail an Indian
+  // school/college admission form actually collects
+  religion       String?
+  nationality    String? @default("Indian")
+  motherTongue   String?
+  aadhaarNumber  String?
+  category       String? // caste/community category, e.g. General / OBC / SC / ST
+  subCaste       String?
+  alternatePhone String?
+
+  // Contact — beyond the single residential address above
+  district         String?
+  permanentAddress String? // only filled in when different from the residential address
+  landmark         String?
+
+  // Prior academic record feeding this admission
+  previousSchoolName    String?
+  previousSchoolBoard   String?
+  lastQualificationExam String? // e.g. "10th SSLC" / "12th HSC"
+  qualifyingScore       String? // free text — marks/percentage/CGPA vary by board
+  admissionQuota        String? // e.g. Management / Government / NRI
+  scholarshipType       String?
+  emisId                String? // state-assigned student UID, where applicable
+
+  // Health & emergency
+  medicalConditions     String?
+  allergies             String?
+  emergencyContactName  String?
+  emergencyContactPhone String?
+
+  // Scholarship/refund disbursal
+  bankAccountNumber String?
+  bankIfscCode      String?
+  bankName          String?
+
+  // Service intent captured at admission — actual route/hostel-bed assignment happens
+  // later via StudentTransportMapping / HostelBed, this is just "do they want it"
+  transportRequired Boolean @default(false)
+  hostelRequired    Boolean @default(false)
+
   departmentId String?
   courseId     String?
   semesterId   String?
@@ -408,11 +451,15 @@ model Parent {
   fatherName       String?
   fatherOccupation String?
   fatherPhone      String?
+  fatherEmail      String?
   motherName       String?
   motherOccupation String?
   motherPhone      String?
+  motherEmail      String?
   guardianName     String?
   guardianPhone    String?
+  guardianRelation String? // how the guardian relates to the student, when a guardian is the primary contact instead of a parent
+  annualIncome     String? // free text — family income bracket, used for scholarship eligibility
   address          String?
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
@@ -471,6 +518,7 @@ model Staff {
   institution            Institution             @relation(fields: [institutionId], references: [id])
   department             Department?             @relation(fields: [departmentId], references: [id])
   subjectTeacherMappings SubjectTeacherMapping[]
+  classTeacherOf         Section[]               @relation("SectionClassTeacher")
   attendanceSessions     AttendanceSession[]
   timetableEntries       TimetableEntry[]
   assignments            Assignment[]
@@ -1286,14 +1334,20 @@ model Announcement {
 
 model Notification {
   id            String   @id @default(uuid())
-  institutionId String
+  institutionId String? // null for platform-level notifications (Super Admin) not tied to any one tenant
   userId        String
   title         String
   message       String
+  type          String? // e.g. ADMISSION, HOMEWORK, ATTENDANCE, FEE, SUPPORT_TICKET, SMS_CREDIT, INSTITUTION — lets the bell icon vary by category
+  link          String? // optional in-app path to navigate to when the notification is clicked
   isRead        Boolean  @default(false)
   createdAt     DateTime @default(now())
 
-  institution Institution @relation(fields: [institutionId], references: [id])
+  institution Institution? @relation(fields: [institutionId], references: [id])
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead])
+  @@index([userId, createdAt])
 }
 
 model Event {
@@ -1503,16 +1557,19 @@ model PasswordResetOtp {
 // ------------------------------------------------------
 
 model InstitutionSettings {
-  institutionId          String   @id
-  smtpHost               String?
-  smtpPort               String?
-  smtpFromEmail          String?
-  smsProvider            String?
-  smsSenderId            String?
-  smsDltEntityId         String?
-  paymentGatewayProvider String?
-  paymentKeyId           String? // public key/merchant id only — secrets stay server-side (.env), never stored here
-  updatedAt              DateTime @updatedAt
+  institutionId             String   @id
+  smtpHost                  String?
+  smtpPort                  String?
+  smtpFromEmail             String?
+  smsProvider               String?
+  smsSenderId               String?
+  smsDltEntityId            String?
+  staffAttendanceSmsEnabled Boolean  @default(true) // lets the Institute Admin turn off the auto-SMS-to-parent feature staff trigger by marking a student absent
+  idCardOrientation         String   @default("VERTICAL") // VERTICAL | HORIZONTAL — the institution's chosen ID card layout, applied everywhere a student/staff ID card renders
+  idCardTemplate            String   @default("CLASSIC") // CLASSIC | MODERN | MINIMAL — the institution's chosen visual style
+  paymentGatewayProvider    String?
+  paymentKeyId              String? // public key/merchant id only — secrets stay server-side (.env), never stored here
+  updatedAt                 DateTime @updatedAt
 
   institution Institution @relation(fields: [institutionId], references: [id])
 }

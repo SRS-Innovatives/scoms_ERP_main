@@ -382,7 +382,11 @@ const getSections = async (req, res, next) => {
         ...(semesterId && { semesterId }),
         semester: { course: { institutionId: req.institutionId } }, // Tenant isolation
       },
-      include: { semester: { include: { course: true } }, _count: { select: { students: true } } },
+      include: {
+        semester: { include: { course: true } },
+        _count: { select: { students: true } },
+        classTeacher: { select: { id: true, firstName: true, lastName: true, employeeCode: true, user: { select: { email: true } } } },
+      },
       orderBy: { name: 'asc' },
     });
     return sendSuccess(res, sections, 'Sections retrieved');
@@ -417,19 +421,29 @@ const createSection = async (req, res, next) => {
 const updateSection = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { name, capacity } = req.body;
+    const { name, capacity, classTeacherId } = req.body;
 
     const existing = await prisma.section.findFirst({
       where: { id, semester: { course: { institutionId: req.institutionId } } },
     });
     if (!existing) throw new NotFoundError('Section not found');
 
+    // classTeacherId is optional on this general update, but when it IS present (including
+    // explicit null, to unassign) it must resolve to real teaching staff of this tenant —
+    // never a raw id trusted from the request body.
+    if (classTeacherId !== undefined && classTeacherId !== null) {
+      const teacher = await prisma.staff.findFirst({ where: { id: classTeacherId, institutionId: req.institutionId } });
+      if (!teacher) throw new NotFoundError('Selected class teacher not found or access denied');
+    }
+
     const section = await prisma.section.update({
       where: { id },
       data: {
         ...(name !== undefined && { name }),
         ...(capacity !== undefined && { capacity: Number(capacity) }),
+        ...(classTeacherId !== undefined && { classTeacherId: classTeacherId || null }),
       },
+      include: { classTeacher: { select: { id: true, firstName: true, lastName: true } } },
     });
     return sendSuccess(res, section, 'Section updated successfully');
   } catch (err) {

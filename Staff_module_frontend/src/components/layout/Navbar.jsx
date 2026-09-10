@@ -7,7 +7,6 @@ import { useNavigate } from 'react-router-dom';
 import {
   Sun,
   Moon,
-  Bell,
   Search,
   ChevronDown,
   User,
@@ -17,13 +16,13 @@ import {
   MessageSquare
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import NotificationBell from './NotificationBell';
 
 export const Navbar = ({ sidebarOpen, setSidebarOpen, onOpenCompose }) => {
   const navigate = useNavigate();
   const { isDark, toggleTheme } = useTheme();
   const { info } = useNotification();
   const { profile, logout } = useAuth();
-  const [showNotifications, setShowNotifications] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [pendingLeaves, setPendingLeaves] = useState([]);
 
@@ -90,53 +89,18 @@ export const Navbar = ({ sidebarOpen, setSidebarOpen, onOpenCompose }) => {
             {isDark ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-slate-600" />}
           </button>
 
-          {/* Notifications Dropdown — real pending student-leave approvals */}
-          <div className="relative">
-            <button
-              onClick={() => setShowNotifications(!showNotifications)}
-              className="p-2 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors relative"
-            >
-              <Bell className="w-4 h-4" />
-              {pendingLeaves.length > 0 && (
-                <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-rose-500 rounded-full ring-2 ring-white dark:ring-slate-900"></span>
-              )}
-            </button>
+          {/* Notifications */}
+          <NotificationBell />
 
-            {showNotifications && (
-              <div className="absolute right-0 mt-2 w-80 sm:w-96 glass-card rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 p-4 z-50 animate-fadeIn bg-white dark:bg-slate-900">
-                <div className="flex items-center justify-between mb-3 border-b border-slate-200 dark:border-slate-800 pb-2">
-                  <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100">Pending Student Leave Approvals</h4>
-                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-sky-100 dark:bg-sky-950 text-sky-700 dark:text-sky-300">
-                    {pendingLeaves.length}
-                  </span>
-                </div>
-                <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
-                  {pendingLeaves.length === 0 ? (
-                    <p className="text-xs text-slate-400 text-center py-4">No pending approvals.</p>
-                  ) : (
-                    pendingLeaves.map((leave) => (
-                      <div
-                        key={leave.id}
-                        onClick={() => {
-                          setShowNotifications(false);
-                          navigate('/staff/leave/student-approvals');
-                        }}
-                        className="p-2.5 rounded-xl border border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/60 cursor-pointer transition-all"
-                      >
-                        <div className="flex justify-between items-start">
-                          <h5 className="text-xs font-semibold text-slate-800 dark:text-slate-200">
-                            {leave.student?.firstName} {leave.student?.lastName}
-                          </h5>
-                          <span className="text-[10px] text-slate-400">{leave.student?.section?.name}</span>
-                        </div>
-                        <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 leading-tight">{leave.reason}</p>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
+          {pendingLeaves.length > 0 && (
+            <button
+              onClick={() => navigate('/staff/leave/student-approvals')}
+              title={`${pendingLeaves.length} pending leave approval(s)`}
+              className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 text-[11px] font-bold border border-amber-200 dark:border-amber-900"
+            >
+              {pendingLeaves.length} Pending Leave{pendingLeaves.length > 1 ? 's' : ''}
+            </button>
+          )}
 
           {/* Profile Dropdown */}
           <div className="relative">
