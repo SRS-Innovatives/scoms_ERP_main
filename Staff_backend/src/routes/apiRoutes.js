@@ -22,6 +22,8 @@ const appointmentController = require('../controllers/appointmentController');
 const parentMeetingController = require('../controllers/parentMeetingController');
 const smsController = require('../controllers/smsController');
 const achievementController = require('../controllers/achievementController');
+const researchController = require('../controllers/researchController');
+const galleryController = require('../controllers/galleryController');
 const {
   requireAuth, requireTenant, requireModule, handleForgotPassword, handleVerifyOtp, handleResetPassword,
   handleGetNotifications, handleGetUnreadCount, handleMarkNotificationRead, handleMarkAllNotificationsRead,
@@ -117,6 +119,7 @@ router.get('/library/fines', libraryController.getFines);
 router.patch('/library/fines/:id/collect', libraryController.collectFine);
 
 // Campus Events (read-only calendar view)
+router.use('/events', requireModule('events_clubs'));
 router.get('/events', eventController.getEvents);
 router.get('/events/:eventId/registrations', eventController.getEventRegistrations);
 router.post('/events/:eventId/attendance', eventController.markEventAttendance);
@@ -130,10 +133,12 @@ router.post('/lab/issue', labController.issueEquipment);
 router.patch('/lab/issues/:issueId/return', labController.returnEquipment);
 
 // Appointment Requests
+router.use('/appointments', requireModule('counselling'));
 router.get('/appointments', appointmentController.getMyAppointments);
 router.patch('/appointments/:id', appointmentController.updateAppointmentStatus);
 
 // Parent-Teacher Meeting Notes
+router.use('/parent-meetings', requireModule('ptm'));
 router.get('/parent-meetings', parentMeetingController.getMyNotes);
 router.post('/parent-meetings', parentMeetingController.createNote);
 
@@ -144,10 +149,12 @@ router.get('/sms/history', smsController.getMyHistory);
 router.get('/sms/parent-contacts', smsController.getParentContacts);
 
 // Student Achievements / Event Certificate Entry
+router.use('/achievements', requireModule('career_portfolio'));
 router.get('/achievements', achievementController.getAchievements);
 router.post('/achievements', achievementController.createAchievement);
 
 // Clubs & Societies (read-only view)
+router.use('/clubs', requireModule('events_clubs'));
 router.get('/clubs', clubController.getClubs);
 
 // Study Materials
@@ -161,8 +168,22 @@ router.get('/student-leave', studentLeaveController.getStudentLeaves);
 router.patch('/student-leave/:id', studentLeaveController.updateStudentLeaveStatus);
 
 // Messages
+router.use('/messages', requireModule('messaging'));
 router.get('/messages/students', messageController.getMyStudents);
 router.get('/messages/conversation', messageController.getConversation);
 router.post('/messages', messageController.sendMessage);
+
+// Research & Publications
+router.use('/research', requireModule('research'));
+router.get('/research', researchController.getMyPublications);
+router.post('/research', researchController.createPublication);
+router.patch('/research/:id', researchController.updatePublication);
+router.delete('/research/:id', researchController.deletePublication);
+
+// Photo Gallery
+router.use('/gallery', requireModule('gallery'));
+router.get('/gallery/albums', galleryController.getAlbums);
+router.get('/gallery/albums/:id/photos', galleryController.getAlbumPhotos);
+router.post('/gallery/albums/:id/photos', galleryController.addPhoto);
 
 module.exports = router;

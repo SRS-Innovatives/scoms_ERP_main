@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import PageHeader from '../../components/common/PageHeader';
-import CreateRoleModal from '../../components/modals/CreateRoleModal';
 import { ShieldCheck, Loader2 } from 'lucide-react';
 import userService from '../../services/userService';
 import { useNotification } from '../../context/NotificationContext';
 
 export const RolesListPage = () => {
   const { error: showError } = useNotification();
-  const [modalOpen, setModalOpen] = useState(false);
+  const navigate = useNavigate();
   const [roles, setRoles] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -34,9 +34,9 @@ export const RolesListPage = () => {
     <div className="space-y-6">
       <PageHeader
         title="Role-Based Access Control (RBAC)"
-        subtitle="Configure platform administrative roles and view real-time tenant/user assignments."
-        actionLabel="Create Custom Role"
-        onAction={() => setModalOpen(true)}
+        subtitle="Fixed system roles and their real-time user assignments — permissions per role are edited in the Permission Matrix."
+        actionLabel="Edit Permissions"
+        onAction={() => navigate('/super-admin/permissions')}
         badge={`${roles.length} Active Roles`}
       />
 
@@ -69,8 +69,6 @@ export const RolesListPage = () => {
           ))}
         </div>
       )}
-
-      <CreateRoleModal isOpen={modalOpen} onClose={() => setModalOpen(false)} />
     </div>
   );
 };

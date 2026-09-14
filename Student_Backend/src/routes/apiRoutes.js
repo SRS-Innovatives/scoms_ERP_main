@@ -26,6 +26,7 @@ const achievementController = require('../controllers/achievementController');
 const feedbackController = require('../controllers/feedbackController');
 const appointmentController = require('../controllers/appointmentController');
 const jobPostingController = require('../controllers/jobPostingController');
+const galleryController = require('../controllers/galleryController');
 const {
   requireAuth, requireTenant, requireModule, handleForgotPassword, handleVerifyOtp, handleResetPassword,
   handleGetNotifications, handleGetUnreadCount, handleMarkNotificationRead, handleMarkAllNotificationsRead,
@@ -57,6 +58,7 @@ router.patch('/notifications/read-all', handleMarkAllNotificationsRead);
 router.get('/profile', studentProfileController.getProfile);
 router.patch('/profile', studentProfileController.updateProfile);
 router.get('/profile/id-card', studentProfileController.getIdCard);
+router.get('/degrees', requireModule('convocation'), studentProfileController.getMyDegrees);
 router.get('/subjects', studentProfileController.getMySubjects);
 
 // Attendance
@@ -69,7 +71,9 @@ router.post('/fees/pay/initiate', feePaymentController.initiateOnlinePayment);
 router.post('/fees/pay/verify', feePaymentController.verifyOnlinePayment);
 
 // AI Assistant Routes
+router.use('/ai', requireModule('ai_tutor'));
 router.post('/ai/ask', aiAssistantController.askAiAssistant);
+router.get('/ai/topics', aiAssistantController.getAvailableTopics);
 
 // Announcements
 router.get('/announcements', requireModule('communication'), announcementController.getAnnouncements);
@@ -93,17 +97,19 @@ router.use('/assignments', requireModule('homework'));
 router.get('/assignments', assignmentController.getMyAssignments);
 router.post('/assignments/submit', assignmentController.submitAssignment);
 
-// Campus Events
+// Campus Events & Clubs
+router.use('/events', requireModule('events_clubs'));
 router.get('/events', eventController.getEvents);
 router.post('/events/register', eventController.registerForEvent);
 
-// Grievances
-router.get('/grievances', grievanceController.getMyGrievances);
-router.post('/grievances', grievanceController.submitGrievance);
-
-// Clubs & Societies
+router.use('/clubs', requireModule('events_clubs'));
 router.get('/clubs', clubController.getClubs);
 router.post('/clubs/join', clubController.joinClub);
+
+// Grievances
+router.use('/grievances', requireModule('grievance_feedback'));
+router.get('/grievances', grievanceController.getMyGrievances);
+router.post('/grievances', grievanceController.submitGrievance);
 
 // Study Materials
 router.get('/materials', materialController.getMaterials);
@@ -118,6 +124,7 @@ router.get('/certificate-requests', requireModule('certificates'), certificateCo
 router.post('/certificate-requests', requireModule('certificates'), certificateController.requestCertificate);
 
 // Messages
+router.use('/messages', requireModule('messaging'));
 router.get('/messages/teachers', messageController.getMyTeachers);
 router.get('/messages/conversation', messageController.getConversation);
 router.post('/messages', messageController.sendMessage);
@@ -125,26 +132,34 @@ router.post('/messages', messageController.sendMessage);
 // Question Bank (practice material)
 router.get('/question-bank', requireModule('examination'), questionBankController.getQuestions);
 
-// Resume Builder
+// Resume Builder & Achievements Portfolio
+router.use('/resume', requireModule('career_portfolio'));
 router.get('/resume', resumeController.getMyResume);
 router.put('/resume', resumeController.updateMyResume);
 
-// Achievements Portfolio
+router.use('/achievements', requireModule('career_portfolio'));
 router.get('/achievements', achievementController.getMyAchievements);
 router.post('/achievements', achievementController.addAchievement);
 
 // Anonymous Course Feedback
-router.get('/feedback/subjects', feedbackController.getFeedbackSubjects);
-router.post('/feedback', feedbackController.submitFeedback);
+router.get('/feedback/subjects', requireModule('grievance_feedback'), feedbackController.getFeedbackSubjects);
+router.post('/feedback', requireModule('grievance_feedback'), feedbackController.submitFeedback);
 
 // Appointments / Counselling
+router.use('/appointments', requireModule('counselling'));
 router.get('/appointments/teachers', appointmentController.getMyTeachers);
 router.get('/appointments', appointmentController.getMyAppointments);
 router.post('/appointments', appointmentController.bookAppointment);
 
 // Internships & Placements
+router.use('/postings', requireModule('placement'));
 router.get('/postings', jobPostingController.getPostings);
 router.post('/postings/apply', jobPostingController.applyToPosting);
 router.get('/postings/my-applications', jobPostingController.getMyApplications);
+
+// Photo Gallery (view-only)
+router.use('/gallery', requireModule('gallery'));
+router.get('/gallery/albums', galleryController.getAlbums);
+router.get('/gallery/albums/:id/photos', galleryController.getAlbumPhotos);
 
 module.exports = router;

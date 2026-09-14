@@ -40,12 +40,14 @@ export const PlatformAnalyticsPage = () => {
           subtitle="Monthly onboarded schools & colleges"
           data={analytics.institutionGrowth}
           height={220}
+          color="indigo"
         />
         <ChartCard
           title="Active Portal User Growth"
           subtitle="Students, staff & parent accounts created per month"
           data={analytics.userGrowth}
           height={220}
+          color="amber"
         />
       </div>
 

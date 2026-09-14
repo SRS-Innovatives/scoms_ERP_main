@@ -33,12 +33,19 @@ export const PromoteStudentsPage = () => {
     if (!fromSectionId) { setStudents([]); return; }
     setLoadingStudents(true);
     studentService.getAll({ sectionId: fromSectionId, limit: 200 })
-      .then((res) => setStudents(res.data || []))
+      .then((res) => {
+        const list = res.data || [];
+        setStudents(list);
+        // Default to "promote everyone" — every student starts checked, so the
+        // workflow is "uncheck who to hold back" rather than an invisible
+        // empty-selection-means-everyone rule.
+        setSelectedIds(list.map((s) => s.id));
+      })
       .catch((err) => notifyError(`Failed to load students: ${err.message}`))
       .finally(() => setLoadingStudents(false));
   }, [fromSectionId, notifyError]);
 
-  useEffect(() => { loadStudents(); setSelectedIds([]); }, [loadStudents]);
+  useEffect(() => { loadStudents(); }, [loadStudents]);
 
   const columns = [
     { header: 'Roll No', key: 'rollNumber', render: (val) => <span className="font-mono font-bold text-indigo-600">{val || '—'}</span> },
@@ -51,14 +58,13 @@ export const PromoteStudentsPage = () => {
       notifyError('Select a target section to promote into.');
       return;
     }
-    const idsToPromote = selectedIds.length > 0 ? selectedIds : students.map((s) => s.id);
-    if (idsToPromote.length === 0) {
-      notifyError('No students to promote.');
+    if (selectedIds.length === 0) {
+      notifyError('No students selected. Check at least one student to promote.');
       return;
     }
     setPromoting(true);
     try {
-      const res = await studentService.promote(idsToPromote, toSectionId);
+      const res = await studentService.promote(selectedIds, toSectionId);
       notifySuccess(`${res.data.promotedCount} student(s) promoted successfully!`, 'Promotion Complete');
       loadStudents();
     } catch (err) {
@@ -103,11 +109,11 @@ export const PromoteStudentsPage = () => {
               <div className="flex items-end">
                 <button
                   onClick={handlePromote}
-                  disabled={promoting}
+                  disabled={promoting || selectedIds.length === 0}
                   className="w-full flex items-center justify-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs shadow-md disabled:opacity-50"
                 >
                   <ArrowUpRight className="w-4 h-4" />
-                  <span>{promoting ? 'Promoting...' : `Promote ${selectedIds.length || 'All'} Student(s)`}</span>
+                  <span>{promoting ? 'Promoting...' : `Promote ${selectedIds.length} of ${students.length} Student(s)`}</span>
                 </button>
               </div>
             </div>
@@ -120,16 +126,29 @@ export const PromoteStudentsPage = () => {
               No students in this section.
             </div>
           ) : (
-            <DataTable
-              selectable
-              selectedIds={selectedIds}
-              onSelectRow={(id, checked) => {
-                if (checked) setSelectedIds([...selectedIds, id]);
-                else setSelectedIds(selectedIds.filter((x) => x !== id));
-              }}
-              columns={columns}
-              data={students}
-            />
+            <>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                Every student is checked by default (promote everyone) — uncheck anyone you want to hold back in this section instead.
+              </p>
+              <DataTable
+                selectable
+                selectedIds={selectedIds}
+                onSelectRow={(id, checked) => {
+                  if (checked) setSelectedIds([...selectedIds, id]);
+                  else setSelectedIds(selectedIds.filter((x) => x !== id));
+                }}
+                onSelectAll={(checked, visibleRows) => {
+                  const visibleIds = visibleRows.map((r) => r.id);
+                  if (checked) {
+                    setSelectedIds([...new Set([...selectedIds, ...visibleIds])]);
+                  } else {
+                    setSelectedIds(selectedIds.filter((id) => !visibleIds.includes(id)));
+                  }
+                }}
+                columns={columns}
+                data={students}
+              />
+            </>
           )}
         </>
       )}

@@ -4,6 +4,7 @@ import { useNotification } from '../../context/NotificationContext';
 import { CreditCard, QrCode, Building, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import feeService from '../../services/feeService';
+import { useStudentAuth } from '../../context/StudentAuthContext';
 
 const PAYMENT_MODES = [
   { mode: 'UPI', label: 'UPI / GPay / PhonePe', icon: QrCode },
@@ -11,9 +12,28 @@ const PAYMENT_MODES = [
   { mode: 'NETBANKING', label: 'Net Banking', icon: Building },
 ];
 
+// Lazily loads Razorpay's Checkout widget script exactly once, however many times a
+// student opens this page — the real gateway only ever needs this when a live order
+// (order.simulated === false) is actually created, i.e. once Super Admin has set real
+// Razorpay keys in .env.
+let razorpayScriptPromise = null;
+const loadRazorpayScript = () => {
+  if (window.Razorpay) return Promise.resolve(true);
+  if (razorpayScriptPromise) return razorpayScriptPromise;
+  razorpayScriptPromise = new Promise((resolve) => {
+    const script = document.createElement('script');
+    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
+    document.body.appendChild(script);
+  });
+  return razorpayScriptPromise;
+};
+
 export const PayFeesPage = () => {
   const { success, error: showError } = useNotification();
   const navigate = useNavigate();
+  const { student } = useStudentAuth();
   const [assignments, setAssignments] = useState([]);
   const [assignmentId, setAssignmentId] = useState('');
   const [amount, setAmount] = useState('');
@@ -43,6 +63,24 @@ export const PayFeesPage = () => {
     if (a) setAmount(String(a.dueAmount));
   };
 
+  const finishPayment = async ({ razorpayOrderId, razorpayPaymentId, razorpaySignature }) => {
+    try {
+      const verifyRes = await feeService.verifyPayment({
+        studentFeeAssignmentId: assignmentId,
+        amountPaid: Number(amount),
+        razorpayOrderId,
+        razorpayPaymentId,
+        razorpaySignature,
+      });
+      success(`Payment of ₹${Number(amount).toLocaleString()} received — Receipt ${verifyRes.data.receipt.receiptNumber}`, 'Fee Payment Successful');
+      navigate('/student/fees/receipts');
+    } catch (err) {
+      showError(err.message || 'Payment failed', 'Payment Failed');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
   const handlePay = async () => {
     if (!assignmentId || !amount) return;
     setIsProcessing(true);
@@ -51,26 +89,56 @@ export const PayFeesPage = () => {
       const order = initRes.data;
 
       if (!order.simulated) {
-        // A real Razorpay checkout widget would open here; this build has no live
-        // gateway credentials configured, so there's nothing further we can do.
-        showError('Online gateway is configured but the checkout widget is not integrated in this build.', 'Payment Unavailable');
-        setIsProcessing(false);
+        // Real gateway: open the actual Razorpay Checkout widget against the real order
+        // the backend just created via Razorpay's Orders API.
+        const scriptLoaded = await loadRazorpayScript();
+        if (!scriptLoaded || !window.Razorpay) {
+          showError('Could not load the payment gateway. Check your connection and try again.', 'Payment Unavailable');
+          setIsProcessing(false);
+          return;
+        }
+
+        const razorpay = new window.Razorpay({
+          key: order.key,
+          amount: Math.round(Number(amount) * 100),
+          currency: order.currency || 'INR',
+          name: 'SCOMS Fee Payment',
+          description: selected?.feeStructure?.name || 'Fee Payment',
+          order_id: order.orderId,
+          prefill: {
+            name: student?.name || undefined,
+            email: student?.email || undefined,
+            contact: student?.phone || undefined,
+          },
+          theme: { color: '#4f46e5' },
+          handler: (response) => {
+            finishPayment({
+              razorpayOrderId: response.razorpay_order_id,
+              razorpayPaymentId: response.razorpay_payment_id,
+              razorpaySignature: response.razorpay_signature,
+            });
+          },
+          modal: {
+            ondismiss: () => setIsProcessing(false),
+          },
+        });
+        razorpay.on('payment.failed', (resp) => {
+          showError(resp.error?.description || 'Payment failed at the gateway', 'Payment Failed');
+          setIsProcessing(false);
+        });
+        razorpay.open();
         return;
       }
 
-      const verifyRes = await feeService.verifyPayment({
-        studentFeeAssignmentId: assignmentId,
-        amountPaid: Number(amount),
+      // Simulated gateway: the backend already pre-computed a self-consistent
+      // payment id + signature pair, so verify immediately with no real checkout UI.
+      await finishPayment({
         razorpayOrderId: order.orderId,
         razorpayPaymentId: order.paymentId,
         razorpaySignature: order.signature,
       });
-
-      success(`Payment of ₹${Number(amount).toLocaleString()} received — Receipt ${verifyRes.data.receipt.receiptNumber}`, 'Fee Payment Successful');
-      navigate('/student/fees/receipts');
     } catch (err) {
       showError(err.message || 'Payment failed', 'Payment Failed');
-    } finally {
       setIsProcessing(false);
     }
   };
@@ -81,7 +149,7 @@ export const PayFeesPage = () => {
 
   return (
     <div className="space-y-6 max-w-2xl mx-auto">
-      <PageHeader title="Online Fee Payment Gateway" subtitle="Secure checkout — simulated in this build, no live gateway configured" />
+      <PageHeader title="Online Fee Payment Gateway" subtitle="Secure Razorpay checkout" />
 
       {assignments.length === 0 ? (
         <div className="glass-card p-8 rounded-3xl border border-slate-200 dark:border-slate-800 text-center text-xs text-slate-500">

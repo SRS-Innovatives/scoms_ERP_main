@@ -42,6 +42,7 @@ export const RevenueAnalyticsPage = () => {
           subtitle="Paid invoice collections by month"
           data={analytics.revenueMonthly}
           height={220}
+          color="emerald"
         />
         <div className="glass-card p-6 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-4">
           <h3 className="font-bold text-sm text-slate-800 dark:text-slate-200">Revenue Tier Breakdown</h3>

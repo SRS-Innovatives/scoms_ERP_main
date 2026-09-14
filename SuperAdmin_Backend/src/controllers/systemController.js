@@ -43,7 +43,7 @@ const getSystemHealth = async (req, res, next) => {
     const integrations = {
       email: isConfigured(process.env.SMTP_HOST, process.env.SMTP_USER, process.env.SMTP_PASSWORD) ? 'LIVE' : 'SIMULATED',
       sms: isConfigured(process.env.SMS_API_KEY) ? 'LIVE' : 'SIMULATED',
-      whatsapp: isConfigured(process.env.WHATSAPP_API_KEY) ? 'LIVE' : 'SIMULATED',
+      whatsapp: isConfigured(process.env.WHATSAPP_ACCESS_TOKEN, process.env.WHATSAPP_PHONE_NUMBER_ID) ? 'LIVE' : 'SIMULATED',
       payments: isConfigured(process.env.RAZORPAY_KEY_ID, process.env.RAZORPAY_KEY_SECRET) ? 'LIVE' : 'SIMULATED',
     };
 

@@ -10,6 +10,7 @@ const userController = require('../controllers/userController');
 const billingController = require('../controllers/billingController');
 const subscriptionController = require('../controllers/subscriptionController');
 const supportController = require('../controllers/supportController');
+const knowledgeBaseController = require('../controllers/knowledgeBaseController');
 const aiController = require('../controllers/aiController');
 const analyticsController = require('../controllers/analyticsController');
 const settingsController = require('../controllers/settingsController');
@@ -104,8 +105,15 @@ router.get('/tickets', supportController.getTickets);
 router.post('/tickets', supportController.createTicket);
 router.patch('/tickets/:id', supportController.updateTicket);
 
+router.get('/knowledge-base', knowledgeBaseController.getArticles);
+router.post('/knowledge-base', knowledgeBaseController.createArticle);
+router.patch('/knowledge-base/:id', knowledgeBaseController.updateArticle);
+router.delete('/knowledge-base/:id', knowledgeBaseController.deleteArticle);
+
 // AI Usage
 router.get('/ai-usage', aiController.getAiUsage);
+router.get('/ai-config', aiController.getAiConfig);
+router.patch('/ai-config', aiController.updateAiConfig);
 
 // Analytics
 router.get('/analytics', analyticsController.getAnalytics);

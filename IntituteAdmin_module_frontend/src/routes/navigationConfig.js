@@ -16,7 +16,16 @@ import {
   BarChart3,
   Settings,
   Briefcase,
-  ClipboardList
+  ClipboardList,
+  FlaskConical,
+  BrainCircuit,
+  UserPlus,
+  Wallet,
+  ShieldAlert,
+  HeartPulse,
+  UserCheck,
+  PartyPopper,
+  Images
 } from 'lucide-react';
 
 export const navigationConfig = [
@@ -40,8 +49,15 @@ export const navigationConfig = [
       { key: 'section', title: 'Section Setup', path: '/admin/setup/section' },
       { key: 'subject', title: 'Subject Setup', path: '/admin/setup/subject' },
       { key: 'batch', title: 'Batch Setup', path: '/admin/setup/batch' },
-      { key: 'house', title: 'House / Group Setup', path: '/admin/setup/house' }
+      { key: 'house', title: 'House / Group Setup', path: '/admin/setup/house' },
+      { key: 'affiliated-colleges', title: 'Affiliated Colleges', path: '/admin/setup/affiliated-colleges' }
     ]
+  },
+  {
+    key: 'visitor_management',
+    title: 'Visitor / Gate Management',
+    icon: UserCheck,
+    path: '/admin/setup/visitors'
   },
   {
     key: 'student',
@@ -57,9 +73,26 @@ export const navigationConfig = [
       { key: 'bonafide', title: 'Bonafide Certificate', path: '/admin/student/bonafide' },
       { key: 'id-card', title: 'ID Card Generator', path: '/admin/student/id-card' },
       { key: 'documents', title: 'Document Vault', path: '/admin/student/documents' },
-      { key: 'promote', title: 'Promote Students', path: '/admin/student/promote' },
-      { key: 'alumni', title: 'Alumni Network', path: '/admin/student/alumni' }
+      { key: 'promote', title: 'Promote Students', path: '/admin/student/promote' }
     ]
+  },
+  {
+    key: 'alumni',
+    title: 'Alumni Network',
+    icon: GraduationCap,
+    path: '/admin/student/alumni'
+  },
+  {
+    key: 'discipline',
+    title: 'Student Discipline',
+    icon: ShieldAlert,
+    path: '/admin/student/discipline'
+  },
+  {
+    key: 'health',
+    title: 'Health & Medical',
+    icon: HeartPulse,
+    path: '/admin/student/health'
   },
   {
     key: 'staff',
@@ -80,6 +113,12 @@ export const navigationConfig = [
       { key: 'staff-id', title: 'Staff ID Card', path: '/admin/staff/id-card' },
       { key: 'service-cert', title: 'Service Certificate', path: '/admin/staff/service-cert' }
     ]
+  },
+  {
+    key: 'payroll',
+    title: 'Payroll',
+    icon: Wallet,
+    path: '/admin/staff/payroll'
   },
   {
     key: 'homework',
@@ -160,11 +199,39 @@ export const navigationConfig = [
       { key: 'circulars', title: 'Circulars & Notices', path: '/admin/communication/circulars' },
       { key: 'sms-center', title: 'SMS Center (DLT)', path: '/admin/communication/sms-center' },
       { key: 'email-center', title: 'Email Broadcast', path: '/admin/communication/email-center' },
-      { key: 'whatsapp', title: 'WhatsApp Notice', path: '/admin/communication/whatsapp' },
-      { key: 'event-notifications', title: 'Event Reminders', path: '/admin/communication/events' },
-      { key: 'grievances', title: 'Student Grievances', path: '/admin/communication/grievances' },
+      { key: 'whatsapp', title: 'WhatsApp Broadcast', path: '/admin/communication/whatsapp' },
+      { key: 'templates', title: 'Message Templates', path: '/admin/communication/templates', badge: 'NEW' },
+    ]
+  },
+  {
+    key: 'events_clubs',
+    title: 'Events & Clubs',
+    icon: PartyPopper,
+    children: [
+      { key: 'campus-events', title: 'Campus Events', path: '/admin/communication/events' },
       { key: 'clubs', title: 'Clubs & Societies', path: '/admin/communication/clubs' }
     ]
+  },
+  {
+    key: 'grievance_feedback',
+    title: 'Grievance & Feedback',
+    icon: ShieldAlert,
+    children: [
+      { key: 'grievances', title: 'Student Grievances', path: '/admin/communication/grievances' },
+      { key: 'feedback-summary', title: 'Faculty Feedback Summary', path: '/admin/reports/feedback' }
+    ]
+  },
+  {
+    key: 'gallery',
+    title: 'Photo Gallery',
+    icon: Images,
+    path: '/admin/communication/gallery'
+  },
+  {
+    key: 'front_office',
+    title: 'Front Office',
+    icon: UserPlus,
+    path: '/admin/admissions/enquiries'
   },
   {
     key: 'library',
@@ -242,6 +309,24 @@ export const navigationConfig = [
     ]
   },
   {
+    key: 'research',
+    title: 'Research & Publications',
+    icon: FlaskConical,
+    path: '/admin/staff/research'
+  },
+  {
+    key: 'convocation',
+    title: 'Convocation & Degrees',
+    icon: Award,
+    path: '/admin/student/degrees'
+  },
+  {
+    key: 'ai_tutor',
+    title: 'AI Study Tutor Content',
+    icon: BrainCircuit,
+    path: '/admin/staff/ai-tutor-content'
+  },
+  {
     key: 'reports',
     title: 'Reports Module',
     icon: BarChart3,
@@ -249,9 +334,12 @@ export const navigationConfig = [
       { key: 'rep-center', title: 'Report Center (Build Your Own)', path: '/admin/reports/center', badge: 'NEW' },
       { key: 'rep-admission', title: 'Admission Report', path: '/admin/reports/admission' },
       { key: 'rep-attendance', title: 'Attendance Report', path: '/admin/reports/attendance' },
+      { key: 'rep-attendance-datewise', title: 'Date-wise Attendance Report', path: '/admin/reports/attendance-datewise', badge: 'NEW' },
+      { key: 'rep-attendance-consolidated', title: 'Consolidated Attendance Report', path: '/admin/reports/attendance-consolidated', badge: 'NEW' },
       { key: 'rep-fee', title: 'Fee Collection Report', path: '/admin/reports/fee-collection' },
       { key: 'rep-outstanding', title: 'Outstanding Fee Report', path: '/admin/reports/outstanding' },
       { key: 'rep-exam', title: 'Exam Result Report', path: '/admin/reports/exam-results' },
+      { key: 'rep-marks-consolidated', title: 'Complete Marks Report', path: '/admin/reports/marks-consolidated', badge: 'NEW' },
       { key: 'rep-staff', title: 'Staff Report', path: '/admin/reports/staff' },
       { key: 'rep-transport', title: 'Transport Report', path: '/admin/reports/transport' },
       { key: 'rep-library', title: 'Library Report', path: '/admin/reports/library' },

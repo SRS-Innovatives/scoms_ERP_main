@@ -78,7 +78,7 @@ export const SuperAdminDashboardPage = () => {
   return (
     <div className="space-y-6">
       {/* Welcome Banner & Quick Action Header */}
-      <div className="glass-card p-6 rounded-3xl bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-700 text-white relative overflow-hidden shadow-xl border-none">
+      <div className="p-6 rounded-3xl bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-700 text-white relative overflow-hidden shadow-xl border-none">
         <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2">
@@ -87,7 +87,7 @@ export const SuperAdminDashboardPage = () => {
                 Multi-Tenant SaaS
               </span>
             </div>
-            <p className="text-xs text-black mt-1">
+            <p className="text-xs text-white/90 mt-1">
               Supervising <span className="font-bold">{totalInst} Registered Institutions</span> across India.
             </p>
           </div>
@@ -254,6 +254,7 @@ export const SuperAdminDashboardPage = () => {
               subtitle="Monthly onboarded institutions"
               data={analytics?.institutionGrowth || []}
               height={200}
+              color="indigo"
             />
           </div>
           <div className="animate-fade-up" style={{ '--delay': '80ms' }}>
@@ -262,6 +263,7 @@ export const SuperAdminDashboardPage = () => {
               subtitle="Active student, staff & admin accounts"
               data={analytics?.userGrowth || []}
               height={200}
+              color="amber"
             />
           </div>
           <div className="animate-fade-up" style={{ '--delay': '160ms' }}>
@@ -270,6 +272,7 @@ export const SuperAdminDashboardPage = () => {
               subtitle="SaaS subscription collections"
               data={analytics?.revenueMonthly || []}
               height={200}
+              color="emerald"
             />
           </div>
           <div className="animate-fade-up" style={{ '--delay': '240ms' }}>
@@ -278,6 +281,8 @@ export const SuperAdminDashboardPage = () => {
               subtitle="By institution state location"
               data={analytics?.stateDistribution || []}
               height={200}
+              color="violet"
+              showTrend={false}
             />
           </div>
         </div>

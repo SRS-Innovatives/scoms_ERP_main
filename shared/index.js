@@ -4,7 +4,7 @@
 
 const { ROLES, PERMISSIONS } = require('./constants/roles');
 const STATUSES = require('./constants/statuses');
-const { CORE_MODULE_KEYS, MODULE_CATALOG, OPTIONAL_MODULE_KEYS, resolveEnabledModules } = require('./constants/institutionModules');
+const { CORE_MODULE_KEYS, MODULE_CATALOG, OPTIONAL_MODULE_KEYS, resolveEnabledModules, resolveStructureType, getRecommendedModules } = require('./constants/institutionModules');
 const errors = require('./errors/customErrors');
 const logger = require('./utils/logger');
 const responseFormatter = require('./utils/responseFormatter');
@@ -29,6 +29,7 @@ const { getHealthPayload } = require('./utils/health');
 const reportEngine = require('./reportEngine');
 const certificateEngine = require('./certificateEngine');
 const { pushNotification, pushNotificationToMany } = require('./utils/notificationCenter');
+const { askAi, getAiSettings } = require('./utils/aiProvider');
 const {
   handleGetNotifications,
   handleGetUnreadCount,
@@ -44,6 +45,8 @@ module.exports = {
   MODULE_CATALOG,
   OPTIONAL_MODULE_KEYS,
   resolveEnabledModules,
+  resolveStructureType,
+  getRecommendedModules,
   ...errors,
   logger,
   ...responseFormatter,
@@ -78,4 +81,6 @@ module.exports = {
   handleGetUnreadCount,
   handleMarkNotificationRead,
   handleMarkAllNotificationsRead,
+  askAi,
+  getAiSettings,
 };

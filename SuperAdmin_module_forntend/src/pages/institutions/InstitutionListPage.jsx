@@ -39,6 +39,30 @@ export const InstitutionListPage = () => {
     setStatusTarget({ id: row.id, name: row.name, currentStatus: row.status, nextStatus });
   };
 
+  const handleExport = () => {
+    if (institutions.length === 0) {
+      showError('No institutions to export.', 'Export Failed');
+      return;
+    }
+    const headers = ['Code', 'Name', 'Type', 'City', 'State', 'Affiliation', 'Plan', 'Students', 'Status'];
+    const escapeCsv = (val) => `"${String(val ?? '').replace(/"/g, '""')}"`;
+    const rows = institutions.map((i) => [
+      i.code, i.name, i.type, i.city, i.state, i.affiliation || '', i.planName || '', i._count?.students || 0, i.status,
+    ].map(escapeCsv).join(','));
+    const csv = [headers.map(escapeCsv).join(','), ...rows].join('\n');
+
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `scoms-institutions-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    success(`Exported ${institutions.length} institution(s) to CSV.`, 'Export Complete');
+  };
+
   const handleConfirmStatusChange = async () => {
     if (!statusTarget) return;
     setUpdatingStatus(true);
@@ -157,7 +181,7 @@ export const InstitutionListPage = () => {
             { value: 'College', label: 'Colleges' },
             { value: 'University', label: 'Universities' }
           ]}
-          onExport={() => success('Exported institution master dataset to Excel.', 'Export Ready')}
+          onExport={handleExport}
         />
       )}
 

@@ -14,5 +14,11 @@ const notifyAbsentees = (studentIds) => apiCall('/attendance/absentees/notify', 
 
 const getReports = (days = 14) => apiCall(`/attendance/reports?days=${days}`);
 
-export const attendanceService = { getRegister, getAbsentees, notifyAbsentees, getReports };
+const getConsolidatedReport = (sectionId, month, year) =>
+  apiCall(`/attendance/consolidated-report?sectionId=${sectionId}&month=${month}&year=${year}`);
+
+const getDateWiseReport = (sectionId, date) =>
+  apiCall(`/attendance/date-wise-report?sectionId=${sectionId}&date=${date}`);
+
+export const attendanceService = { getRegister, getAbsentees, notifyAbsentees, getReports, getConsolidatedReport, getDateWiseReport };
 export default attendanceService;

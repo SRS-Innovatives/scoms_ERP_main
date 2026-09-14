@@ -28,18 +28,19 @@ const notifyPlatformAdmins = async ({ title, message, type, link }) => {
 
 const getInstitutions = async (req, res, next) => {
   try {
-    const { page = 1, limit = 10, search = '' } = req.query;
+    const { page = 1, limit = 10, search = '', type = '' } = req.query;
     const skip = (page - 1) * limit;
 
-    const where = search
-      ? {
-          OR: [
-            { name: { contains: search, mode: 'insensitive' } },
-            { code: { contains: search, mode: 'insensitive' } },
-            { city: { contains: search, mode: 'insensitive' } },
-          ],
-        }
-      : {};
+    const where = {
+      ...(search && {
+        OR: [
+          { name: { contains: search, mode: 'insensitive' } },
+          { code: { contains: search, mode: 'insensitive' } },
+          { city: { contains: search, mode: 'insensitive' } },
+        ],
+      }),
+      ...(type && { type }),
+    };
 
     const [institutions, total] = await Promise.all([
       prisma.institution.findMany({
@@ -65,7 +66,7 @@ const getInstitutions = async (req, res, next) => {
 const createInstitutionOnboarding = async (req, res, next) => {
   try {
     const {
-      name, code, type, registrationNumber, affiliation, email, phone,
+      name, code, type, registrationNumber, affiliation, affiliatedUniversityId, email, phone,
       address, city, district, state, pincode, country, logo,
       establishmentYear, adminName, adminEmail, adminPassword, plan, modules, accreditation
     } = req.body;
@@ -85,21 +86,31 @@ const createInstitutionOnboarding = async (req, res, next) => {
         }
       }
 
-      // 3. Create institution
+      // 2b. A real affiliation link must actually point at a University institution
+      if (affiliatedUniversityId) {
+        const university = await tx.institution.findFirst({ where: { id: affiliatedUniversityId, type: 'UNIVERSITY' } });
+        if (!university) throw new NotFoundError('Selected affiliated university not found');
+      }
+
+      // 3. Create institution — only name/code are truly required; every other contact/
+      // address field is optional at onboarding (fillable later via Institute Profile), so
+      // an empty string from the form becomes a real null rather than junk empty text.
+      const orNull = (v) => (v && String(v).trim() ? v : null);
       const institution = await tx.institution.create({
         data: {
           name,
           code,
           type: type || 'COLLEGE',
           registrationNumber,
-          affiliation: affiliation || accreditation, // store accreditation here if needed, or use separate field
-          email,
-          phone,
-          address,
-          city,
-          district,
-          state,
-          pincode,
+          affiliation: orNull(affiliation || accreditation), // store accreditation here if needed, or use separate field
+          affiliatedUniversityId: orNull(affiliatedUniversityId),
+          email: orNull(email),
+          phone: orNull(phone),
+          address: orNull(address),
+          city: orNull(city),
+          district: orNull(district),
+          state: orNull(state),
+          pincode: orNull(pincode),
           country: country || 'India',
           logo: logo || null,
           establishedYear: establishmentYear ? parseInt(establishmentYear) : null,
