@@ -8,7 +8,10 @@ const {
   NotFoundError,
   BusinessRuleError,
   ValidationError,
+  getGradeScale,
+  resolveGrade,
 } = require('../../../shared');
+const ExcelJS = require('exceljs');
 
 const createQuestion = async (req, res, next) => {
   try {
@@ -75,11 +78,17 @@ const getQuestions = async (req, res, next) => {
         ...(difficulty && { difficulty }),
         ...(type && { type }),
       },
-      include: { subject: { select: { name: true, code: true, course: { select: { name: true } } } } },
+      // A subject can now serve several classes — no single "course" to select, so the
+      // mapped classes are joined into one label (e.g. "Class 9, Class 10") for display.
+      include: { subject: { select: { name: true, code: true, classMappings: { select: { course: { select: { name: true } } } } } } },
       orderBy: { createdAt: 'desc' },
     });
+    const withCourseLabel = questions.map((q) => ({
+      ...q,
+      subject: q.subject && { ...q.subject, course: { name: q.subject.classMappings.map((m) => m.course.name).join(', ') || null } },
+    }));
 
-    return sendSuccess(res, questions, 'Question bank retrieved successfully');
+    return sendSuccess(res, withCourseLabel, 'Question bank retrieved successfully');
   } catch (err) {
     next(err);
   }
@@ -90,10 +99,13 @@ const getMySubjects = async (req, res, next) => {
   try {
     const mappings = await prisma.subjectTeacherMapping.findMany({
       where: { staffId: req.user.staffId },
-      include: { subject: { select: { id: true, name: true, code: true, course: { select: { name: true } } } } },
+      include: { subject: { select: { id: true, name: true, code: true, classMappings: { select: { course: { select: { name: true } } } } } } },
       distinct: ['subjectId'],
     });
-    const subjects = mappings.map((m) => m.subject).filter(Boolean);
+    // Same joined-classes label as getQuestions above — a subject can serve several classes now.
+    const subjects = mappings
+      .map((m) => m.subject && { ...m.subject, course: { name: m.subject.classMappings.map((c) => c.course.name).join(', ') || null } })
+      .filter(Boolean);
     return sendSuccess(res, subjects, 'Assigned subjects retrieved successfully');
   } catch (err) {
     next(err);
@@ -135,28 +147,6 @@ const generateQuestionPaper = async (req, res, next) => {
   } catch (err) {
     next(err);
   }
-};
-
-// Sensible default curve — used only when the institution hasn't configured a real
-// GradeScale yet (Institute Admin → Examination → Grade Setup).
-const DEFAULT_GRADE_CURVE = [
-  { grade: 'A+', minPercentage: 90, maxPercentage: 100, gradePoint: 10 },
-  { grade: 'A', minPercentage: 75, maxPercentage: 89.99, gradePoint: 9 },
-  { grade: 'B', minPercentage: 60, maxPercentage: 74.99, gradePoint: 7 },
-  { grade: 'C', minPercentage: 45, maxPercentage: 59.99, gradePoint: 5 },
-  { grade: 'D', minPercentage: 35, maxPercentage: 44.99, gradePoint: 4 },
-  { grade: 'F', minPercentage: 0, maxPercentage: 34.99, gradePoint: 0 },
-];
-
-const getGradeScale = async (institutionId) => {
-  const real = await prisma.gradeScale.findMany({ where: { institutionId } });
-  return real.length > 0 ? real : DEFAULT_GRADE_CURVE;
-};
-
-const resolveGrade = (scale, marksObtained, maxMarks) => {
-  const pct = maxMarks > 0 ? (marksObtained / maxMarks) * 100 : 0;
-  const match = scale.find((g) => pct >= g.minPercentage && pct <= g.maxPercentage);
-  return match ? match.grade : null;
 };
 
 /** Exam schedules for subjects this staff member is actually assigned to teach — their "exam duties". */
@@ -201,7 +191,7 @@ const getRoster = async (req, res, next) => {
 
     const [students, marks] = await Promise.all([
       prisma.student.findMany({
-        where: { courseId: schedule.subject.courseId, status: 'ACTIVE' },
+        where: { courseId: schedule.courseId, status: 'ACTIVE' },
         select: { id: true, firstName: true, lastName: true, rollNumber: true, section: { select: { name: true } } },
         orderBy: { rollNumber: 'asc' },
       }),
@@ -217,11 +207,20 @@ const getRoster = async (req, res, next) => {
   }
 };
 
+/** Validates one mark row before it's ever written — outside [0, maxMarks] is rejected
+ * rather than silently clamped, so a bad value never reaches an average/rank/SGPA. */
+const validateMarkValue = (marksObtained, maxMarks, studentLabel) => {
+  if (Number.isNaN(marksObtained)) throw new ValidationError(`Invalid marks for ${studentLabel}`);
+  if (marksObtained < 0 || marksObtained > maxMarks) {
+    throw new ValidationError(`Marks for ${studentLabel} must be between 0 and ${maxMarks}`);
+  }
+};
+
 /** Staff enters/corrects marks for their own subject's exam schedule. */
 const saveMarks = async (req, res, next) => {
   try {
     const { scheduleId } = req.params;
-    const { marks } = req.body;
+    const { marks } = req.body; // [{ studentId, marksObtained, isAbsent, remarks }]
     if (!Array.isArray(marks)) throw new ValidationError('marks must be an array');
 
     const schedule = await prisma.examSchedule.findFirst({ where: { id: scheduleId, exam: { institutionId: req.institutionId } } });
@@ -229,21 +228,28 @@ const saveMarks = async (req, res, next) => {
 
     const isAssigned = await prisma.subjectTeacherMapping.findFirst({ where: { staffId: req.user.staffId, subjectId: schedule.subjectId } });
     if (!isAssigned) throw new BusinessRuleError('You are not assigned to teach this subject');
+    if (schedule.isPublished) {
+      throw new BusinessRuleError('These marks are already published and locked. Ask your Institute Admin to unlock this subject for correction, then re-publish once you\'re done.');
+    }
 
     const scale = await getGradeScale(req.institutionId);
 
+    const rows = marks.filter((m) => m.isAbsent || (m.marksObtained !== null && m.marksObtained !== undefined && m.marksObtained !== ''));
+    rows.forEach((m) => {
+      if (!m.isAbsent) validateMarkValue(Number(m.marksObtained), schedule.maxMarks, `student ${m.studentId}`);
+    });
+
     await prisma.$transaction(
-      marks
-        .filter((m) => m.marksObtained !== null && m.marksObtained !== undefined && m.marksObtained !== '')
-        .map((m) => {
-          const marksObtained = Number(m.marksObtained);
-          const grade = resolveGrade(scale, marksObtained, schedule.maxMarks);
-          return prisma.studentMark.upsert({
-            where: { examScheduleId_studentId: { examScheduleId: scheduleId, studentId: m.studentId } },
-            create: { examScheduleId: scheduleId, studentId: m.studentId, marksObtained, grade, remarks: m.remarks || null },
-            update: { marksObtained, grade, remarks: m.remarks || null },
-          });
-        })
+      rows.map((m) => {
+        const isAbsent = !!m.isAbsent;
+        const marksObtained = isAbsent ? 0 : Number(m.marksObtained);
+        const grade = isAbsent ? 'AB' : resolveGrade(scale, marksObtained, schedule.maxMarks);
+        return prisma.studentMark.upsert({
+          where: { examScheduleId_studentId: { examScheduleId: scheduleId, studentId: m.studentId } },
+          create: { examScheduleId: scheduleId, studentId: m.studentId, marksObtained, grade, isAbsent, remarks: m.remarks || null },
+          update: { marksObtained, grade, isAbsent, remarks: m.remarks || null },
+        });
+      })
     );
 
     return sendSuccess(res, null, 'Marks saved successfully');
@@ -277,8 +283,83 @@ const publishMarks = async (req, res, next) => {
   }
 };
 
-/** Average marks % per subject this staff member teaches — subjects are course-scoped, so
- * teaching "Physics" in two different courses naturally shows as two comparison rows. */
+/** Parses an uploaded .xlsx/.csv of marks (Roll Number, Marks Obtained, Absent) into a
+ * previewable, validated row set for one of this staff member's own subjects — nothing
+ * is written yet, they review it in the normal marks-entry grid and hit Save Marks. */
+const parseMarksImport = async (req, res, next) => {
+  try {
+    const { scheduleId } = req.params;
+    if (!req.file) throw new ValidationError('No file uploaded. Attach an .xlsx or .csv file as "file".');
+
+    const schedule = await prisma.examSchedule.findFirst({
+      where: { id: scheduleId, exam: { institutionId: req.institutionId } },
+      include: { subject: true },
+    });
+    if (!schedule) throw new NotFoundError('Exam schedule not found');
+
+    const isAssigned = await prisma.subjectTeacherMapping.findFirst({ where: { staffId: req.user.staffId, subjectId: schedule.subjectId } });
+    if (!isAssigned) throw new BusinessRuleError('You are not assigned to teach this subject');
+
+    const workbook = new ExcelJS.Workbook();
+    if (req.file.originalname.toLowerCase().endsWith('.csv')) {
+      await workbook.csv.read(require('stream').Readable.from(req.file.buffer));
+    } else {
+      await workbook.xlsx.load(req.file.buffer);
+    }
+    const sheet = workbook.worksheets[0];
+    if (!sheet) throw new ValidationError('The uploaded file has no readable sheet');
+
+    // Array.from (not .map) — ExcelJS's row.values is a sparse array with index 0 always
+    // a hole, and .map() skips holes while the .findIndex() below does not, so a plain
+    // .map() leaves header[0] as a real hole that crashes .includes() on undefined.
+    const header = Array.from(sheet.getRow(1).values, (v) => String(v || '').trim().toLowerCase());
+    const rollCol = header.findIndex((h) => h.includes('roll'));
+    const marksCol = header.findIndex((h) => h.includes('marks'));
+    const absentCol = header.findIndex((h) => h.includes('absent'));
+    if (rollCol === -1 || marksCol === -1) {
+      throw new ValidationError('The file must have "Roll Number" and "Marks Obtained" columns (an "Absent" column is optional)');
+    }
+
+    const students = await prisma.student.findMany({
+      where: { courseId: schedule.courseId, status: 'ACTIVE' },
+      select: { id: true, firstName: true, lastName: true, rollNumber: true },
+    });
+    const byRoll = new Map(students.filter((s) => s.rollNumber).map((s) => [String(s.rollNumber).trim().toLowerCase(), s]));
+
+    const rows = [];
+    const errors = [];
+    sheet.eachRow((row, rowNumber) => {
+      if (rowNumber === 1) return;
+      const roll = String(row.values[rollCol] ?? '').trim();
+      if (!roll) return;
+      const student = byRoll.get(roll.toLowerCase());
+      if (!student) { errors.push({ rowNumber, roll, reason: 'No active student with this roll number in this class' }); return; }
+
+      const isAbsent = absentCol > -1 && /^(y|yes|true|1|absent)$/i.test(String(row.values[absentCol] ?? '').trim());
+      const rawMarks = row.values[marksCol];
+      if (!isAbsent) {
+        const marksObtained = Number(rawMarks);
+        if (rawMarks === undefined || rawMarks === null || rawMarks === '' || Number.isNaN(marksObtained)) {
+          errors.push({ rowNumber, roll, reason: 'Marks value is missing or not a number' }); return;
+        }
+        if (marksObtained < 0 || marksObtained > schedule.maxMarks) {
+          errors.push({ rowNumber, roll, reason: `Marks must be between 0 and ${schedule.maxMarks}` }); return;
+        }
+        rows.push({ studentId: student.id, rollNumber: student.rollNumber, name: `${student.firstName} ${student.lastName}`, marksObtained, isAbsent: false });
+      } else {
+        rows.push({ studentId: student.id, rollNumber: student.rollNumber, name: `${student.firstName} ${student.lastName}`, marksObtained: 0, isAbsent: true });
+      }
+    });
+
+    return sendSuccess(res, { matched: rows, errors, totalRows: rows.length + errors.length }, `${rows.length} row(s) matched, ${errors.length} error(s) — review below, nothing is saved yet`);
+  } catch (err) {
+    next(err);
+  }
+};
+
+/** Average marks % per subject this staff member teaches. A subject can be mapped to
+ * several classes at once now, so "courseName" lists every class it's mapped to —
+ * marks themselves are still correctly scoped per class via each ExamSchedule's own courseId. */
 const getSubjectPerformance = async (req, res, next) => {
   try {
     const mappings = await prisma.subjectTeacherMapping.findMany({
@@ -291,22 +372,23 @@ const getSubjectPerformance = async (req, res, next) => {
 
     const subjects = await prisma.subject.findMany({
       where: { id: { in: subjectIds } },
-      select: { id: true, name: true, course: { select: { name: true } } },
+      select: { id: true, name: true, classMappings: { select: { course: { select: { name: true } } } } },
     });
 
     const results = await Promise.all(
       subjects.map(async (s) => {
+        const courseName = s.classMappings.map((m) => m.course.name).join(', ') || null;
         const marks = await prisma.studentMark.findMany({
-          where: { examSchedule: { subjectId: s.id, exam: { institutionId: req.institutionId } } },
+          where: { examSchedule: { subjectId: s.id, exam: { institutionId: req.institutionId } }, isAbsent: false },
           select: { marksObtained: true, examSchedule: { select: { maxMarks: true } } },
         });
-        if (marks.length === 0) return { subjectId: s.id, subjectName: s.name, courseName: s.course.name, avgPercentage: null, studentCount: 0 };
+        if (marks.length === 0) return { subjectId: s.id, subjectName: s.name, courseName, avgPercentage: null, studentCount: 0 };
 
         const totalPct = marks.reduce((sum, m) => sum + (m.marksObtained / m.examSchedule.maxMarks) * 100, 0);
         return {
           subjectId: s.id,
           subjectName: s.name,
-          courseName: s.course.name,
+          courseName,
           avgPercentage: Number((totalPct / marks.length).toFixed(1)),
           studentCount: marks.length,
         };
@@ -345,7 +427,7 @@ const getStudentPerformanceSummary = async (req, res, next) => {
         select: { studentId: true, status: true },
       }),
       prisma.studentMark.findMany({
-        where: { studentId: { in: studentIds }, examSchedule: { subjectId: { in: subjectIds } } },
+        where: { studentId: { in: studentIds }, examSchedule: { subjectId: { in: subjectIds } }, isAbsent: false },
         select: { studentId: true, marksObtained: true, examSchedule: { select: { maxMarks: true } } },
       }),
     ]);
@@ -390,6 +472,7 @@ module.exports = {
   getRoster,
   saveMarks,
   publishMarks,
+  parseMarksImport,
   getSubjectPerformance,
   getStudentPerformanceSummary,
 };

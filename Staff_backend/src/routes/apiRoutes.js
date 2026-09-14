@@ -3,7 +3,9 @@
  */
 
 const express = require('express');
+const multer = require('multer');
 const router = express.Router();
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
 const authController = require('../controllers/authController');
 const attendanceController = require('../controllers/attendanceController');
 const assignmentController = require('../controllers/assignmentController');
@@ -26,14 +28,15 @@ const researchController = require('../controllers/researchController');
 const galleryController = require('../controllers/galleryController');
 const {
   requireAuth, requireTenant, requireModule, handleForgotPassword, handleVerifyOtp, handleResetPassword,
+  loginLimiter, otpLimiter,
   handleGetNotifications, handleGetUnreadCount, handleMarkNotificationRead, handleMarkAllNotificationsRead,
 } = require('../../../shared');
 
 // Standalone Auth Routes
-router.post('/auth/login', authController.login);
-router.post('/auth/forgot-password', handleForgotPassword);
-router.post('/auth/verify-otp', handleVerifyOtp);
-router.post('/auth/reset-password', handleResetPassword);
+router.post('/auth/login', loginLimiter, authController.login);
+router.post('/auth/forgot-password', otpLimiter, handleForgotPassword);
+router.post('/auth/verify-otp', otpLimiter, handleVerifyOtp);
+router.post('/auth/reset-password', otpLimiter, handleResetPassword);
 router.post('/auth/refresh', authController.refreshToken);
 router.post('/auth/logout', authController.logout);
 
@@ -58,6 +61,7 @@ router.post('/profile/qualifications', profileController.addMyQualification);
 router.post('/profile/experience', profileController.addMyExperience);
 
 // Leave (self-service)
+router.get('/leave/types', profileController.getLeaveTypes);
 router.get('/leave', profileController.getMyLeaves);
 router.post('/leave', profileController.applyMyLeave);
 
@@ -98,6 +102,7 @@ router.get('/exams/student-performance', examController.getStudentPerformanceSum
 router.get('/exam-schedules/:scheduleId/roster', examController.getRoster);
 router.post('/exam-schedules/:scheduleId/marks', examController.saveMarks);
 router.post('/exam-schedules/:scheduleId/publish', examController.publishMarks);
+router.post('/exam-schedules/:scheduleId/import', upload.single('file'), examController.parseMarksImport);
 
 // Announcements
 router.use('/announcements', requireModule('communication'));

@@ -98,7 +98,7 @@ export const CourseClassSetupPage = () => {
     { header: 'Department', key: 'department', sortable: false, render: (val) => val?.name || '-' },
     { header: 'Duration', key: 'durationYears', render: (val) => `${val} Year${val === 1 ? '' : 's'}` },
     { header: 'Students', key: '_count', sortable: false, render: (val) => `${val?.students ?? 0} Enrolled` },
-    { header: 'Subjects', key: '_countSub', sortable: false, render: (_, row) => `${row._count?.subjects ?? 0} Subjects` },
+    { header: 'Subjects', key: '_countSub', sortable: false, render: (_, row) => `${row._count?.subjectClassMappings ?? 0} Subjects` },
     {
       header: 'Actions',
       key: 'actions',

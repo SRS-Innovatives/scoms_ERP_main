@@ -14,9 +14,16 @@ const deleteSchedule = (id) => apiCall(`/exam-schedules/${id}`, { method: 'DELET
 const getMarksRoster = (scheduleId) => apiCall(`/exam-schedules/${scheduleId}/marks`);
 const saveMarks = (scheduleId, marks) => apiCall(`/exam-schedules/${scheduleId}/marks`, { method: 'POST', body: { marks } });
 const publishResults = (scheduleId) => apiCall(`/exam-schedules/${scheduleId}/publish`, { method: 'POST' });
+const unlockSchedule = (scheduleId, reason) => apiCall(`/exam-schedules/${scheduleId}/unlock`, { method: 'POST', body: { reason } });
+const importMarksCsv = (scheduleId, file) => {
+  const formData = new FormData();
+  formData.append('file', file);
+  return apiCall(`/exam-schedules/${scheduleId}/import`, { method: 'POST', body: formData });
+};
 
 export const examService = {
   getExams, createExam, updateExamStatus, getRankList, getConsolidatedReport,
   getSchedules, createSchedule, deleteSchedule, getMarksRoster, saveMarks, publishResults,
+  unlockSchedule, importMarksCsv,
 };
 export default examService;

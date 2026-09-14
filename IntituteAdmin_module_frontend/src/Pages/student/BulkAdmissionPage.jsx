@@ -215,6 +215,15 @@ export const BulkAdmissionPage = () => {
               </div>
             </div>
 
+            {result.successCount > 0 && (
+              <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800">
+                <p className="font-bold text-amber-800 dark:text-amber-300">Login credentials for these {result.successCount} student(s)</p>
+                <p className="text-slate-600 dark:text-slate-400 mt-1">
+                  Every account above was created with the default password <span className="font-mono font-bold text-slate-900 dark:text-white">Student@123</span> (since bulk upload has no password column). A welcome email is also sent to each student's own address, but if your institution's email isn't configured yet, this is the only place that password is shown — share it with your students directly, and ask them to change it after first login.
+                </p>
+              </div>
+            )}
+
             {result.failures.length > 0 && (
               <div className="space-y-2">
                 <p className="font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">

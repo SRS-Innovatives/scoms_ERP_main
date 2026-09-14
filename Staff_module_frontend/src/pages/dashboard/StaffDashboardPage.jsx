@@ -112,7 +112,7 @@ export const StaffDashboardPage = () => {
 
   return (
     <div className="space-y-6">
-      <div className="glass-card p-6 rounded-3xl bg-gradient-to-r from-sky-600 via-indigo-600 to-sky-700 text-white relative overflow-hidden shadow-xl border-none">
+      <div className="p-6 rounded-3xl bg-gradient-to-r from-sky-600 via-indigo-600 to-sky-700 text-white relative overflow-hidden shadow-xl border-none">
         <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             <div className="w-14 h-14 rounded-2xl bg-white/20 border-2 border-white/40 shadow-md flex items-center justify-center text-xl font-bold">

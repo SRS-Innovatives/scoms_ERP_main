@@ -21,16 +21,18 @@ const emailController = require('../controllers/emailController');
 const whatsappController = require('../controllers/whatsappController');
 const announcementController = require('../controllers/announcementController');
 const reportManagementController = require('../controllers/reportManagementController');
+const admissionFieldReviewController = require('../controllers/admissionFieldReviewController');
 const {
   requireAuth, requireRole, ROLES, handleForgotPassword, handleVerifyOtp, handleResetPassword,
+  loginLimiter, otpLimiter,
   handleGetNotifications, handleGetUnreadCount, handleMarkNotificationRead, handleMarkAllNotificationsRead,
 } = require('../../../shared');
 
 // Standalone Auth Routes
-router.post('/auth/login', authController.login);
-router.post('/auth/forgot-password', handleForgotPassword);
-router.post('/auth/verify-otp', handleVerifyOtp);
-router.post('/auth/reset-password', handleResetPassword);
+router.post('/auth/login', loginLimiter, authController.login);
+router.post('/auth/forgot-password', otpLimiter, handleForgotPassword);
+router.post('/auth/verify-otp', otpLimiter, handleVerifyOtp);
+router.post('/auth/reset-password', otpLimiter, handleResetPassword);
 router.post('/auth/refresh', authController.refreshToken);
 router.post('/auth/logout', authController.logout);
 
@@ -73,6 +75,13 @@ router.post('/institutions/:institutionId/admin', institutionController.createIn
 router.get('/institutions/:id', institutionController.getInstitutionById);
 router.patch('/institutions/:id/status', institutionController.updateInstitutionStatus);
 router.patch('/institutions/:id/modules', institutionController.updateInstitutionModules);
+
+// Admission Custom Field Approvals
+router.get('/admission-fields/pending', admissionFieldReviewController.getPendingFields);
+router.get('/admission-fields/institution/:institutionId', admissionFieldReviewController.getFieldsForInstitution);
+router.post('/admission-fields/:id/approve', admissionFieldReviewController.approveField);
+router.post('/admission-fields/:id/reject', admissionFieldReviewController.rejectField);
+router.post('/admission-fields/bulk-review', admissionFieldReviewController.bulkReview);
 router.put('/institutions/:id', institutionController.updateInstitution);
 router.delete('/institutions/:id', institutionController.deleteInstitution);
 router.get('/audit-logs', institutionController.getAuditLogs);

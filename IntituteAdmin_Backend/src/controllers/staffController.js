@@ -113,6 +113,7 @@ const createStaff = async (req, res, next) => {
       joiningDate,
       role, // e.g. TEACHER, HOD, ACCOUNTANT
       salary, // optional { basicPay, hra, da, otherAllowances, deductions }
+      customFields, // institution-specific extra fields, SuperAdmin-approved only (entityType STAFF_PROFILE)
     } = req.body;
 
     const result = await prisma.$transaction(async (tx) => {
@@ -155,7 +156,17 @@ const createStaff = async (req, res, next) => {
         }
       });
 
-      // 5. Create Staff profile
+      // 5. Only ever persist values for fields that are actually APPROVED right now —
+      //    same rule the admission form uses; a stray/forged key is silently dropped.
+      let cleanCustomFields;
+      if (customFields && typeof customFields === 'object') {
+        const approvedKeys = new Set((await tx.admissionCustomField.findMany({
+          where: { institutionId: req.institutionId, entityType: 'STAFF_PROFILE', status: 'APPROVED' }, select: { fieldKey: true },
+        })).map((f) => f.fieldKey));
+        cleanCustomFields = Object.fromEntries(Object.entries(customFields).filter(([k]) => approvedKeys.has(k)));
+      }
+
+      // 6. Create Staff profile
       const staff = await tx.staff.create({
         data: {
           userId: user.id,
@@ -169,10 +180,11 @@ const createStaff = async (req, res, next) => {
           experience,
           staffType: staffType === 'Non-Teaching' || staffType === 'NON_TEACHING' ? 'NON_TEACHING' : 'TEACHING',
           joiningDate: joiningDate ? new Date(joiningDate) : new Date(),
+          customFields: cleanCustomFields && Object.keys(cleanCustomFields).length > 0 ? cleanCustomFields : undefined,
         }
       });
 
-      // 6. Optional initial salary structure
+      // 7. Optional initial salary structure
       if (salary && (salary.basicPay || salary.hra || salary.da)) {
         await tx.staffSalary.create({
           data: {
@@ -433,7 +445,7 @@ const getTeacherAssignments = async (req, res, next) => {
       where: { staff: { institutionId: req.institutionId } },
       include: {
         staff: { include: { user: { select: { email: true } } } },
-        subject: { include: { course: true } },
+        subject: { include: { classMappings: { include: { course: true } } } },
         section: { select: { id: true, name: true, semester: { select: { name: true, course: { select: { name: true } } } } } },
       },
       orderBy: { createdAt: 'desc' },
@@ -456,7 +468,7 @@ const assignTeacher = async (req, res, next) => {
 
     // Validate subject belongs to tenant
     const subject = await prisma.subject.findFirst({
-      where: { id: subjectId, course: { institutionId: req.institutionId } }
+      where: { id: subjectId, institutionId: req.institutionId }
     });
     if (!subject) throw new Error('Subject not found or access denied');
 

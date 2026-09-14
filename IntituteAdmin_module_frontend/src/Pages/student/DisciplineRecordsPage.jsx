@@ -6,22 +6,27 @@ import FormModal from '../../components/common/FormModal';
 import { useNotification } from '../../context/NotificationContext';
 import disciplineService from '../../services/disciplineService';
 import studentService from '../../services/studentService';
+import customListService from '../../services/customListService';
 import { ShieldAlert } from 'lucide-react';
 
-const emptyForm = { studentId: '', incidentDate: new Date().toISOString().slice(0, 10), category: 'MINOR', description: '', actionTaken: '' };
-const CATEGORIES = ['MINOR', 'MAJOR', 'SEVERE'];
+const emptyForm = { studentId: '', incidentDate: new Date().toISOString().slice(0, 10), category: '', description: '', actionTaken: '' };
 const STATUSES = ['OPEN', 'RESOLVED'];
 
+// A fixed color per well-known default category, falling back to a neutral tone for
+// anything an institution added itself — new categories always render, just without a
+// bespoke color until one is added here.
 const CATEGORY_STYLES = {
   MINOR: 'bg-sky-100 text-sky-700 dark:bg-sky-500/15 dark:text-sky-400',
   MAJOR: 'bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400',
   SEVERE: 'bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-400',
 };
+const DEFAULT_CATEGORY_STYLE = 'bg-slate-100 text-slate-700 dark:bg-slate-500/15 dark:text-slate-400';
 
 export const DisciplineRecordsPage = () => {
   const { notifySuccess, notifyError } = useNotification();
   const [records, setRecords] = useState([]);
   const [students, setStudents] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
@@ -31,9 +36,11 @@ export const DisciplineRecordsPage = () => {
   const fetchAll = useCallback(async () => {
     setLoading(true);
     try {
-      const [recordsRes, studentsRes] = await Promise.all([disciplineService.getAll(), studentService.getAll()]);
+      const [recordsRes, studentsRes, categoryRes] = await Promise.all([disciplineService.getAll(), studentService.getAll(), customListService.getActive('DISCIPLINE_CATEGORY')]);
       setRecords(recordsRes.data || []);
       setStudents(studentsRes.data || []);
+      setCategories(categoryRes.data || []);
+      if ((categoryRes.data || []).length > 0) setForm((prev) => (prev.category ? prev : { ...prev, category: categoryRes.data[0].code }));
     } catch (error) {
       notifyError(`Failed to load discipline records: ${error.message}`);
     } finally {
@@ -80,7 +87,7 @@ export const DisciplineRecordsPage = () => {
       ),
     },
     { header: 'Date', key: 'incidentDate', render: (val) => new Date(val).toLocaleDateString() },
-    { header: 'Category', key: 'category', render: (val) => <span className={`text-[10px] font-bold px-2 py-1 rounded-lg ${CATEGORY_STYLES[val]}`}>{val}</span> },
+    { header: 'Category', key: 'category', render: (val) => <span className={`text-[10px] font-bold px-2 py-1 rounded-lg ${CATEGORY_STYLES[val] || DEFAULT_CATEGORY_STYLE}`}>{categories.find((c) => c.code === val)?.label || val}</span> },
     { header: 'Description', key: 'description', render: (val) => <span className="text-xs">{val}</span> },
     { header: 'Reported By', key: 'reportedBy', render: (val) => val ? `${val.firstName} ${val.lastName}` : '—' },
     {
@@ -137,7 +144,7 @@ export const DisciplineRecordsPage = () => {
         fields={[
           { name: 'studentId', label: 'Student', type: 'select', required: true, span: 'full', options: students.map((s) => ({ value: s.id, label: `${s.firstName} ${s.lastName} (${s.admissionNumber})` })) },
           { name: 'incidentDate', label: 'Incident Date', type: 'date', required: true },
-          { name: 'category', label: 'Category', type: 'select', options: CATEGORIES.map((c) => ({ value: c, label: c })) },
+          { name: 'category', label: 'Category', type: 'select', options: categories.map((c) => ({ value: c.code, label: c.label })) },
           { name: 'description', label: 'Description', type: 'textarea', required: true, span: 'full' },
           { name: 'actionTaken', label: 'Action Taken', type: 'textarea', span: 'full' },
         ]}

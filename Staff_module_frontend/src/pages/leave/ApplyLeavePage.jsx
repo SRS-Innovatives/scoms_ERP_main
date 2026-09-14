@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNotification } from '../../context/NotificationContext';
 import { Calendar, Save } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -8,11 +8,22 @@ export const ApplyLeavePage = () => {
   const { success, error: showError } = useNotification();
   const navigate = useNavigate();
 
-  const [type, setType] = useState('CASUAL');
+  const [leaveTypes, setLeaveTypes] = useState([]);
+  const [type, setType] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [reason, setReason] = useState('');
   const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    profileService.getLeaveTypes()
+      .then((res) => {
+        const types = res.data || [];
+        setLeaveTypes(types);
+        if (types.length > 0) setType(types[0].code);
+      })
+      .catch(() => {});
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -38,10 +49,7 @@ export const ApplyLeavePage = () => {
         <div>
           <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Leave Category</label>
           <select value={type} onChange={(e) => setType(e.target.value)} className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-200">
-            <option value="CASUAL">Casual Leave (CL)</option>
-            <option value="EARNED">Earned Leave (EL)</option>
-            <option value="MEDICAL">Medical Leave (ML)</option>
-            <option value="DUTY">Duty Leave (DL)</option>
+            {leaveTypes.map((t) => <option key={t.code} value={t.code}>{t.label}</option>)}
           </select>
         </div>
 

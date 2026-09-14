@@ -22,6 +22,8 @@ import timetableService from '../../services/timetableService';
 import examService from '../../services/examService';
 import feeService from '../../services/feeService';
 import announcementService from '../../services/announcementService';
+import assignmentService from '../../services/assignmentService';
+import campusService from '../../services/campusService';
 
 const TODAY_NAME = new Date().toLocaleDateString('en-US', { weekday: 'long' }).toUpperCase();
 
@@ -36,6 +38,8 @@ export const StudentDashboardPage = () => {
   const [results, setResults] = useState([]);
   const [fees, setFees] = useState([]);
   const [announcements, setAnnouncements] = useState([]);
+  const [assignments, setAssignments] = useState([]);
+  const [libraryIssues, setLibraryIssues] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -46,13 +50,17 @@ export const StudentDashboardPage = () => {
       examService.getResults().catch(() => ({ data: [] })),
       feeService.getFees().catch(() => ({ data: [] })),
       announcementService.getAll().catch(() => ({ data: [] })),
-    ]).then(([attRes, ttRes, examRes, resultsRes, feeRes, annRes]) => {
+      assignmentService.getAssignments().catch(() => ({ data: [] })),
+      campusService.getMyLibrary().catch(() => ({ data: [] })),
+    ]).then(([attRes, ttRes, examRes, resultsRes, feeRes, annRes, assignRes, libRes]) => {
       setAttendance(attRes.data);
       setTimetable(ttRes.data || []);
       setExamSchedule(examRes.data || []);
       setResults(resultsRes.data || []);
       setFees(feeRes.data || []);
       setAnnouncements(annRes.data || []);
+      setAssignments(assignRes.data || []);
+      setLibraryIssues(libRes.data || []);
     }).catch((err) => showError(err.message || 'Failed to load dashboard', 'Load Failed'))
       .finally(() => setLoading(false));
   }, [showError]);
@@ -79,6 +87,8 @@ export const StudentDashboardPage = () => {
   }, [results]);
 
   const upcomingExamCount = useMemo(() => examSchedule.filter((e) => new Date(e.examDate) >= new Date()).length, [examSchedule]);
+  const pendingHomeworkCount = useMemo(() => assignments.filter((a) => !a.mySubmission).length, [assignments]);
+  const issuedBookCount = useMemo(() => libraryIssues.filter((i) => !i.returnedAt).length, [libraryIssues]);
   const totalFeeDue = useMemo(() => fees.reduce((sum, a) => sum + a.dueAmount, 0), [fees]);
   const nearestFeeDueDate = useMemo(() => {
     const dates = fees.filter((a) => a.dueAmount > 0).map((a) => new Date(a.feeStructure?.dueDate));
@@ -89,10 +99,14 @@ export const StudentDashboardPage = () => {
     return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-indigo-600" /></div>;
   }
 
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
+  const firstName = student?.name?.split(' ')[0] || 'there';
+
   return (
     <div className="space-y-6">
       {/* Student Profile Hero Header */}
-      <div className="glass-card p-6 rounded-3xl bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-700 text-white relative overflow-hidden shadow-xl border-none">
+      <div className="p-6 rounded-3xl bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-700 text-white relative overflow-hidden shadow-xl border-none">
         <div className="relative z-10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             <span className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center text-2xl font-black border-2 border-white/40 shadow-lg shrink-0">
@@ -107,7 +121,8 @@ export const StudentDashboardPage = () => {
                   {student?.status}
                 </span>
               </div>
-              <h2 className="text-xl sm:text-2xl font-black mt-1">{student?.name}</h2>
+              <p className="text-xs text-indigo-200 font-semibold mt-2">{greeting}, {firstName} 👋</p>
+              <h2 className="text-xl sm:text-2xl font-black mt-0.5">{student?.name}</h2>
               <p className="text-xs text-indigo-100 mt-0.5">
                 {student?.course} • {student?.department} ({student?.semester}, Sec {student?.section})
               </p>
@@ -158,10 +173,11 @@ export const StudentDashboardPage = () => {
           />
           <StatCard
             title="Pending Homework"
-            value="—"
-            subtitle="Coming soon"
+            value={`${pendingHomeworkCount}`}
+            subtitle={pendingHomeworkCount === 0 ? 'All caught up!' : `${pendingHomeworkCount} awaiting submission`}
             icon={FileText}
             color="amber"
+            badgeText={pendingHomeworkCount > 0 ? 'Due' : undefined}
             onClick={() => navigate('/student/assignments')}
           />
           <StatCard
@@ -190,8 +206,8 @@ export const StudentDashboardPage = () => {
           />
           <StatCard
             title="Library Books"
-            value="—"
-            subtitle="Coming soon"
+            value={`${issuedBookCount}`}
+            subtitle={issuedBookCount === 0 ? 'None issued' : `${issuedBookCount} currently with you`}
             icon={BookOpen}
             color="purple"
             onClick={() => navigate('/student/library')}

@@ -7,7 +7,9 @@ const {
   sendSuccess,
   NotFoundError,
   BusinessRuleError,
+  ValidationError,
 } = require('../../../shared');
+const ExcelJS = require('exceljs');
 
 // ============================================================
 // Academic Years
@@ -190,7 +192,7 @@ const getCourses = async (req, res, next) => {
         institutionId: req.institutionId,
         ...(departmentId && { departmentId }),
       },
-      include: { department: true, _count: { select: { students: true, subjects: true } } },
+      include: { department: true, _count: { select: { students: true, subjectClassMappings: true } } },
       orderBy: { name: 'asc' },
     });
     return sendSuccess(res, courses, 'Courses retrieved');
@@ -260,11 +262,11 @@ const deleteCourse = async (req, res, next) => {
     const { id } = req.params;
     const existing = await prisma.course.findFirst({
       where: { id, institutionId: req.institutionId },
-      include: { _count: { select: { students: true, subjects: true, semesters: true } } },
+      include: { _count: { select: { students: true, subjectClassMappings: true, semesters: true } } },
     });
     if (!existing) throw new NotFoundError('Course not found');
-    if (existing._count.students > 0 || existing._count.subjects > 0 || existing._count.semesters > 0) {
-      throw new BusinessRuleError('Cannot delete a Course with existing semesters, subjects, or students linked to it');
+    if (existing._count.students > 0 || existing._count.subjectClassMappings > 0 || existing._count.semesters > 0) {
+      throw new BusinessRuleError('Cannot delete a Course with existing semesters, mapped subjects, or students linked to it');
     }
     await prisma.course.delete({ where: { id } });
     return sendSuccess(res, null, 'Course deleted successfully');
@@ -470,17 +472,21 @@ const deleteSection = async (req, res, next) => {
 };
 
 // ============================================================
-// Subjects
+// Subjects — created once, institution-wide, then mapped to whichever
+// classes actually teach them (see SubjectClassMapping below).
 // ============================================================
 const getSubjects = async (req, res, next) => {
   try {
     const { courseId } = req.query;
     const subjects = await prisma.subject.findMany({
       where: {
-        ...(courseId && { courseId }),
-        course: { institutionId: req.institutionId },
+        institutionId: req.institutionId,
+        // When a class is specified, only subjects actually mapped to it —
+        // this is what keeps every existing "subjects for this class" dropdown
+        // (Exam Schedule, Teacher Assignments, Class Timetable) working unchanged.
+        ...(courseId && { classMappings: { some: { courseId } } }),
       },
-      include: { course: true },
+      include: { classMappings: { include: { course: { select: { id: true, name: true, code: true } } } } },
       orderBy: { name: 'asc' },
     });
     return sendSuccess(res, subjects, 'Subjects retrieved');
@@ -491,21 +497,28 @@ const getSubjects = async (req, res, next) => {
 
 const createSubject = async (req, res, next) => {
   try {
-    const { courseId, code, name, type, credits } = req.body;
+    const { code, name, type, credits, courseIds } = req.body;
+    if (!code || !name) throw new ValidationError('code and name are required');
 
-    const course = await prisma.course.findFirst({
-      where: { id: courseId, institutionId: req.institutionId },
-    });
-    if (!course) throw new NotFoundError('Course not found or access denied');
+    let validCourseIds = [];
+    if (Array.isArray(courseIds) && courseIds.length > 0) {
+      const courses = await prisma.course.findMany({ where: { id: { in: courseIds }, institutionId: req.institutionId }, select: { id: true } });
+      validCourseIds = courses.map((c) => c.id);
+    }
+
+    const existing = await prisma.subject.findUnique({ where: { institutionId_code: { institutionId: req.institutionId, code } } });
+    if (existing) throw new ValidationError(`A subject with code "${code}" already exists`);
 
     const subject = await prisma.subject.create({
       data: {
-        courseId,
+        institutionId: req.institutionId,
         code,
         name,
         type: type || 'THEORY',
         credits: Number(credits) || 3,
+        ...(validCourseIds.length > 0 && { classMappings: { create: validCourseIds.map((id) => ({ courseId: id })) } }),
       },
+      include: { classMappings: { include: { course: { select: { id: true, name: true, code: true } } } } },
     });
     return sendSuccess(res, subject, 'Subject created successfully', 201);
   } catch (err) {
@@ -518,10 +531,13 @@ const updateSubject = async (req, res, next) => {
     const { id } = req.params;
     const { code, name, type, credits } = req.body;
 
-    const existing = await prisma.subject.findFirst({
-      where: { id, course: { institutionId: req.institutionId } },
-    });
+    const existing = await prisma.subject.findFirst({ where: { id, institutionId: req.institutionId } });
     if (!existing) throw new NotFoundError('Subject not found');
+
+    if (code && code !== existing.code) {
+      const codeTaken = await prisma.subject.findUnique({ where: { institutionId_code: { institutionId: req.institutionId, code } } });
+      if (codeTaken) throw new ValidationError(`A subject with code "${code}" already exists`);
+    }
 
     const subject = await prisma.subject.update({
       where: { id },
@@ -541,12 +557,133 @@ const updateSubject = async (req, res, next) => {
 const deleteSubject = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const existing = await prisma.subject.findFirst({
-      where: { id, course: { institutionId: req.institutionId } },
-    });
+    const existing = await prisma.subject.findFirst({ where: { id, institutionId: req.institutionId } });
     if (!existing) throw new NotFoundError('Subject not found');
     await prisma.subject.delete({ where: { id } });
     return sendSuccess(res, null, 'Subject deleted successfully');
+  } catch (err) {
+    next(err);
+  }
+};
+
+/** Bulk-uploads the master subject list from a .xlsx/.csv — Code, Name, Type, Credits
+ * columns only. No class column: mapping to classes is always a deliberate second step
+ * (see setClassMapping below), never inferred from the upload. */
+const bulkUploadSubjects = async (req, res, next) => {
+  try {
+    if (!req.file) throw new ValidationError('No file uploaded. Attach an .xlsx or .csv file as "file".');
+
+    const workbook = new ExcelJS.Workbook();
+    if (req.file.originalname.toLowerCase().endsWith('.csv')) {
+      await workbook.csv.read(require('stream').Readable.from(req.file.buffer));
+    } else {
+      await workbook.xlsx.load(req.file.buffer);
+    }
+    const sheet = workbook.worksheets[0];
+    if (!sheet) throw new ValidationError('The uploaded file has no readable sheet');
+
+    const header = Array.from(sheet.getRow(1).values, (v) => String(v || '').trim().toLowerCase());
+    const codeCol = header.findIndex((h) => h.includes('code'));
+    const nameCol = header.findIndex((h) => h.includes('name'));
+    const typeCol = header.findIndex((h) => h.includes('type'));
+    const creditsCol = header.findIndex((h) => h.includes('credit'));
+    if (codeCol === -1 || nameCol === -1) {
+      throw new ValidationError('The file must have "Code" and "Name" columns ("Type" and "Credits" are optional)');
+    }
+
+    const existingCodes = new Set((await prisma.subject.findMany({ where: { institutionId: req.institutionId }, select: { code: true } })).map((s) => s.code.toLowerCase()));
+
+    const created = [];
+    const failures = [];
+    const rows = [];
+    sheet.eachRow((row, rowNumber) => {
+      if (rowNumber === 1) return;
+      const code = String(row.values[codeCol] ?? '').trim();
+      const name = String(row.values[nameCol] ?? '').trim();
+      if (!code && !name) return; // blank trailing row
+      rows.push({
+        rowNumber, code, name,
+        type: typeCol > -1 ? String(row.values[typeCol] ?? 'THEORY').trim().toUpperCase() : 'THEORY',
+        credits: creditsCol > -1 ? Number(row.values[creditsCol]) || 3 : 3,
+      });
+    });
+    if (rows.length === 0) throw new ValidationError('The uploaded file has no data rows');
+    if (rows.length > 500) throw new ValidationError('Bulk upload is limited to 500 subjects per file');
+
+    for (const r of rows) {
+      if (!r.code || !r.name) { failures.push({ rowNumber: r.rowNumber, reason: 'Code and Name are both required' }); continue; }
+      if (existingCodes.has(r.code.toLowerCase())) { failures.push({ rowNumber: r.rowNumber, code: r.code, reason: 'A subject with this code already exists' }); continue; }
+      try {
+        const subject = await prisma.subject.create({
+          data: { institutionId: req.institutionId, code: r.code, name: r.name, type: r.type, credits: r.credits },
+        });
+        created.push({ rowNumber: r.rowNumber, id: subject.id, code: subject.code, name: subject.name });
+        existingCodes.add(r.code.toLowerCase());
+      } catch (err) {
+        failures.push({ rowNumber: r.rowNumber, code: r.code, reason: err.message || 'Unknown error' });
+      }
+    }
+
+    return sendSuccess(res, { created, failures, totalRows: rows.length }, `${created.length} of ${rows.length} subject(s) uploaded — map them to classes next`, 201);
+  } catch (err) {
+    next(err);
+  }
+};
+
+// ============================================================
+// Subject <-> Class Mapping — which classes actually teach a given subject
+// ============================================================
+
+/** All classes for this institution, each subject's current mapping to them —
+ * the data behind the "map subjects to classes" screen. */
+const getSubjectClassMappingOverview = async (req, res, next) => {
+  try {
+    const [courses, subjects] = await Promise.all([
+      prisma.course.findMany({ where: { institutionId: req.institutionId }, select: { id: true, name: true, code: true }, orderBy: { name: 'asc' } }),
+      prisma.subject.findMany({
+        where: { institutionId: req.institutionId },
+        select: { id: true, code: true, name: true, classMappings: { select: { courseId: true } } },
+        orderBy: { name: 'asc' },
+      }),
+    ]);
+    const result = subjects.map((s) => ({ id: s.id, code: s.code, name: s.name, courseIds: s.classMappings.map((m) => m.courseId) }));
+    return sendSuccess(res, { courses, subjects: result }, 'Subject-class mapping retrieved');
+  } catch (err) {
+    next(err);
+  }
+};
+
+/** Sets exactly which classes teach this subject — replaces the whole set (add
+ * whatever's missing, remove whatever was dropped) so the caller can just send the
+ * full desired list without diffing it themselves. */
+const setSubjectClassMapping = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { courseIds } = req.body;
+    if (!Array.isArray(courseIds)) throw new ValidationError('courseIds must be an array');
+
+    const subject = await prisma.subject.findFirst({ where: { id, institutionId: req.institutionId } });
+    if (!subject) throw new NotFoundError('Subject not found');
+
+    const validCourses = await prisma.course.findMany({ where: { id: { in: courseIds }, institutionId: req.institutionId }, select: { id: true } });
+    const validIds = validCourses.map((c) => c.id);
+
+    await prisma.$transaction([
+      prisma.subjectClassMapping.deleteMany({ where: { subjectId: id, courseId: { notIn: validIds } } }),
+      ...validIds.map((courseId) =>
+        prisma.subjectClassMapping.upsert({
+          where: { subjectId_courseId: { subjectId: id, courseId } },
+          create: { subjectId: id, courseId },
+          update: {},
+        })
+      ),
+    ]);
+
+    const updated = await prisma.subject.findUnique({
+      where: { id },
+      include: { classMappings: { include: { course: { select: { id: true, name: true, code: true } } } } },
+    });
+    return sendSuccess(res, updated, `"${subject.name}" is now mapped to ${validIds.length} class(es)`);
   } catch (err) {
     next(err);
   }
@@ -577,4 +714,7 @@ module.exports = {
   createSubject,
   updateSubject,
   deleteSubject,
+  bulkUploadSubjects,
+  getSubjectClassMappingOverview,
+  setSubjectClassMapping,
 };

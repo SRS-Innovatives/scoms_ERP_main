@@ -13,7 +13,8 @@ export const DataTable = ({
   onSelectRow,
   onSelectAll,
   keyField = 'id',
-  onRowClick
+  onRowClick,
+  rowClassName
 }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(pageSize);
@@ -117,7 +118,7 @@ export const DataTable = ({
                     key={row[keyField] || rIdx}
                     onClick={() => onRowClick && onRowClick(row)}
                     className={`transition-colors hover:bg-slate-50/80 dark:hover:bg-slate-800/40 ${
-                      isSelected ? 'bg-indigo-50/50 dark:bg-indigo-950/20' : ''
+                      isSelected ? 'bg-indigo-50/50 dark:bg-indigo-950/20' : (rowClassName ? rowClassName(row) : '')
                     } ${onRowClick ? 'cursor-pointer' : ''}`}
                   >
                     {selectable && (

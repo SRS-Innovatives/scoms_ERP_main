@@ -9,11 +9,11 @@ const { prisma, sendSuccess } = require('../../../shared');
 const getFeedbackSummary = async (req, res, next) => {
   try {
     const subjects = await prisma.subject.findMany({
-      where: { course: { institutionId: req.institutionId } },
+      where: { institutionId: req.institutionId },
       select: {
         id: true,
         name: true,
-        course: { select: { name: true } },
+        classMappings: { select: { course: { select: { name: true } } } },
         courseFeedback: { select: { rating: true } },
       },
     });
@@ -25,7 +25,7 @@ const getFeedbackSummary = async (req, res, next) => {
         return {
           subjectId: s.id,
           subjectName: s.name,
-          courseName: s.course.name,
+          courseName: s.classMappings.map((m) => m.course.name).join(', ') || null,
           responseCount: s.courseFeedback.length,
           averageRating: Number((total / s.courseFeedback.length).toFixed(2)),
         };

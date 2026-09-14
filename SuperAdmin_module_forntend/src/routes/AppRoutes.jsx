@@ -18,6 +18,7 @@ import OnboardingWizardPage from '../pages/institutions/OnboardingWizardPage';
 import InstitutionDetailPage from '../pages/institutions/InstitutionDetailPage';
 import InstitutionModuleAccessPage from '../pages/institutions/InstitutionModuleAccessPage';
 import InstitutionActivityPage from '../pages/institutions/InstitutionActivityPage';
+import AdmissionFieldApprovalsPage from '../pages/institutions/AdmissionFieldApprovalsPage';
 
 // Subscriptions
 import PlansListPage from '../pages/subscriptions/PlansListPage';
@@ -100,6 +101,7 @@ export const AppRoutes = () => {
               <Route path="institutions/new" element={<OnboardingWizardPage />} />
               <Route path="institutions/modules" element={<InstitutionModuleAccessPage />} />
               <Route path="institutions/activity" element={<InstitutionActivityPage />} />
+              <Route path="institutions/admission-fields" element={<AdmissionFieldApprovalsPage />} />
               <Route path="institutions/:id" element={<InstitutionDetailPage />} />
 
               {/* Dynamic Report Engine Management */}

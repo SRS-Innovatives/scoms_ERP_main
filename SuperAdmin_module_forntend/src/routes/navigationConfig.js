@@ -29,7 +29,8 @@ export const navigationConfig = [
       { key: 'institutions-list', title: 'Institutions', path: '/super-admin/institutions' },
       { key: 'onboarding-wizard', title: 'Institution Onboarding', path: '/super-admin/institutions/new' },
       { key: 'institution-modules', title: 'Institution Modules', path: '/super-admin/institutions/modules' },
-      { key: 'institution-activity', title: 'Institution Activity', path: '/super-admin/institutions/activity' }
+      { key: 'institution-activity', title: 'Institution Activity', path: '/super-admin/institutions/activity' },
+      { key: 'admission-field-approvals', title: 'Admission Field Approvals', path: '/super-admin/institutions/admission-fields' }
     ]
   },
   {

@@ -129,7 +129,12 @@ model Institution {
   visitorLogs                     VisitorLog[]
   galleryAlbums                   GalleryAlbum[]
   gradeScales                     GradeScale[]
+  subjects                        Subject[]
   messageTemplates                MessageTemplate[]
+  preAdmissionApplications        PreAdmissionApplication[]
+  preAdmissionApiKey              String?                          @unique // set once Institute Admin generates it from Front Office settings
+  admissionCustomFields           AdmissionCustomField[]
+  customLists                     InstitutionCustomList[]
 
   // Real University <-> College affiliation, when the university is itself a SCOMS tenant
   // (not just a free-text label) — enables real oversight: a University can see every
@@ -271,13 +276,14 @@ model Course {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  institution   Institution    @relation(fields: [institutionId], references: [id], onDelete: Cascade)
-  department    Department     @relation(fields: [departmentId], references: [id], onDelete: Cascade)
-  semesters     Semester[]
-  students      Student[]
-  subjects      Subject[]
-  feeStructures FeeStructure[]
-  announcements Announcement[]
+  institution          Institution           @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  department           Department            @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  semesters            Semester[]
+  students             Student[]
+  subjectClassMappings SubjectClassMapping[]
+  examSchedules        ExamSchedule[]
+  feeStructures        FeeStructure[]
+  announcements        Announcement[]
 
   @@unique([institutionId, code])
 }
@@ -317,16 +323,17 @@ model Section {
 }
 
 model Subject {
-  id        String   @id @default(uuid())
-  courseId  String
-  code      String
-  name      String
-  type      String   @default("THEORY") // THEORY, PRACTICAL, LAB
-  credits   Int      @default(3)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id            String   @id @default(uuid())
+  institutionId String // A subject is created once, institution-wide — which classes teach it lives in SubjectClassMapping, not here
+  code          String
+  name          String
+  type          String   @default("THEORY") // THEORY, PRACTICAL, LAB
+  credits       Int      @default(3)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
-  course             Course                  @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  institution        Institution             @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  classMappings      SubjectClassMapping[]
   teacherMappings    SubjectTeacherMapping[]
   attendanceSessions AttendanceSession[]
   timetableEntries   TimetableEntry[]
@@ -335,7 +342,23 @@ model Subject {
   examSchedules      ExamSchedule[]
   courseFeedback     CourseFeedback[]
 
-  @@unique([courseId, code])
+  @@unique([institutionId, code])
+}
+
+/// Which classes ("Courses" in this schema — e.g. "Class 7") a given Subject is taught
+/// in. A Subject is created once, institution-wide, then mapped here to as many classes
+/// as it's actually taught in — the same "Mathematics" row serves Class 6, 7 and 8 alike.
+model SubjectClassMapping {
+  id        String   @id @default(uuid())
+  subjectId String
+  courseId  String
+  createdAt DateTime @default(now())
+
+  subject Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  course  Course  @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([subjectId, courseId])
+  @@index([courseId])
 }
 
 model SubjectTeacherMapping {
@@ -428,6 +451,11 @@ model Student {
   courseId     String?
   semesterId   String?
   sectionId    String?
+
+  // Institution-specific extra admission fields — only ever populated from fields that
+  // were APPROVED by SuperAdmin at the time of submission (see AdmissionCustomField).
+  // Keyed by fieldKey, e.g. { "blood_donor_consent": "Yes" }.
+  customFields Json?
 
   // Relations
   user                User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -536,15 +564,19 @@ model Staff {
   emergencyContactAddress  String?
   joiningDate              DateTime  @default(now())
   status                   String    @default("ACTIVE")
+  // Institution-specific extra fields — only ever populated from fields that were
+  // APPROVED by SuperAdmin at registration time (see AdmissionCustomField, entityType
+  // STAFF_PROFILE). Keyed by fieldKey.
+  customFields             Json?
   createdAt                DateTime  @default(now())
   updatedAt                DateTime  @updatedAt
   deletedAt                DateTime?
 
-  user                      User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  institution               Institution             @relation(fields: [institutionId], references: [id])
-  department                Department?             @relation(fields: [departmentId], references: [id])
+  user                      User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  institution               Institution               @relation(fields: [institutionId], references: [id])
+  department                Department?               @relation(fields: [departmentId], references: [id])
   subjectTeacherMappings    SubjectTeacherMapping[]
-  classTeacherOf            Section[]               @relation("SectionClassTeacher")
+  classTeacherOf            Section[]                 @relation("SectionClassTeacher")
   attendanceSessions        AttendanceSession[]
   timetableEntries          TimetableEntry[]
   assignments               Assignment[]
@@ -561,12 +593,13 @@ model Staff {
   researchPublications      ResearchPublication[]
   textbookUploads           TextbookContent[]
   loggedEnquiries           Enquiry[]
-  payslips                  Payslip[]               @relation("PayslipOwner")
-  generatedPayslips         Payslip[]               @relation("PayslipGeneratedBy")
+  payslips                  Payslip[]                 @relation("PayslipOwner")
+  generatedPayslips         Payslip[]                 @relation("PayslipGeneratedBy")
   reportedDisciplineRecords DisciplineRecord[]
   recordedHealthRecords     HealthRecord[]
   recordedVisitorLogs       VisitorLog[]
   createdGalleryAlbums      GalleryAlbum[]
+  reviewedPreAdmissions     PreAdmissionApplication[]
   uploadedGalleryPhotos     GalleryPhoto[]
 
   @@unique([institutionId, employeeCode])
@@ -854,6 +887,7 @@ model ExamSchedule {
   id          String    @id @default(uuid())
   examId      String
   subjectId   String
+  courseId    String // now that a Subject can serve several classes, the exam schedule must say explicitly which one it's for
   examDate    DateTime
   startTime   String
   endTime     String
@@ -865,6 +899,7 @@ model ExamSchedule {
 
   exam         Exam          @relation(fields: [examId], references: [id], onDelete: Cascade)
   subject      Subject       @relation(fields: [subjectId], references: [id])
+  course       Course        @relation(fields: [courseId], references: [id])
   studentMarks StudentMark[]
 }
 
@@ -874,6 +909,7 @@ model StudentMark {
   studentId      String
   marksObtained  Float
   grade          String?
+  isAbsent       Boolean  @default(false) // true = student did not sit this exam; marksObtained is stored as 0 and excluded from every average/rank/SGPA computation, grade shown as "AB"
   remarks        String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
@@ -2780,4 +2816,155 @@ model MessageTemplate {
 
   @@index([institutionId, channel])
   @@index([channel, category])
+}
+
+// ------------------------------------------------------
+// 29. PRE-ADMISSION (public application form API)
+// ------------------------------------------------------
+
+enum PreAdmissionStatus {
+  NEW
+  UNDER_REVIEW
+  SHORTLISTED
+  ENROLLED
+  REJECTED
+  CONVERTED
+}
+
+/// One submission from an institution's own external website admission-application
+/// form, posted to the public /pre-admission/submit endpoint using that institution's
+/// preAdmissionApiKey — or logged manually by front-office staff for a walk-in/phone
+/// applicant. rawPayload keeps the full original submission (including any custom
+/// fields the institution's form collects that don't map to a named column below), so
+/// nothing the applicant submitted is ever silently dropped.
+///
+/// Real workflow, matching how school/college front offices actually run this:
+/// NEW → (review) → SHORTLISTED → ENROLLED (accepted, applicationNumber/receiptNumber
+/// issued) → CONVERTED (an "Admit" action turns it into a real Student record) — or
+/// REJECTED at any point before that.
+model PreAdmissionApplication {
+  id                 String             @id @default(uuid())
+  institutionId      String
+  applicationNumber  String // e.g. "DPIS/PADM/2026/00001" — auto-generated, always set, this institution's own tracking number
+  referenceNumber    String? // optional external reference the institution's own website/CRM may already use
+  receiptNumber      String? // set once "Generate Receipt" is used — an application/registration fee receipt
+  studentFirstName   String
+  studentLastName    String?
+  dob                DateTime?
+  gender             String?
+  classAppliedFor    String? // school-style ("Class 5")
+  courseApplied      String? // college-style ("B.Tech CSE") — a form only fills whichever applies to that institution
+  academicYear       String?
+  parentName         String?
+  parentPhone        String
+  parentEmail        String?
+  address            String?
+  city               String?
+  state              String?
+  pincode            String?
+  previousSchool     String?
+  previousClass      String?
+  source             String             @default("WEBSITE") // WEBSITE, API, MANUAL
+  submittedFromIp    String?
+  rawPayload         Json? // the full submitted body, kept as-is for audit/debugging
+  customFields       Json? // only the values matching APPROVED AdmissionCustomField keys at submission time — this is what actually carries through to the Student on Admit
+  status             PreAdmissionStatus @default(NEW)
+  enrolledAt         DateTime? // when the applicant was accepted/enrolled (the "Enroll" action)
+  reviewNotes        String?
+  reviewedById       String?
+  convertedStudentId String?
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  institution Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  reviewedBy  Staff?      @relation(fields: [reviewedById], references: [id])
+
+  @@unique([institutionId, applicationNumber])
+  @@index([institutionId, status])
+}
+
+/// One institution-defined extra field on top of a standard form. An institution can
+/// draft/edit/reorder these freely, but nothing renders on any real form until
+/// SuperAdmin flips it to APPROVED — see the status lifecycle below. Originally built
+/// for the admission form only; entityType generalizes the exact same lifecycle to any
+/// other form that opts in (Staff Profile today, more as they're added) without a new
+/// table or a new approval workflow per module.
+enum CustomFieldStatus {
+  DRAFT // being edited by the Institute Admin, not yet submitted
+  PENDING_APPROVAL // submitted, waiting on SuperAdmin
+  APPROVED // live — renders on the real form
+  REJECTED // SuperAdmin declined; rejectionReason explains why
+}
+
+enum CustomFieldType {
+  TEXT
+  NUMBER
+  DATE
+  EMAIL
+  PHONE
+  TEXTAREA
+  SELECT
+  CHECKBOX
+}
+
+/// Which real form a custom field applies to — each entity type stores its approved
+/// field values in that entity's own `customFields` Json column (Student.customFields
+/// for ADMISSION, Staff.customFields for STAFF_PROFILE).
+enum CustomFieldEntityType {
+  ADMISSION
+  STAFF_PROFILE
+}
+
+model AdmissionCustomField {
+  id              String                @id @default(uuid())
+  institutionId   String
+  entityType      CustomFieldEntityType @default(ADMISSION)
+  fieldKey        String // machine key, e.g. "blood_donor_consent" — stored as the key inside that entity type's own customFields column
+  label           String
+  fieldType       CustomFieldType       @default(TEXT)
+  section         String                @default("Additional Information")
+  options         Json? // string[] of choices, only meaningful for fieldType SELECT
+  required        Boolean               @default(false)
+  order           Int                   @default(0)
+  status          CustomFieldStatus     @default(DRAFT)
+  submittedAt     DateTime? // when it last moved DRAFT -> PENDING_APPROVAL
+  reviewedById    String? // SuperAdmin User.id who approved/rejected it — no FK, SuperAdmin users live outside institution scope
+  reviewedAt      DateTime?
+  rejectionReason String?
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+
+  institution Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+
+  @@unique([institutionId, entityType, fieldKey])
+  @@index([institutionId, entityType, status])
+}
+
+/// A self-service picklist an institution manages itself — no SuperAdmin approval,
+/// unlike AdmissionCustomField above, because these are just labels on existing fixed
+/// fields (LeaveRequest.type, DisciplineRecord.category, Exam.examType are already free
+/// strings), never new data-collection surfaces. Institute Admin can add/rename/retire
+/// entries any time; retiring one (isActive: false) keeps historical records readable
+/// without offering it on new entries.
+enum InstitutionListType {
+  LEAVE_TYPE
+  DISCIPLINE_CATEGORY
+  EXAM_TYPE
+}
+
+model InstitutionCustomList {
+  id            String              @id @default(uuid())
+  institutionId String
+  listType      InstitutionListType
+  code          String // the actual value stored on the record, e.g. "CASUAL"
+  label         String // display label, e.g. "Casual Leave (CL)"
+  sortOrder     Int                 @default(0)
+  isActive      Boolean             @default(true)
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+
+  institution Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+
+  @@unique([institutionId, listType, code])
+  @@index([institutionId, listType])
 }

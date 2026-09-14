@@ -17,7 +17,6 @@ import StudentDashboardPage from '../pages/dashboard/StudentDashboardPage';
 import MyProfilePage from '../pages/profile/MyProfilePage';
 
 // Academics
-import AcademicOverviewPage from '../pages/academics/AcademicOverviewPage';
 import MySubjectsPage from '../pages/academics/MySubjectsPage';
 import SubjectDetailPage from '../pages/academics/SubjectDetailPage';
 import AttendanceDashboardPage from '../pages/attendance/AttendanceDashboardPage';
@@ -33,7 +32,6 @@ import PracticeTestSimulatorPage from '../pages/questions/PracticeTestSimulatorP
 // Exams & Results
 import ExamSchedulePage from '../pages/exams/ExamSchedulePage';
 import StudentResultsPage from '../pages/results/StudentResultsPage';
-import PerformanceAnalyticsPage from '../pages/performance/PerformanceAnalyticsPage';
 
 // Fees
 import FeeOverviewPage from '../pages/fees/FeeOverviewPage';
@@ -51,7 +49,6 @@ import HostelPage from '../pages/campus/HostelPage';
 
 // Services
 import CertificatesPage from '../pages/services/CertificatesPage';
-import ServiceRequestsPage from '../pages/services/ServiceRequestsPage';
 import GrievancePage from '../pages/services/GrievancePage';
 import AppointmentsPage from '../pages/services/AppointmentsPage';
 import FeedbackPage from '../pages/services/FeedbackPage';
@@ -65,10 +62,8 @@ import AchievementsPage from '../pages/career/AchievementsPage';
 // AI
 import AiAssistantPage from '../pages/ai/AiAssistantPage';
 import AiStudyPlanPage from '../pages/ai/AiStudyPlanPage';
-import StudyProgressTrackerPage from '../pages/ai/StudyProgressTrackerPage';
 
 // Documents & Comm
-import DocumentVaultPage from '../pages/documents/DocumentVaultPage';
 import DigitalIdCardPage from '../pages/documents/DigitalIdCardPage';
 import MyDegreePage from '../pages/documents/MyDegreePage';
 import MessagesPage from '../pages/communication/MessagesPage';
@@ -100,7 +95,6 @@ export const AppRoutes = () => {
             <Routes>
               <Route path="student/dashboard" element={<StudentDashboardPage />} />
               <Route path="student/profile" element={<MyProfilePage />} />
-              <Route path="student/academics" element={<AcademicOverviewPage />} />
               <Route path="student/subjects" element={<MySubjectsPage />} />
               <Route path="student/subjects/:id" element={<SubjectDetailPage />} />
               <Route path="student/attendance" element={<AttendanceDashboardPage />} />
@@ -114,7 +108,6 @@ export const AppRoutes = () => {
               <Route path="student/practice-tests" element={<PracticeTestSimulatorPage />} />
               <Route path="student/exams" element={<ExamSchedulePage />} />
               <Route path="student/results" element={<StudentResultsPage />} />
-              <Route path="student/performance" element={<PerformanceAnalyticsPage />} />
               <Route path="student/fees" element={<FeeOverviewPage />} />
               <Route path="student/fees/pay" element={<PayFeesPage />} />
               <Route path="student/fees/receipts" element={<FeeReceiptsPage />} />
@@ -126,7 +119,6 @@ export const AppRoutes = () => {
               <Route path="student/transport" element={<TransportPage />} />
               <Route path="student/hostel" element={<HostelPage />} />
               <Route path="student/certificates" element={<CertificatesPage />} />
-              <Route path="student/services" element={<ServiceRequestsPage />} />
               <Route path="student/grievances" element={<GrievancePage />} />
               <Route path="student/appointments" element={<AppointmentsPage />} />
               <Route path="student/feedback" element={<FeedbackPage />} />
@@ -136,8 +128,6 @@ export const AppRoutes = () => {
               <Route path="student/achievements" element={<AchievementsPage />} />
               <Route path="student/ai" element={<AiAssistantPage />} />
               <Route path="student/ai/study-plan" element={<AiStudyPlanPage />} />
-              <Route path="student/study-progress" element={<StudyProgressTrackerPage />} />
-              <Route path="student/documents" element={<DocumentVaultPage />} />
               <Route path="student/id-card" element={<DigitalIdCardPage />} />
               <Route path="student/degree" element={<MyDegreePage />} />
               <Route path="student/messages" element={<MessagesPage />} />

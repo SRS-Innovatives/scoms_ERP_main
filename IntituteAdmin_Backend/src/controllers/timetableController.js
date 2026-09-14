@@ -67,7 +67,7 @@ const saveEntries = async (req, res, next) => {
     const staffIds = [...new Set(validEntries.map((e) => e.staffId).filter(Boolean))];
 
     if (subjectIds.length > 0) {
-      const count = await prisma.subject.count({ where: { id: { in: subjectIds }, course: { institutionId: req.institutionId } } });
+      const count = await prisma.subject.count({ where: { id: { in: subjectIds }, institutionId: req.institutionId } });
       if (count !== subjectIds.length) throw new ValidationError('One or more subjects are invalid for this institution');
     }
     if (staffIds.length > 0) {

@@ -8,7 +8,7 @@
  */
 const { prisma, sendSuccess, ValidationError, sendSMSNotification, sendEmailNotification, sendWhatsAppNotification } = require('../../../shared');
 
-const RECIPIENT_GROUPS = ['absentees', 'pending_fees', 'course', 'all_students', 'staff'];
+const RECIPIENT_GROUPS = ['absentees', 'pending_fees', 'course', 'all_students', 'staff', 'pre_admission'];
 
 // The one placeholder we can honestly auto-fill — every other {{token}} in a template
 // (otp, amount, dueDate, ...) is left for the sender to fill in by hand, since the
@@ -67,6 +67,14 @@ const resolveRecipients = async (institutionId, group, courseId) => {
       select: { id: true, firstName: true, lastName: true, phone: true, email: true, parents: { include: { parent: { select: { fatherPhone: true, motherPhone: true, guardianPhone: true, fatherEmail: true, motherEmail: true } } } } },
     });
     return students.map((s) => ({ id: s.id, name: `${s.firstName} ${s.lastName}`, ...parentContact(s) }));
+  }
+
+  if (group === 'pre_admission') {
+    const applications = await prisma.preAdmissionApplication.findMany({
+      where: { institutionId, status: { notIn: ['REJECTED', 'CONVERTED'] } },
+      select: { id: true, studentFirstName: true, studentLastName: true, parentPhone: true, parentEmail: true },
+    });
+    return applications.map((a) => ({ id: a.id, name: `${a.studentFirstName} ${a.studentLastName || ''}`.trim(), phone: a.parentPhone, email: a.parentEmail }));
   }
 
   if (group === 'staff') {

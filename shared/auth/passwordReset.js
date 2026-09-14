@@ -3,6 +3,7 @@
  * find-user-by-identifier lookup used by handleUnifiedLogin, then a 6-digit OTP emailed
  * via the existing (simulated-in-dev) notification pipeline.
  */
+const { randomInt } = require('crypto');
 const prisma = require('../database/client');
 const { hashPassword } = require('./password');
 const { sendSuccess } = require('../utils/responseFormatter');
@@ -24,7 +25,9 @@ const findUserByIdentifier = (identifier) =>
     },
   });
 
-const generateOtp = () => String(Math.floor(100000 + Math.random() * 900000));
+// crypto.randomInt, not Math.random — Math.random is not cryptographically secure and
+// its output is theoretically predictable, which matters for a security code like this.
+const generateOtp = () => String(randomInt(100000, 1000000));
 
 /** Step 1 — request a code. Always responds with the same generic message, whether or
  * not the account exists, so this endpoint can't be used to enumerate real accounts. */

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Modal from './Modal';
 import FormInput from '../common/FormInput';
 import Select from '../common/Select';
@@ -8,11 +8,23 @@ import leaveService from '../../services/leaveService';
 
 export const ApplyLeaveModal = ({ isOpen, onClose, onSubmitted }) => {
   const { success, error: showError } = useNotification();
-  const [leaveType, setLeaveType] = useState('MEDICAL');
+  const [leaveTypes, setLeaveTypes] = useState([]);
+  const [leaveType, setLeaveType] = useState('');
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
   const [reason, setReason] = useState('');
   const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    leaveService.getLeaveTypes()
+      .then((res) => {
+        const types = res.data || [];
+        setLeaveTypes(types);
+        if (types.length > 0) setLeaveType(types[0].code);
+      })
+      .catch(() => {});
+  }, [isOpen]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -39,11 +51,7 @@ export const ApplyLeaveModal = ({ isOpen, onClose, onSubmitted }) => {
           label="Leave Type"
           value={leaveType}
           onChange={setLeaveType}
-          options={[
-            { value: 'MEDICAL', label: 'Medical Leave' },
-            { value: 'CASUAL', label: 'Casual / Personal Leave' },
-            { value: 'DUTY', label: 'On Duty (OD) - Sports / Symposium' },
-          ]}
+          options={leaveTypes.map((t) => ({ value: t.code, label: t.label }))}
         />
 
         <div className="grid grid-cols-2 gap-4">

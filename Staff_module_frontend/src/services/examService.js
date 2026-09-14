@@ -6,6 +6,11 @@ export const examService = {
   getRoster: async (scheduleId) => apiCall(`/exam-schedules/${scheduleId}/roster`),
   saveMarks: async (scheduleId, marks) => apiCall(`/exam-schedules/${scheduleId}/marks`, { method: 'POST', body: { marks } }),
   publishMarks: async (scheduleId) => apiCall(`/exam-schedules/${scheduleId}/publish`, { method: 'POST' }),
+  importMarksCsv: async (scheduleId, file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return apiCall(`/exam-schedules/${scheduleId}/import`, { method: 'POST', body: formData });
+  },
   getSubjectPerformance: async () => apiCall('/exams/subject-performance'),
   getStudentPerformance: async () => apiCall('/exams/student-performance'),
   getMySubjects: async () => apiCall('/questions/my-subjects'),

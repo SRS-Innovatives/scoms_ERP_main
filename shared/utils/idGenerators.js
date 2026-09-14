@@ -10,6 +10,12 @@ const generateAdmissionNumber = (instCode = 'SCOMS', count = 1) => {
   return `${instCode}/STU/${year}/${seq}`;
 };
 
+const generatePreAdmissionNumber = (instCode = 'SCOMS', count = 1) => {
+  const year = new Date().getFullYear();
+  const seq = String(count).padStart(5, '0');
+  return `${instCode}/PADM/${year}/${seq}`;
+};
+
 const generateEmployeeCode = (instCode = 'SCOMS', count = 1) => {
   const year = new Date().getFullYear();
   const seq = String(count).padStart(4, '0');
@@ -73,6 +79,7 @@ const generateUserCode = (instCode, role, count = 1) => {
 
 module.exports = {
   generateAdmissionNumber,
+  generatePreAdmissionNumber,
   generateEmployeeCode,
   generateReceiptNumber,
   generateChallanNumber,

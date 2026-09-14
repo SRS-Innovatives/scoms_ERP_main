@@ -27,7 +27,6 @@ export const navigationConfig = [
     title: 'My Academics',
     icon: GraduationCap,
     children: [
-      { key: 'acad-overview', title: 'Academic Overview', path: '/student/academics' },
       { key: 'subjects', title: 'My Subjects', path: '/student/subjects' },
       { key: 'attendance', title: 'Attendance', path: '/student/attendance', module: 'attendance' },
       { key: 'timetable', title: 'Timetable', path: '/student/timetable', module: 'timetable' },
@@ -43,13 +42,12 @@ export const navigationConfig = [
     icon: FileCheck,
     children: [
       { key: 'exam-schedule', title: 'Exam Schedule', path: '/student/exams', module: 'examination' },
-      { key: 'results', title: 'Semester Results', path: '/student/results', module: 'examination' },
-      { key: 'performance', title: 'Performance Analytics', path: '/student/performance', module: 'examination' }
+      { key: 'results', title: 'Results & Performance', path: '/student/results', module: 'examination' }
     ]
   },
   {
     key: 'fees',
-    title: 'Fees & Payments',
+    title: 'Fees & Scholarships',
     icon: CreditCard,
     module: 'fee',
     children: [
@@ -69,7 +67,8 @@ export const navigationConfig = [
       { key: 'clubs', title: 'Clubs & Societies', path: '/student/clubs', module: 'events_clubs' },
       { key: 'library', title: 'Digital Library', path: '/student/library', module: 'library' },
       { key: 'transport', title: 'Transport', path: '/student/transport', module: 'transport' },
-      { key: 'hostel', title: 'Hostel & Mess', path: '/student/hostel', module: 'hostel' }
+      { key: 'hostel', title: 'Hostel & Mess', path: '/student/hostel', module: 'hostel' },
+      { key: 'gallery', title: 'Photo Gallery', path: '/student/gallery', module: 'gallery' }
     ]
   },
   {
@@ -77,8 +76,7 @@ export const navigationConfig = [
     title: 'Campus Services',
     icon: Wrench,
     children: [
-      { key: 'certificates', title: 'Certificates', path: '/student/certificates', module: 'certificates' },
-      { key: 'requests', title: 'Service Requests', path: '/student/services' },
+      { key: 'certificates', title: 'Certificates & Documents', path: '/student/certificates', module: 'certificates' },
       { key: 'grievances', title: 'Grievances & Complaints', path: '/student/grievances', module: 'grievance_feedback' },
       { key: 'appointments', title: 'Counselling Appointments', path: '/student/appointments', module: 'counselling' },
       { key: 'feedback', title: 'Faculty Feedback', path: '/student/feedback', module: 'grievance_feedback' }
@@ -97,13 +95,12 @@ export const navigationConfig = [
   },
   {
     key: 'ai',
-    title: 'AI Assistant',
+    title: 'AI Study Tools',
     icon: Bot,
     badge: 'AI Powered',
     children: [
       { key: 'ai-assistant', title: 'AI Study Assistant', path: '/student/ai', module: 'ai_tutor' },
-      { key: 'ai-plan', title: 'AI Study Plan', path: '/student/ai/study-plan' },
-      { key: 'study-progress', title: 'Study Progress Tracker', path: '/student/study-progress' }
+      { key: 'ai-plan', title: 'AI Study Plan', path: '/student/ai/study-plan' }
     ]
   },
   {
@@ -111,20 +108,16 @@ export const navigationConfig = [
     title: 'Documents & ID',
     icon: Folder,
     children: [
-      { key: 'my-documents', title: 'My Document Vault', path: '/student/documents' },
       { key: 'digital-id', title: 'Digital QR ID Card', path: '/student/id-card' },
       { key: 'my-degree', title: 'My Degree', path: '/student/degree', module: 'convocation' }
     ]
   },
   {
     key: 'communication',
-    title: 'Communication',
+    title: 'Messages',
     icon: MessageSquare,
-    children: [
-      { key: 'messages', title: 'Teacher Chat Messages', path: '/student/messages', module: 'messaging' },
-      { key: 'notifications', title: 'Notification Center', path: '/student/notifications' },
-      { key: 'gallery', title: 'Photo Gallery', path: '/student/gallery', module: 'gallery' }
-    ]
+    path: '/student/messages',
+    module: 'messaging'
   },
   {
     key: 'calendar',

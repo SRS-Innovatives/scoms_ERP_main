@@ -1,7 +1,18 @@
 /**
  * Student — Leave / Absence Requests Controller
  */
-const { prisma, sendSuccess, ValidationError } = require('../../../shared');
+const { prisma, sendSuccess, ValidationError, getActiveList } = require('../../../shared');
+
+/** The leave types this institution actually offers right now — its own customized
+ * list if it has one, the standard default otherwise. Powers the Apply Leave dropdown. */
+const getLeaveTypes = async (req, res, next) => {
+  try {
+    const types = await getActiveList(req.institutionId, 'LEAVE_TYPE');
+    return sendSuccess(res, types, 'Leave types retrieved successfully');
+  } catch (err) {
+    next(err);
+  }
+};
 
 const getMyLeaves = async (req, res, next) => {
   try {
@@ -37,4 +48,4 @@ const applyLeave = async (req, res, next) => {
   }
 };
 
-module.exports = { getMyLeaves, applyLeave };
+module.exports = { getMyLeaves, applyLeave, getLeaveTypes };

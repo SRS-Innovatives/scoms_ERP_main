@@ -9,6 +9,9 @@ const errors = require('./errors/customErrors');
 const logger = require('./utils/logger');
 const responseFormatter = require('./utils/responseFormatter');
 const idGenerators = require('./utils/idGenerators');
+const { generateApiKey } = require('./utils/apiKeys');
+const { DEFAULT_GRADE_CURVE, getGradeScale, resolveGrade, gradePointFor, computeGrade } = require('./utils/grading');
+const { DEFAULT_LISTS, LIST_TYPES, getActiveList } = require('./utils/customLists');
 const prisma = require('./database/client');
 const jwt = require('./auth/jwt');
 const password = require('./auth/password');
@@ -16,6 +19,7 @@ const { ROLE_PERMISSIONS, hasPermission } = require('./permissions/permissionMat
 const requireAuth = require('./middleware/requireAuth');
 const requireTenant = require('./middleware/requireTenant');
 const requireModule = require('./middleware/requireModule');
+const { loginLimiter, otpLimiter, publicSubmissionLimiter } = require('./middleware/rateLimiter');
 const { requirePermission, requireRole } = require('./middleware/requirePermission');
 const errorHandler = require('./middleware/errorHandler');
 const schemas = require('./validation/schemas');
@@ -71,6 +75,18 @@ module.exports = {
   requireAuth,
   requireTenant,
   requireModule,
+  loginLimiter,
+  otpLimiter,
+  publicSubmissionLimiter,
+  generateApiKey,
+  DEFAULT_GRADE_CURVE,
+  getGradeScale,
+  resolveGrade,
+  gradePointFor,
+  computeGrade,
+  DEFAULT_LISTS,
+  LIST_TYPES,
+  getActiveList,
   requirePermission,
   requireRole,
   errorHandler,

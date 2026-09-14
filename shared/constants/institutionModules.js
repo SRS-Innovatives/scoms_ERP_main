@@ -57,6 +57,7 @@ const MODULE_CATALOG = [
   { key: 'ptm', label: 'Parent-Teacher Meetings', description: 'Staff logging of parent-teacher meeting notes and follow-ups', recommendedFor: ['SCHOOL'] },
   { key: 'messaging', label: 'Internal Messaging', description: 'Direct chat between students, parents and staff', recommendedFor: ['SCHOOL', 'COLLEGE', 'AUTONOMOUS_COLLEGE', 'UNIVERSITY'] },
   { key: 'gallery', label: 'Photo Gallery', description: 'Event/campus photo albums — Institute Admin & Staff upload, everyone in the institution can view', recommendedFor: ['SCHOOL', 'COLLEGE', 'AUTONOMOUS_COLLEGE', 'UNIVERSITY'] },
+  { key: 'pre_admission', label: 'Pre-Admission / Application Form', description: 'A public API your own website\'s admission form can submit into — applications land here for review, then one click converts a real student admission', recommendedFor: ['SCHOOL', 'COLLEGE', 'AUTONOMOUS_COLLEGE', 'UNIVERSITY'] },
 ];
 
 const OPTIONAL_MODULE_KEYS = MODULE_CATALOG.map((m) => m.key);

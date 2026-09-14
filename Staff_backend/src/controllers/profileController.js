@@ -11,7 +11,19 @@ const {
   sendSuccess,
   NotFoundError,
   ValidationError,
+  getActiveList,
 } = require('../../../shared');
+
+/** The leave types this institution actually offers right now — its own customized
+ * list if it has one, the standard default otherwise. Powers the Apply Leave dropdown. */
+const getLeaveTypes = async (req, res, next) => {
+  try {
+    const types = await getActiveList(req.institutionId, 'LEAVE_TYPE');
+    return sendSuccess(res, types, 'Leave types retrieved successfully');
+  } catch (err) {
+    next(err);
+  }
+};
 
 // ============================================================
 // Profile
@@ -179,4 +191,5 @@ module.exports = {
   getMyLeaves,
   applyMyLeave,
   getMyAttendance,
+  getLeaveTypes,
 };

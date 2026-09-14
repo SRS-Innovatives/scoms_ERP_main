@@ -11,6 +11,7 @@ const RECIPIENT_OPTIONS = [
   { value: 'course', label: 'By Course (choose below)' },
   { value: 'all_students', label: 'All Enrolled Students' },
   { value: 'staff', label: 'Teaching & Non-Teaching Staff' },
+  { value: 'pre_admission', label: 'Pre-Admission Applicants (Parents)' },
 ];
 
 export const SMSComposeModal = ({ isOpen, onClose, defaultRecipientType = 'absentees' }) => {
