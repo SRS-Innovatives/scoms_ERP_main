@@ -29,14 +29,15 @@ const jobPostingController = require('../controllers/jobPostingController');
 const galleryController = require('../controllers/galleryController');
 const {
   requireAuth, requireTenant, requireModule, handleForgotPassword, handleVerifyOtp, handleResetPassword,
+  loginLimiter, otpLimiter,
   handleGetNotifications, handleGetUnreadCount, handleMarkNotificationRead, handleMarkAllNotificationsRead,
 } = require('../../../shared');
 
 // Standalone Auth Routes
-router.post('/auth/login', authController.login);
-router.post('/auth/forgot-password', handleForgotPassword);
-router.post('/auth/verify-otp', handleVerifyOtp);
-router.post('/auth/reset-password', handleResetPassword);
+router.post('/auth/login', loginLimiter, authController.login);
+router.post('/auth/forgot-password', otpLimiter, handleForgotPassword);
+router.post('/auth/verify-otp', otpLimiter, handleVerifyOtp);
+router.post('/auth/reset-password', otpLimiter, handleResetPassword);
 router.post('/auth/refresh', authController.refreshToken);
 router.post('/auth/logout', authController.logout);
 
@@ -115,6 +116,7 @@ router.post('/grievances', grievanceController.submitGrievance);
 router.get('/materials', materialController.getMaterials);
 
 // Leave / Absence Requests
+router.get('/leave/types', leaveController.getLeaveTypes);
 router.get('/leave', leaveController.getMyLeaves);
 router.post('/leave', leaveController.applyLeave);
 

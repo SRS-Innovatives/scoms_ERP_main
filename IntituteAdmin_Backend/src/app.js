@@ -6,6 +6,7 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const apiRoutes = require('./routes/apiRoutes');
+const publicRoutes = require('./routes/publicRoutes');
 const { errorHandler, getHealthPayload } = require('../../shared');
 
 const app = express();
@@ -18,6 +19,7 @@ app.get('/health', async (req, res) => {
   res.json(await getHealthPayload('SCOMS Institute Admin Backend'));
 });
 
+app.use('/api/v1/public', publicRoutes);
 app.use('/api/v1/admin', apiRoutes);
 app.use(errorHandler);
 

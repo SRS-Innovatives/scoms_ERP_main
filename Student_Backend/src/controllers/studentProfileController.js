@@ -122,7 +122,7 @@ const getMySubjects = async (req, res, next) => {
     if (!student?.courseId) return sendSuccess(res, [], 'Subjects retrieved');
 
     const subjects = await prisma.subject.findMany({
-      where: { courseId: student.courseId },
+      where: { classMappings: { some: { courseId: student.courseId } } },
       include: {
         teacherMappings: {
           take: 1,

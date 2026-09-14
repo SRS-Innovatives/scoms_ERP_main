@@ -1,7 +1,9 @@
 /**
  * Student — Question Bank Controller (read-only practice material)
  *
- * Scoped by the student's own course via Subject.courseId, same pattern as Study Materials.
+ * Scoped by the student's own course via SubjectClassMapping — a subject can be mapped
+ * to several classes, so "does this subject apply to my class" is answered by that
+ * mapping, not by any single field on Subject itself.
  */
 const { prisma, sendSuccess } = require('../../../shared');
 
@@ -11,7 +13,7 @@ const getQuestions = async (req, res, next) => {
     if (!student?.courseId) return sendSuccess(res, [], 'Question bank retrieved');
 
     const questions = await prisma.questionBank.findMany({
-      where: { institutionId: req.institutionId, subject: { courseId: student.courseId } },
+      where: { institutionId: req.institutionId, subject: { classMappings: { some: { courseId: student.courseId } } } },
       include: { subject: { select: { name: true } } },
       orderBy: { createdAt: 'desc' },
     });

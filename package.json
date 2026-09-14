@@ -25,6 +25,9 @@
     "concurrently": "^10.0.5",
     "prisma": "^5.10.0"
   },
+  "overrides": {
+    "qs": "^6.16.0"
+  },
   "prisma": {
     "seed": "node prisma/seed/seed.js"
   }

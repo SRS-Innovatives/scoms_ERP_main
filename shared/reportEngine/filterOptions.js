@@ -44,7 +44,7 @@ const resolveFilterOptions = async (source, institutionId, context = {}) => {
     }
     case 'SUBJECT': {
       const rows = await prisma.subject.findMany({
-        where: { course: { institutionId }, ...(context.courseId && { courseId: context.courseId }) },
+        where: { institutionId, ...(context.courseId && { classMappings: { some: { courseId: context.courseId } } }) },
         orderBy: { name: 'asc' },
       });
       return rows.map((r) => ({ value: r.id, label: r.name }));

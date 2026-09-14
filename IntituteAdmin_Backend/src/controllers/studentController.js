@@ -103,6 +103,8 @@ const admitStudentWithinTx = async (tx, institutionId, actingUserId, data) => {
     fatherOccupation, motherOccupation, fatherEmail, motherEmail, guardianRelation, annualIncome, parentAddress,
     // Photo — same base64 data-URI convention used by every profile-photo upload elsewhere
     photo,
+    // Institution-specific extra fields (SuperAdmin-approved only — see AdmissionCustomField)
+    customFields,
   } = data;
 
   if (!firstName || !lastName) throw new ValidationError('firstName and lastName are required');
@@ -199,6 +201,8 @@ const admitStudentWithinTx = async (tx, institutionId, actingUserId, data) => {
       // Service intent
       transportRequired: Boolean(transportRequired),
       hostelRequired: Boolean(hostelRequired),
+      // Institution-specific extra fields
+      customFields: customFields && Object.keys(customFields).length > 0 ? customFields : undefined,
     },
   });
 
@@ -305,7 +309,17 @@ const createStudentAdmission = async (req, res, next) => {
       }))
       .catch(() => {});
 
-    return sendSuccess(res, result, 'Student admitted successfully', 201);
+    // Never return the password hash to the client — it serves no purpose there and
+    // is needless sensitive-data exposure. The real temporary password (needed so the
+    // admin can hand it to the student if email/SMS delivery isn't configured) is sent
+    // back explicitly instead, the same way the bulk-admission response already does.
+    const { password: _hash, ...userWithoutPassword } = result.user;
+    return sendSuccess(
+      res,
+      { ...result, user: userWithoutPassword, temporaryPassword: studentPlainPassword },
+      'Student admitted successfully',
+      201
+    );
   } catch (err) {
     next(err);
   }
@@ -548,4 +562,5 @@ module.exports = {
   createStudentAdmission,
   bulkStudentAdmission,
   getBulkAdmissionTemplate,
+  admitStudentWithinTx,
 };

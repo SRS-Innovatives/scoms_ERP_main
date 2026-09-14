@@ -17,6 +17,8 @@ const REPORT_REGISTRY = {
   STUDENT_PERFORMANCE: require('./handlers/studentPerformance.report'),
   ADMISSION_REPORT: require('./handlers/admission.report'),
   INSTITUTION_SUMMARY: require('./handlers/institutionSummary.report'),
+  RANK_LIST: require('./handlers/rankList.report'),
+  STUDENT_MARKSHEET: require('./handlers/studentMarksheet.report'),
 };
 
 module.exports = { REPORT_REGISTRY };

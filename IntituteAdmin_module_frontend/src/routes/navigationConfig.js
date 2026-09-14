@@ -101,6 +101,7 @@ export const navigationConfig = [
     badge: '285',
     children: [
       { key: 'registration', title: 'Staff Registration', path: '/admin/staff/registration' },
+      { key: 'staff-profile-fields', title: 'Staff Form Builder', path: '/admin/staff/form-builder' },
       { key: 'teaching', title: 'Teaching Staff', path: '/admin/staff/teaching' },
       { key: 'non-teaching', title: 'Non-Teaching Staff', path: '/admin/staff/non-teaching' },
       { key: 'staff-profile', title: 'Staff Profile', path: '/admin/staff/profile' },
@@ -234,6 +235,16 @@ export const navigationConfig = [
     path: '/admin/admissions/enquiries'
   },
   {
+    key: 'pre_admission',
+    title: 'Pre-Admissions',
+    icon: FileCheck,
+    children: [
+      { key: 'pre-admission-list', title: 'Applications', path: '/admin/admissions/pre-admission' },
+      { key: 'pre-admission-settings', title: 'Integration Settings', path: '/admin/admissions/pre-admission/settings' },
+      { key: 'admission-form-builder', title: 'Admission Form Builder', path: '/admin/admissions/form-builder' }
+    ]
+  },
+  {
     key: 'library',
     title: 'Library Module',
     icon: BookOpen,
@@ -357,6 +368,7 @@ export const navigationConfig = [
       { key: 'email-settings', title: 'Email SMTP Settings', path: '/admin/settings/email' },
       { key: 'payment-gateway', title: 'Payment Gateway (Razorpay/Easebuzz)', path: '/admin/settings/gateway' },
       { key: 'theme-settings', title: 'Portal Theme Settings', path: '/admin/settings/theme' },
+      { key: 'custom-lists', title: 'Custom Lists', path: '/admin/settings/custom-lists' },
       { key: 'backup-restore', title: 'Backup & Restore', path: '/admin/settings/backup' },
       { key: 'audit-logs', title: 'Audit Trail Logs', path: '/admin/settings/audit-logs' }
     ]

@@ -8,8 +8,10 @@ const API_PREFIX = '/api/v1/staff';
 
 export const apiCall = async (endpoint, options = {}) => {
   const token = localStorage.getItem('scoms_staff_token');
+  const isFormData = typeof FormData !== 'undefined' && options.body instanceof FormData;
   const headers = {
-    'Content-Type': 'application/json',
+    // Let the browser set the multipart boundary itself for FormData bodies (file uploads)
+    ...(!isFormData && { 'Content-Type': 'application/json' }),
     ...(token && { Authorization: `Bearer ${token}` }),
     ...options.headers,
   };
@@ -18,7 +20,7 @@ export const apiCall = async (endpoint, options = {}) => {
     const res = await fetch(`${BASE_URL}${API_PREFIX}${endpoint}`, {
       method: options.method || 'GET',
       headers,
-      body: options.body ? JSON.stringify(options.body) : undefined,
+      body: options.body ? (isFormData ? options.body : JSON.stringify(options.body)) : undefined,
     });
 
     if (res.status === 401) {

@@ -6,7 +6,7 @@ import FormModal from '../../components/common/FormModal';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
 import { useNotification } from '../../context/NotificationContext';
 import alumniService from '../../services/alumniService';
-import { GraduationCap, Edit, Trash2, Linkedin, Mail } from 'lucide-react';
+import { GraduationCap, Edit, Trash2, Link2, Mail } from 'lucide-react';
 
 const emptyForm = {
   studentId: '', fullName: '', graduationYear: new Date().getFullYear(), courseName: '',
@@ -116,7 +116,7 @@ export const AlumniManagementPage = () => {
       render: (_, row) => (
         <div className="flex items-center gap-2">
           {row.email && <a href={`mailto:${row.email}`} title={row.email} onClick={(e) => e.stopPropagation()}><Mail className="w-3.5 h-3.5 text-slate-400 hover:text-indigo-600" /></a>}
-          {row.linkedinUrl && <a href={row.linkedinUrl} target="_blank" rel="noreferrer" title="LinkedIn" onClick={(e) => e.stopPropagation()}><Linkedin className="w-3.5 h-3.5 text-slate-400 hover:text-indigo-600" /></a>}
+          {row.linkedinUrl && <a href={row.linkedinUrl} target="_blank" rel="noreferrer" title="LinkedIn" onClick={(e) => e.stopPropagation()}><Link2 className="w-3.5 h-3.5 text-slate-400 hover:text-indigo-600" /></a>}
           {!row.email && !row.linkedinUrl && <span className="text-slate-400">—</span>}
         </div>
       ),

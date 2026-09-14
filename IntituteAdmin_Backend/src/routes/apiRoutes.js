@@ -38,6 +38,9 @@ const grievanceController = require('../controllers/grievanceController');
 const clubController = require('../controllers/clubController');
 const homeworkController = require('../controllers/homeworkController');
 const enquiryController = require('../controllers/enquiryController');
+const preAdmissionController = require('../controllers/preAdmissionController');
+const admissionCustomFieldController = require('../controllers/admissionCustomFieldController');
+const institutionCustomListController = require('../controllers/institutionCustomListController');
 const payrollController = require('../controllers/payrollController');
 const disciplineController = require('../controllers/disciplineController');
 const healthController = require('../controllers/healthController');
@@ -48,14 +51,15 @@ const broadcastController = require('../controllers/broadcastController');
 const templateController = require('../controllers/templateController');
 const {
   requireAuth, requireTenant, requireModule, handleForgotPassword, handleVerifyOtp, handleResetPassword,
+  loginLimiter, otpLimiter,
   handleGetNotifications, handleGetUnreadCount, handleMarkNotificationRead, handleMarkAllNotificationsRead,
 } = require('../../../shared');
 
 // Standalone Auth Routes
-router.post('/auth/login', authController.login);
-router.post('/auth/forgot-password', handleForgotPassword);
-router.post('/auth/verify-otp', handleVerifyOtp);
-router.post('/auth/reset-password', handleResetPassword);
+router.post('/auth/login', loginLimiter, authController.login);
+router.post('/auth/forgot-password', otpLimiter, handleForgotPassword);
+router.post('/auth/verify-otp', otpLimiter, handleVerifyOtp);
+router.post('/auth/reset-password', otpLimiter, handleResetPassword);
 router.post('/auth/refresh', authController.refreshToken);
 router.post('/auth/logout', authController.logout);
 
@@ -107,6 +111,9 @@ router.delete('/setup/sections/:id', setupController.deleteSection);
 
 router.get('/setup/subjects', setupController.getSubjects);
 router.post('/setup/subjects', setupController.createSubject);
+router.post('/setup/subjects/bulk-upload', upload.single('file'), setupController.bulkUploadSubjects);
+router.get('/setup/subjects/class-mapping', setupController.getSubjectClassMappingOverview);
+router.put('/setup/subjects/:id/class-mapping', setupController.setSubjectClassMapping);
 router.patch('/setup/subjects/:id', setupController.updateSubject);
 router.delete('/setup/subjects/:id', setupController.deleteSubject);
 
@@ -315,6 +322,36 @@ router.post('/enquiries', enquiryController.createEnquiry);
 router.patch('/enquiries/:id', enquiryController.updateEnquiry);
 router.delete('/enquiries/:id', enquiryController.deleteEnquiry);
 
+// Pre-Admission Applications (public form submissions + manual entries)
+router.use('/pre-admission', requireModule('pre_admission'));
+router.get('/pre-admission/applications', preAdmissionController.getApplications);
+router.post('/pre-admission/applications', preAdmissionController.createApplication);
+router.get('/pre-admission/applications/:id', preAdmissionController.getApplicationById);
+router.patch('/pre-admission/applications/:id/status', preAdmissionController.updateStatus);
+router.post('/pre-admission/applications/:id/receipt', preAdmissionController.generateReceipt);
+router.post('/pre-admission/applications/:id/admit', preAdmissionController.admitApplication);
+router.delete('/pre-admission/applications/:id', preAdmissionController.deleteApplication);
+router.get('/pre-admission/settings/api-key', preAdmissionController.getApiKeySettings);
+router.post('/pre-admission/settings/api-key/regenerate', preAdmissionController.regenerateApiKey);
+
+// Admission Form Custom Fields (institution-defined extra fields, SuperAdmin-approved)
+// Generalized custom-field system — entityType query/body param picks which form
+// (ADMISSION, STAFF_PROFILE, ...) a request applies to; defaults to ADMISSION.
+router.get('/custom-fields', admissionCustomFieldController.getFields);
+router.get('/custom-fields/approved', admissionCustomFieldController.getApprovedFields);
+router.post('/custom-fields', admissionCustomFieldController.createField);
+router.patch('/custom-fields/:id', admissionCustomFieldController.updateField);
+router.delete('/custom-fields/:id', admissionCustomFieldController.deleteField);
+router.post('/custom-fields/submit', admissionCustomFieldController.submitForApproval);
+
+// Institution Custom Lists (Leave Types, Discipline Categories, Exam Types) — self-service,
+// no SuperAdmin approval; listType passed as a query/body param.
+router.get('/custom-lists', institutionCustomListController.getList);
+router.get('/custom-lists/active', institutionCustomListController.getActiveEntries);
+router.post('/custom-lists', institutionCustomListController.createEntry);
+router.patch('/custom-lists/:id', institutionCustomListController.updateEntry);
+router.delete('/custom-lists/:id', institutionCustomListController.deleteEntry);
+
 // Payroll
 router.use('/payroll', requireModule('payroll'));
 router.get('/payroll', payrollController.getPayslips);
@@ -443,5 +480,7 @@ router.delete('/exam-schedules/:id', examController.deleteSchedule);
 router.get('/exam-schedules/:scheduleId/marks', examController.getMarksRoster);
 router.post('/exam-schedules/:scheduleId/marks', examController.saveMarks);
 router.post('/exam-schedules/:scheduleId/publish', examController.publishResults);
+router.post('/exam-schedules/:scheduleId/unlock', examController.unlockSchedule);
+router.post('/exam-schedules/:scheduleId/import', upload.single('file'), examController.parseMarksImport);
 
 module.exports = router;

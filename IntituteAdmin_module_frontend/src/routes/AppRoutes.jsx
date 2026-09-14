@@ -23,6 +23,9 @@ import HouseGroupSetupPage from '../pages/setup/HouseGroupSetupPage';
 import AffiliatedCollegesPage from '../pages/setup/AffiliatedCollegesPage';
 import VisitorManagementPage from '../pages/setup/VisitorManagementPage';
 import EnquiryManagementPage from '../pages/admissions/EnquiryManagementPage';
+import PreAdmissionListPage from '../pages/admissions/PreAdmissionListPage';
+import PreAdmissionSettingsPage from '../pages/admissions/PreAdmissionSettingsPage';
+import AdmissionFormBuilderPage from '../pages/admissions/AdmissionFormBuilderPage';
 
 // Student
 import StudentAdmissionPage from '../pages/student/StudentAdmissionPage';
@@ -41,6 +44,7 @@ import HealthRecordsPage from '../pages/student/HealthRecordsPage';
 
 // Staff
 import StaffRegistrationPage from '../pages/staff/StaffRegistrationPage';
+import StaffProfileFieldsPage from '../pages/staff/StaffProfileFieldsPage';
 import TeachingStaffPage from '../pages/staff/TeachingStaffPage';
 import NonTeachingStaffPage from '../pages/staff/NonTeachingStaffPage';
 import StaffProfilePage from '../pages/staff/StaffProfilePage';
@@ -180,6 +184,7 @@ import SMSSettingsPage from '../pages/settings/SMSSettingsPage';
 import EmailSettingsPage from '../pages/settings/EmailSettingsPage';
 import PaymentGatewaySettingsPage from '../pages/settings/PaymentGatewaySettingsPage';
 import ThemeSettingsPage from '../pages/settings/ThemeSettingsPage';
+import CustomListsSettingsPage from '../pages/settings/CustomListsSettingsPage';
 import BackupRestorePage from '../pages/settings/BackupRestorePage';
 import AuditLogsPage from '../pages/settings/AuditLogsPage';
 import LoginPage from '../Pages/auth/LoginPage';
@@ -220,6 +225,11 @@ export const AppRoutes = () => {
         {/* Front Office */}
         <Route path="admissions/enquiries" element={<EnquiryManagementPage />} />
 
+        {/* Pre-Admission */}
+        <Route path="admissions/pre-admission" element={<PreAdmissionListPage />} />
+        <Route path="admissions/pre-admission/settings" element={<PreAdmissionSettingsPage />} />
+        <Route path="admissions/form-builder" element={<AdmissionFormBuilderPage />} />
+
         {/* Student Management */}
         <Route path="student/admission" element={<StudentAdmissionPage />} />
         <Route path="student/bulk-admission" element={<BulkAdmissionPage />} />
@@ -237,6 +247,7 @@ export const AppRoutes = () => {
 
         {/* Staff Management */}
         <Route path="staff/registration" element={<StaffRegistrationPage />} />
+        <Route path="staff/form-builder" element={<StaffProfileFieldsPage />} />
         <Route path="staff/teaching" element={<TeachingStaffPage />} />
         <Route path="staff/non-teaching" element={<NonTeachingStaffPage />} />
         <Route path="staff/profile" element={<StaffProfilePage />} />
@@ -375,6 +386,7 @@ export const AppRoutes = () => {
         <Route path="settings/email" element={<EmailSettingsPage />} />
         <Route path="settings/gateway" element={<PaymentGatewaySettingsPage />} />
         <Route path="settings/theme" element={<ThemeSettingsPage />} />
+        <Route path="settings/custom-lists" element={<CustomListsSettingsPage />} />
         <Route path="settings/backup" element={<BackupRestorePage />} />
         <Route path="settings/audit-logs" element={<AuditLogsPage />} />
 

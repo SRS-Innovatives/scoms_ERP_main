@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import apiCall from '../../services/api';
+import admissionCustomFieldService from '../../services/admissionCustomFieldService';
 
 const MAX_PHOTO_BYTES = 2 * 1024 * 1024; // 2MB
 
@@ -33,6 +34,8 @@ const emptyForm = {
   transportRequired: false, transport: 'None', hostelRequired: false, hostel: 'Day Scholar',
   // 7. Photo & Credentials
   photo: '', password: '',
+  // 8. Additional (institution-defined, SuperAdmin-approved) fields — keyed by fieldKey
+  customFields: {},
 };
 
 /** A labeled text/select field — defined once here rather than re-typed ~55 times across
@@ -89,6 +92,15 @@ export const StudentAdmissionPage = () => {
   const [courses, setCourses] = useState([]);
   const [semesters, setSemesters] = useState([]);
   const [sections, setSections] = useState([]);
+  const [customFieldDefs, setCustomFieldDefs] = useState([]);
+  const setCustomField = (key) => (e) => {
+    const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+    setFormData((prev) => ({ ...prev, customFields: { ...prev.customFields, [key]: value } }));
+  };
+
+  useEffect(() => {
+    admissionCustomFieldService.getApproved().then((res) => setCustomFieldDefs(res.data || [])).catch(() => {});
+  }, []);
 
   useEffect(() => { fetchDepartments(); }, []);
   useEffect(() => {
@@ -143,6 +155,7 @@ export const StudentAdmissionPage = () => {
     { label: 'Health & Emergency' },
     { label: 'Bank & Services' },
     { label: 'Photo & Login' },
+    ...(customFieldDefs.length > 0 ? [{ label: 'Additional Info' }] : []),
   ];
 
   const handleSubmit = async (e) => {
@@ -354,6 +367,37 @@ export const StudentAdmissionPage = () => {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
               <Field label="Student Portal Password" type="password" value={formData.password} onChange={set('password')} placeholder="Leave blank to use the default: Student@123" />
+            </div>
+          </FormSection>
+        )}
+
+        {/* Step 8: Additional Information — institution-defined, SuperAdmin-approved fields only */}
+        {currentStep === 8 && customFieldDefs.length > 0 && (
+          <FormSection title="8. Additional Information" subtitle="Extra fields your institution added, approved by SCOMS" icon={IdCard}>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+              {customFieldDefs.map((f) => (
+                f.fieldType === 'SELECT' ? (
+                  <Field key={f.fieldKey} label={f.label} required={f.required} as="select" value={formData.customFields[f.fieldKey] || ''} onChange={setCustomField(f.fieldKey)} options={f.options || []} />
+                ) : f.fieldType === 'TEXTAREA' ? (
+                  <div key={f.fieldKey} className="md:col-span-3">
+                    <Field label={f.label} required={f.required} as="textarea" value={formData.customFields[f.fieldKey] || ''} onChange={setCustomField(f.fieldKey)} />
+                  </div>
+                ) : f.fieldType === 'CHECKBOX' ? (
+                  <label key={f.fieldKey} className="flex items-center gap-2 font-semibold text-slate-700 dark:text-slate-300 pt-6">
+                    <input type="checkbox" checked={!!formData.customFields[f.fieldKey]} onChange={setCustomField(f.fieldKey)} className="w-4 h-4 rounded text-indigo-600" />
+                    {f.label}{f.required && ' *'}
+                  </label>
+                ) : (
+                  <Field
+                    key={f.fieldKey}
+                    label={f.label}
+                    required={f.required}
+                    type={{ NUMBER: 'number', DATE: 'date', EMAIL: 'email', PHONE: 'tel' }[f.fieldType] || 'text'}
+                    value={formData.customFields[f.fieldKey] || ''}
+                    onChange={setCustomField(f.fieldKey)}
+                  />
+                )
+              ))}
             </div>
           </FormSection>
         )}

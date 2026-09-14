@@ -8,14 +8,16 @@ import { useNotification } from '../../context/NotificationContext';
 import { Award } from 'lucide-react';
 import examService from '../../services/examService';
 import academicYearService from '../../services/academicYearService';
+import customListService from '../../services/customListService';
 
-const emptyForm = { name: '', examType: 'UNIT_TEST', academicYearId: '', startDate: '', endDate: '' };
+const emptyForm = { name: '', examType: '', academicYearId: '', startDate: '', endDate: '' };
 
 export const ExamSetupPage = () => {
   const { notifySuccess, notifyError } = useNotification();
   const [search, setSearch] = useState('');
   const [exams, setExams] = useState([]);
   const [academicYears, setAcademicYears] = useState([]);
+  const [examTypes, setExamTypes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -24,9 +26,11 @@ export const ExamSetupPage = () => {
   const fetchAll = useCallback(async () => {
     setLoading(true);
     try {
-      const [examRes, yearRes] = await Promise.all([examService.getExams(), academicYearService.getAll()]);
+      const [examRes, yearRes, typeRes] = await Promise.all([examService.getExams(), academicYearService.getAll(), customListService.getActive('EXAM_TYPE')]);
       setExams(examRes.data || []);
       setAcademicYears(yearRes.data || []);
+      setExamTypes(typeRes.data || []);
+      if ((typeRes.data || []).length > 0) setForm((prev) => (prev.examType ? prev : { ...prev, examType: typeRes.data[0].code }));
     } catch (error) {
       notifyError(`Failed to load exams: ${error.message}`);
     } finally {
@@ -125,11 +129,7 @@ export const ExamSetupPage = () => {
             label: 'Category',
             type: 'select',
             required: true,
-            options: [
-              { value: 'UNIT_TEST', label: 'Unit Test' },
-              { value: 'MID_TERM', label: 'Mid Term' },
-              { value: 'FINAL', label: 'Final / End Semester' },
-            ],
+            options: examTypes.map((t) => ({ value: t.code, label: t.label })),
           },
           {
             name: 'academicYearId',
