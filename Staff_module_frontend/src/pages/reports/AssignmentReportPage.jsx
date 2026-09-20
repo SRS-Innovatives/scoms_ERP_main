@@ -2,21 +2,31 @@ import React, { useEffect, useState } from 'react';
 import { Loader2, ClipboardList } from 'lucide-react';
 import { useNotification } from '../../context/NotificationContext';
 import assignmentService from '../../services/assignmentService';
+import ErrorState from '../../components/common/ErrorState';
 
 export const AssignmentReportPage = () => {
   const { error: showError } = useNotification();
   const [assignments, setAssignments] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
-  useEffect(() => {
+  const load = React.useCallback(() => {
+    setLoading(true);
+    setError(false);
     assignmentService.getAssignments()
       .then((res) => setAssignments(res.data || []))
-      .catch((err) => showError(err.message || 'Failed to load assignment report', 'Load Failed'))
+      .catch((err) => { showError(err.message || 'Failed to load assignment report', 'Load Failed'); setError(true); })
       .finally(() => setLoading(false));
   }, [showError]);
 
+  useEffect(() => { load(); }, [load]);
+
   if (loading) {
     return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-sky-600" /></div>;
+  }
+
+  if (error) {
+    return <ErrorState onRetry={load} />;
   }
 
   return (

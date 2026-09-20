@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { FileText, Calendar, Users, CheckCircle, Loader2 } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useNotification } from '../../context/NotificationContext';
 import assignmentService from '../../services/assignmentService';
+import ErrorState from '../../components/common/ErrorState';
 
 export const AssignmentDetailsPage = () => {
   const navigate = useNavigate();
@@ -11,17 +12,26 @@ export const AssignmentDetailsPage = () => {
   const id = searchParams.get('id');
   const [asn, setAsn] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
-  useEffect(() => {
+  const load = useCallback(() => {
     if (!id) { setLoading(false); return; }
+    setLoading(true);
+    setError(false);
     assignmentService.getAssignmentById(id)
       .then((res) => setAsn(res.data))
-      .catch((err) => showError(err.message || 'Failed to load assignment', 'Load Failed'))
+      .catch((err) => { showError(err.message || 'Failed to load assignment', 'Load Failed'); setError(true); })
       .finally(() => setLoading(false));
   }, [id, showError]);
 
+  useEffect(() => { load(); }, [load]);
+
   if (loading) {
     return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-sky-600" /></div>;
+  }
+
+  if (error) {
+    return <ErrorState onRetry={load} />;
   }
 
   if (!asn) {

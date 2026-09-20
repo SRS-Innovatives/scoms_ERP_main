@@ -3,6 +3,7 @@ import AttendanceTable from '../../components/common/AttendanceTable';
 import attendanceService from '../../services/attendanceService';
 import { useNotification } from '../../context/NotificationContext';
 import { Edit3, Save, Loader2 } from 'lucide-react';
+import ErrorState from '../../components/common/ErrorState';
 
 const STATUS_TO_UI = { PRESENT: 'Present', ABSENT: 'Absent', LATE: 'Late', LEAVE: 'On Duty', HALF_DAY: 'Present' };
 const UI_TO_STATUS = { Present: 'PRESENT', Absent: 'ABSENT', Late: 'LATE', 'On Duty': 'LEAVE' };
@@ -11,6 +12,7 @@ export const EditAttendancePage = () => {
   const { success, error: showError } = useNotification();
   const [myClasses, setMyClasses] = useState([]);
   const [loadingClasses, setLoadingClasses] = useState(true);
+  const [classesError, setClassesError] = useState(false);
   const [loadingSession, setLoadingSession] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -22,12 +24,16 @@ export const EditAttendancePage = () => {
   const [roster, setRoster] = useState([]);
   const [statusMap, setStatusMap] = useState({});
 
-  useEffect(() => {
+  const loadClasses = useCallback(() => {
+    setLoadingClasses(true);
+    setClassesError(false);
     attendanceService.getMyClasses()
       .then((res) => setMyClasses(res.data || []))
-      .catch((err) => showError(err.message || 'Failed to load assigned classes', 'Load Failed'))
+      .catch((err) => { showError(err.message || 'Failed to load assigned classes', 'Load Failed'); setClassesError(true); })
       .finally(() => setLoadingClasses(false));
   }, [showError]);
+
+  useEffect(() => { loadClasses(); }, [loadClasses]);
 
   const selectedMapping = myClasses.find((m) => m.id === selectedMappingId);
 
@@ -76,6 +82,10 @@ export const EditAttendancePage = () => {
 
   if (loadingClasses) {
     return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-indigo-600" /></div>;
+  }
+
+  if (classesError) {
+    return <ErrorState onRetry={loadClasses} />;
   }
 
   return (

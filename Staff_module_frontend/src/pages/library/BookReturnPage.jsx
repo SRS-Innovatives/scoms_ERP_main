@@ -3,18 +3,21 @@ import { useNotification } from '../../context/NotificationContext';
 import StatusBadge from '../../components/common/StatusBadge';
 import { BookOpen, Loader2 } from 'lucide-react';
 import libraryService from '../../services/libraryService';
+import ErrorState from '../../components/common/ErrorState';
 
 export const BookReturnPage = () => {
   const { success, error: showError } = useNotification();
   const [issues, setIssues] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [busyId, setBusyId] = useState(null);
 
   const fetchAll = useCallback(() => {
     setLoading(true);
+    setError(false);
     libraryService.getActiveIssues()
       .then((res) => setIssues(res.data || []))
-      .catch((err) => showError(err.message || 'Failed to load active issues', 'Load Failed'))
+      .catch((err) => { showError(err.message || 'Failed to load active issues', 'Load Failed'); setError(true); })
       .finally(() => setLoading(false));
   }, [showError]);
 
@@ -35,6 +38,10 @@ export const BookReturnPage = () => {
 
   if (loading) {
     return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-sky-600" /></div>;
+  }
+
+  if (error) {
+    return <ErrorState onRetry={fetchAll} />;
   }
 
   return (

@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import StatusBadge from '../../components/common/StatusBadge';
 import { Calendar, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useNotification } from '../../context/NotificationContext';
 import profileService from '../../services/profileService';
+import ErrorState from '../../components/common/ErrorState';
 
 const TYPE_LABELS = { CASUAL: 'Casual Leave (CL)', EARNED: 'Earned Leave (EL)', MEDICAL: 'Medical Leave (ML)', DUTY: 'Duty Leave (DL)' };
 
@@ -13,19 +14,28 @@ export const LeaveBalancePage = () => {
   const [leaves, setLeaves] = useState([]);
   const [usedByType, setUsedByType] = useState({});
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
-  useEffect(() => {
+  const load = useCallback(() => {
+    setLoading(true);
+    setError(false);
     profileService.getMyLeaves()
       .then((res) => {
         setLeaves(res.data.leaves || []);
         setUsedByType(res.data.usedByType || {});
       })
-      .catch((err) => showError(err.message || 'Failed to load leave records', 'Load Failed'))
+      .catch((err) => { showError(err.message || 'Failed to load leave records', 'Load Failed'); setError(true); })
       .finally(() => setLoading(false));
   }, [showError]);
 
+  useEffect(() => { load(); }, [load]);
+
   if (loading) {
     return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-sky-600" /></div>;
+  }
+
+  if (error) {
+    return <ErrorState onRetry={load} />;
   }
 
   return (

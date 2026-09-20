@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Send, User, Loader2, MessageSquareOff } from 'lucide-react';
 import { useNotification } from '../../context/NotificationContext';
 import messageService from '../../services/messageService';
+import ErrorState from '../../components/common/ErrorState';
 
 export const StudentChatPage = () => {
   const { error: showError } = useNotification();
@@ -11,18 +12,23 @@ export const StudentChatPage = () => {
   const [msg, setMsg] = useState('');
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const [error, setError] = useState(false);
   const bottomRef = useRef(null);
 
-  useEffect(() => {
+  const load = useCallback(() => {
+    setLoading(true);
+    setError(false);
     messageService.getStudents()
       .then((res) => {
         const data = res.data || [];
         setStudents(data);
         if (data.length > 0) setSelected(data[0]);
       })
-      .catch((err) => showError(err.message || 'Failed to load students', 'Load Failed'))
+      .catch((err) => { showError(err.message || 'Failed to load students', 'Load Failed'); setError(true); })
       .finally(() => setLoading(false));
   }, [showError]);
+
+  useEffect(() => { load(); }, [load]);
 
   const loadConversation = useCallback(() => {
     if (!selected) return;
@@ -51,6 +57,10 @@ export const StudentChatPage = () => {
 
   if (loading) {
     return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-sky-600" /></div>;
+  }
+
+  if (error) {
+    return <ErrorState onRetry={load} />;
   }
 
   if (students.length === 0) {

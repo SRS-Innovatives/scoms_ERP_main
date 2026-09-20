@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import EmptyState from '../../components/common/EmptyState';
+import ErrorState from '../../components/common/ErrorState';
 import { useNotification } from '../../context/NotificationContext';
 import { Images, Upload, ArrowLeft, Loader2 } from 'lucide-react';
 import galleryService from '../../services/galleryService';
@@ -19,12 +20,15 @@ export const GalleryPage = () => {
   const [loadingPhotos, setLoadingPhotos] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [lightbox, setLightbox] = useState(null);
+  const [error, setError] = useState(false);
+  const [photosError, setPhotosError] = useState(false);
 
   const fetchAlbums = useCallback(() => {
     setLoading(true);
+    setError(false);
     galleryService.getAlbums()
       .then((res) => setAlbums(res.data || []))
-      .catch((err) => showError(err.message || 'Failed to load albums', 'Load Failed'))
+      .catch((err) => { showError(err.message || 'Failed to load albums', 'Load Failed'); setError(true); })
       .finally(() => setLoading(false));
   }, [showError]);
 
@@ -32,10 +36,11 @@ export const GalleryPage = () => {
 
   const openAlbumView = (album) => {
     setLoadingPhotos(true);
+    setPhotosError(false);
     setOpenAlbum({ album, photos: [] });
     galleryService.getAlbumPhotos(album.id)
       .then((res) => setOpenAlbum({ album: res.data.album, photos: res.data.photos }))
-      .catch((err) => showError(err.message || 'Failed to load photos', 'Load Failed'))
+      .catch((err) => { showError(err.message || 'Failed to load photos', 'Load Failed'); setPhotosError(true); })
       .finally(() => setLoadingPhotos(false));
   };
 
@@ -64,6 +69,10 @@ export const GalleryPage = () => {
     return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-indigo-600" /></div>;
   }
 
+  if (error) {
+    return <ErrorState onRetry={fetchAlbums} />;
+  }
+
   if (openAlbum) {
     return (
       <div className="space-y-6">
@@ -84,6 +93,8 @@ export const GalleryPage = () => {
 
         {loadingPhotos ? (
           <div className="flex justify-center py-16"><Loader2 className="w-7 h-7 animate-spin text-indigo-600" /></div>
+        ) : photosError ? (
+          <ErrorState onRetry={() => openAlbumView(openAlbum.album)} />
         ) : openAlbum.photos.length === 0 ? (
           <EmptyState title="No Photos Yet" message="Be the first to add photos to this album." icon={Images} />
         ) : (

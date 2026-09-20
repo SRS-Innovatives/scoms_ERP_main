@@ -3,6 +3,7 @@ import { useNotification } from '../../context/NotificationContext';
 import { FlaskConical, Plus, Loader2, ExternalLink, Edit, Trash2, X, Save } from 'lucide-react';
 import researchService from '../../services/researchService';
 import ConfirmDialog from '../../components/modals/ConfirmDialog';
+import ErrorState from '../../components/common/ErrorState';
 
 const TYPE_OPTIONS = [
   { value: 'JOURNAL', label: 'Journal Article' },
@@ -17,6 +18,7 @@ export const MyPublicationsPage = () => {
   const { success, error: showError } = useNotification();
   const [publications, setPublications] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState(emptyForm);
@@ -25,9 +27,10 @@ export const MyPublicationsPage = () => {
 
   const fetchAll = useCallback(() => {
     setLoading(true);
+    setError(false);
     researchService.getAll()
       .then((res) => setPublications(res.data || []))
-      .catch((err) => showError(err.message || 'Failed to load publications', 'Load Failed'))
+      .catch((err) => { showError(err.message || 'Failed to load publications', 'Load Failed'); setError(true); })
       .finally(() => setLoading(false));
   }, [showError]);
 
@@ -86,6 +89,10 @@ export const MyPublicationsPage = () => {
 
   if (loading) {
     return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-sky-600" /></div>;
+  }
+
+  if (error) {
+    return <ErrorState onRetry={fetchAll} />;
   }
 
   return (

@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNotification } from '../../context/NotificationContext';
 import { PlusCircle, Save, Loader2, Paperclip, FileText as FileIcon, Image as ImageIcon, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import assignmentService from '../../services/assignmentService';
+import ErrorState from '../../components/common/ErrorState';
 
 const MAX_ATTACHMENT_BYTES = 5 * 1024 * 1024; // 5MB
 const ACCEPTED_TYPES = ['image/png', 'image/jpeg', 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
@@ -12,6 +13,7 @@ export const CreateAssignmentPage = () => {
   const navigate = useNavigate();
   const [classes, setClasses] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const fileInputRef = useRef(null);
   const [attachmentName, setAttachmentName] = useState('');
@@ -57,16 +59,20 @@ export const CreateAssignmentPage = () => {
     setAttachmentName('');
   };
 
-  useEffect(() => {
+  const loadClasses = useCallback(() => {
+    setLoading(true);
+    setError(false);
     assignmentService.getMyClasses()
       .then((res) => {
         const data = res.data || [];
         setClasses(data);
         if (data.length > 0) setFormData((prev) => ({ ...prev, classKey: `${data[0].subjectId}|${data[0].sectionId}` }));
       })
-      .catch((err) => showError(err.message || 'Failed to load your assigned classes', 'Load Failed'))
+      .catch((err) => { showError(err.message || 'Failed to load your assigned classes', 'Load Failed'); setError(true); })
       .finally(() => setLoading(false));
   }, [showError]);
+
+  useEffect(() => { loadClasses(); }, [loadClasses]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -94,6 +100,10 @@ export const CreateAssignmentPage = () => {
 
   if (loading) {
     return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-sky-600" /></div>;
+  }
+
+  if (error) {
+    return <ErrorState onRetry={loadClasses} />;
   }
 
   if (classes.length === 0) {

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Award, Plus, Loader2 } from 'lucide-react';
 import { useNotification } from '../../context/NotificationContext';
 import profileService from '../../services/profileService';
+import ErrorState from '../../components/common/ErrorState';
 
 const emptyForm = { degree: '', institutionName: '', yearOfPassing: '', grade: '' };
 
@@ -9,15 +10,17 @@ export const QualificationDetailsPage = () => {
   const { success, error: showError } = useNotification();
   const [qualifications, setQualifications] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState(emptyForm);
   const [submitting, setSubmitting] = useState(false);
 
   const fetchAll = () => {
     setLoading(true);
+    setError(false);
     profileService.getMyProfile()
       .then((res) => setQualifications(res.data.qualifications || []))
-      .catch((err) => showError(err.message || 'Failed to load qualifications', 'Load Failed'))
+      .catch((err) => { showError(err.message || 'Failed to load qualifications', 'Load Failed'); setError(true); })
       .finally(() => setLoading(false));
   };
 
@@ -41,6 +44,10 @@ export const QualificationDetailsPage = () => {
 
   if (loading) {
     return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-sky-600" /></div>;
+  }
+
+  if (error) {
+    return <ErrorState onRetry={fetchAll} />;
   }
 
   return (

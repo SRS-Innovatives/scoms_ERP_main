@@ -1,5 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import DashboardCard from '../../components/common/DashboardCard';
+import ErrorState from '../../components/common/ErrorState';
 import QuickActionsPanel from '../../components/layout/QuickActionsPanel';
 import PerformanceChart from '../../components/common/PerformanceChart';
 import ScheduleTimeline from '../../components/common/ScheduleTimeline';
@@ -45,8 +46,11 @@ export const StaffDashboardPage = () => {
   const [leaves, setLeaves] = useState([]);
   const [pendingLeaves, setPendingLeaves] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
-  useEffect(() => {
+  const load = useCallback(() => {
+    setLoading(true);
+    setError(false);
     Promise.all([
       profileService.getMyProfile(),
       attendanceService.getMyClasses(),
@@ -65,12 +69,18 @@ export const StaffDashboardPage = () => {
         setLeaves(leavesRes.data?.leaves || []);
         setPendingLeaves((studentLeavesRes.data || []).filter((l) => l.status === 'PENDING'));
       })
-      .catch((err) => showError(err.message || 'Failed to load dashboard', 'Load Failed'))
+      .catch((err) => { showError(err.message || 'Failed to load dashboard', 'Load Failed'); setError(true); })
       .finally(() => setLoading(false));
   }, [showError]);
 
+  useEffect(() => { load(); }, [load]);
+
   if (loading) {
     return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-sky-600" /></div>;
+  }
+
+  if (error) {
+    return <ErrorState onRetry={load} />;
   }
 
   const todayName = DAY_NAMES[new Date().getDay()];

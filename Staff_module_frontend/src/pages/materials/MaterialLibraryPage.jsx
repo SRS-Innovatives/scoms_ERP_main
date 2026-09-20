@@ -4,19 +4,22 @@ import { useNavigate } from 'react-router-dom';
 import { useNotification } from '../../context/NotificationContext';
 import materialService from '../../services/materialService';
 import ConfirmDialog from '../../components/modals/ConfirmDialog';
+import ErrorState from '../../components/common/ErrorState';
 
 export const MaterialLibraryPage = () => {
   const navigate = useNavigate();
   const { error: showError, success } = useNotification();
   const [materials, setMaterials] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [confirming, setConfirming] = useState(null);
 
   const load = useCallback(() => {
     setLoading(true);
+    setError(false);
     materialService.getMaterials()
       .then((res) => setMaterials(res.data || []))
-      .catch((err) => showError(err.message || 'Failed to load materials', 'Load Failed'))
+      .catch((err) => { showError(err.message || 'Failed to load materials', 'Load Failed'); setError(true); })
       .finally(() => setLoading(false));
   }, [showError]);
 
@@ -50,6 +53,8 @@ export const MaterialLibraryPage = () => {
 
       {loading ? (
         <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-sky-600" /></div>
+      ) : error ? (
+        <ErrorState onRetry={load} />
       ) : materials.length === 0 ? (
         <div className="glass-card p-10 rounded-2xl border border-slate-200 dark:border-slate-800 text-center text-xs text-slate-500 flex flex-col items-center gap-2">
           <FolderDown className="w-8 h-8 text-slate-300" /> No study materials shared yet.

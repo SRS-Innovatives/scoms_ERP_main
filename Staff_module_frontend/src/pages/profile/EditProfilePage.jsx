@@ -1,24 +1,30 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNotification } from '../../context/NotificationContext';
 import { Save, Loader2 } from 'lucide-react';
 import profileService from '../../services/profileService';
+import ErrorState from '../../components/common/ErrorState';
 
 export const EditProfilePage = () => {
   const { success, error: showError } = useNotification();
   const [formData, setFormData] = useState({ altPhone: '', dob: '', bloodGroup: '' });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState(false);
 
-  useEffect(() => {
+  const load = useCallback(() => {
+    setLoading(true);
+    setError(false);
     profileService.getMyProfile()
       .then((res) => setFormData({
         altPhone: res.data.altPhone || '',
         dob: res.data.dob ? res.data.dob.slice(0, 10) : '',
         bloodGroup: res.data.bloodGroup || '',
       }))
-      .catch((err) => showError(err.message || 'Failed to load profile', 'Load Failed'))
+      .catch((err) => { showError(err.message || 'Failed to load profile', 'Load Failed'); setError(true); })
       .finally(() => setLoading(false));
   }, [showError]);
+
+  useEffect(() => { load(); }, [load]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -35,6 +41,10 @@ export const EditProfilePage = () => {
 
   if (loading) {
     return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-sky-600" /></div>;
+  }
+
+  if (error) {
+    return <ErrorState onRetry={load} />;
   }
 
   return (

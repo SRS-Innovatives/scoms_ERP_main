@@ -2,21 +2,31 @@ import React, { useEffect, useState } from 'react';
 import { Loader2, LayoutGrid, Users, BookOpen } from 'lucide-react';
 import { useNotification } from '../../context/NotificationContext';
 import attendanceService from '../../services/attendanceService';
+import ErrorState from '../../components/common/ErrorState';
 
 export const WorkloadReportPage = () => {
   const { error: showError } = useNotification();
   const [mappings, setMappings] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
-  useEffect(() => {
+  const load = React.useCallback(() => {
+    setLoading(true);
+    setError(false);
     attendanceService.getMyClasses()
       .then((res) => setMappings(res.data || []))
-      .catch((err) => showError(err.message || 'Failed to load workload report', 'Load Failed'))
+      .catch((err) => { showError(err.message || 'Failed to load workload report', 'Load Failed'); setError(true); })
       .finally(() => setLoading(false));
   }, [showError]);
 
+  useEffect(() => { load(); }, [load]);
+
   if (loading) {
     return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-sky-600" /></div>;
+  }
+
+  if (error) {
+    return <ErrorState onRetry={load} />;
   }
 
   const totalStudents = mappings.reduce((sum, m) => sum + (m.section?._count?.students || 0), 0);

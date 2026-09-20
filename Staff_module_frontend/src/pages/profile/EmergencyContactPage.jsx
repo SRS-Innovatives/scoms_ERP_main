@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { PhoneCall, ShieldAlert, Edit3, Save, Loader2 } from 'lucide-react';
 import { useNotification } from '../../context/NotificationContext';
 import profileService from '../../services/profileService';
+import ErrorState from '../../components/common/ErrorState';
 
 const emptyForm = { emergencyContactName: '', emergencyContactRelation: '', emergencyContactPhone: '', emergencyContactAddress: '' };
 
@@ -12,9 +13,11 @@ export const EmergencyContactPage = () => {
   const [form, setForm] = useState(emptyForm);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState(false);
 
   const fetchAll = () => {
     setLoading(true);
+    setError(false);
     profileService.getMyProfile()
       .then((res) => {
         const d = {
@@ -26,7 +29,7 @@ export const EmergencyContactPage = () => {
         setDetails(d);
         setForm(d);
       })
-      .catch((err) => showError(err.message || 'Failed to load emergency contact', 'Load Failed'))
+      .catch((err) => { showError(err.message || 'Failed to load emergency contact', 'Load Failed'); setError(true); })
       .finally(() => setLoading(false));
   };
 
@@ -49,6 +52,10 @@ export const EmergencyContactPage = () => {
 
   if (loading) {
     return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-sky-600" /></div>;
+  }
+
+  if (error) {
+    return <ErrorState onRetry={fetchAll} />;
   }
 
   return (

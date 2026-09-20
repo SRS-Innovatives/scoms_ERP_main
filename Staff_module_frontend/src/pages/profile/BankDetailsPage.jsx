@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { CreditCard, Lock, Edit3, Save, Loader2 } from 'lucide-react';
 import { useNotification } from '../../context/NotificationContext';
 import profileService from '../../services/profileService';
+import ErrorState from '../../components/common/ErrorState';
 
 const emptyForm = { bankAccountName: '', bankName: '', bankAccountNumber: '', bankIfscCode: '', panNumber: '' };
 
@@ -12,9 +13,11 @@ export const BankDetailsPage = () => {
   const [form, setForm] = useState(emptyForm);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState(false);
 
   const fetchAll = () => {
     setLoading(true);
+    setError(false);
     profileService.getMyProfile()
       .then((res) => {
         const d = {
@@ -27,7 +30,7 @@ export const BankDetailsPage = () => {
         setDetails(d);
         setForm(d);
       })
-      .catch((err) => showError(err.message || 'Failed to load bank details', 'Load Failed'))
+      .catch((err) => { showError(err.message || 'Failed to load bank details', 'Load Failed'); setError(true); })
       .finally(() => setLoading(false));
   };
 
@@ -50,6 +53,10 @@ export const BankDetailsPage = () => {
 
   if (loading) {
     return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-sky-600" /></div>;
+  }
+
+  if (error) {
+    return <ErrorState onRetry={fetchAll} />;
   }
 
   return (

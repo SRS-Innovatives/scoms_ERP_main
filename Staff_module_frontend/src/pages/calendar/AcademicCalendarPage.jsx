@@ -1,7 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { CalendarDays, Loader2 } from 'lucide-react';
 import { useNotification } from '../../context/NotificationContext';
 import EmptyState from '../../components/common/EmptyState';
+import ErrorState from '../../components/common/ErrorState';
 import academicCalendarService from '../../services/academicCalendarService';
 
 const TYPE_STYLES = {
@@ -16,13 +17,18 @@ export const AcademicCalendarPage = () => {
   const { error: showError } = useNotification();
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
-  useEffect(() => {
+  const load = useCallback(() => {
+    setLoading(true);
+    setError(false);
     academicCalendarService.getEvents()
       .then((res) => setEvents(res.data || []))
-      .catch((err) => showError(err.message || 'Failed to load academic calendar', 'Load Failed'))
+      .catch((err) => { showError(err.message || 'Failed to load academic calendar', 'Load Failed'); setError(true); })
       .finally(() => setLoading(false));
   }, [showError]);
+
+  useEffect(() => { load(); }, [load]);
 
   return (
     <div className="glass-card p-6 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-4">
@@ -35,6 +41,8 @@ export const AcademicCalendarPage = () => {
 
       {loading ? (
         <div className="flex justify-center py-10"><Loader2 className="w-6 h-6 animate-spin text-sky-600" /></div>
+      ) : error ? (
+        <ErrorState onRetry={load} />
       ) : events.length === 0 ? (
         <EmptyState title="No Events Yet" message="Your Institute Admin hasn't published any calendar events yet." icon={CalendarDays} />
       ) : (

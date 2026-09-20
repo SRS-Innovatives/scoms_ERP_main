@@ -1,9 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import AssignmentCard from '../../components/common/AssignmentCard';
 import { Plus, Loader2, ClipboardList } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useNotification } from '../../context/NotificationContext';
 import assignmentService from '../../services/assignmentService';
+import ErrorState from '../../components/common/ErrorState';
 
 const toCardShape = (a) => ({
   id: a.id,
@@ -22,13 +23,18 @@ export const AssignmentListPage = () => {
   const { error: showError } = useNotification();
   const [assignments, setAssignments] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
-  useEffect(() => {
+  const load = useCallback(() => {
+    setLoading(true);
+    setError(false);
     assignmentService.getAssignments()
       .then((res) => setAssignments(res.data || []))
-      .catch((err) => showError(err.message || 'Failed to load assignments', 'Load Failed'))
+      .catch((err) => { showError(err.message || 'Failed to load assignments', 'Load Failed'); setError(true); })
       .finally(() => setLoading(false));
   }, [showError]);
+
+  useEffect(() => { load(); }, [load]);
 
   return (
     <div className="space-y-6">
@@ -47,6 +53,8 @@ export const AssignmentListPage = () => {
 
       {loading ? (
         <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-sky-600" /></div>
+      ) : error ? (
+        <ErrorState onRetry={load} />
       ) : assignments.length === 0 ? (
         <div className="glass-card p-10 rounded-2xl border border-slate-200 dark:border-slate-800 text-center text-xs text-slate-500 flex flex-col items-center gap-2">
           <ClipboardList className="w-8 h-8 text-slate-300" />

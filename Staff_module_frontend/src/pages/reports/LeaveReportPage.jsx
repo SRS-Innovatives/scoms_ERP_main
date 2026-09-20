@@ -3,6 +3,7 @@ import StatusBadge from '../../components/common/StatusBadge';
 import { Loader2, Inbox } from 'lucide-react';
 import { useNotification } from '../../context/NotificationContext';
 import studentLeaveService from '../../services/studentLeaveService';
+import ErrorState from '../../components/common/ErrorState';
 
 const TYPE_LABELS = { MEDICAL: 'Medical', CASUAL: 'Casual', DUTY: 'On Duty', EARNED: 'Earned' };
 
@@ -10,16 +11,25 @@ export const LeaveReportPage = () => {
   const { error: showError } = useNotification();
   const [leaves, setLeaves] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
-  useEffect(() => {
+  const load = React.useCallback(() => {
+    setLoading(true);
+    setError(false);
     studentLeaveService.getStudentLeaves()
       .then((res) => setLeaves(res.data || []))
-      .catch((err) => showError(err.message || 'Failed to load leave report', 'Load Failed'))
+      .catch((err) => { showError(err.message || 'Failed to load leave report', 'Load Failed'); setError(true); })
       .finally(() => setLoading(false));
   }, [showError]);
 
+  useEffect(() => { load(); }, [load]);
+
   if (loading) {
     return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-sky-600" /></div>;
+  }
+
+  if (error) {
+    return <ErrorState onRetry={load} />;
   }
 
   return (

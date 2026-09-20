@@ -3,18 +3,21 @@ import StatusBadge from '../../components/common/StatusBadge';
 import { useNotification } from '../../context/NotificationContext';
 import { CheckCircle, XCircle, CalendarCheck2, Loader2, Inbox } from 'lucide-react';
 import appointmentService from '../../services/appointmentService';
+import ErrorState from '../../components/common/ErrorState';
 
 export const AppointmentRequestsPage = () => {
   const { success, error: showError } = useNotification();
   const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [acting, setActing] = useState(null);
+  const [error, setError] = useState(false);
 
   const load = useCallback(() => {
     setLoading(true);
+    setError(false);
     appointmentService.getMyAppointments()
       .then((res) => setAppointments(res.data || []))
-      .catch((err) => showError(err.message || 'Failed to load appointments', 'Load Failed'))
+      .catch((err) => { showError(err.message || 'Failed to load appointments', 'Load Failed'); setError(true); })
       .finally(() => setLoading(false));
   }, [showError]);
 
@@ -35,6 +38,10 @@ export const AppointmentRequestsPage = () => {
 
   if (loading) {
     return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-sky-600" /></div>;
+  }
+
+  if (error) {
+    return <ErrorState onRetry={load} />;
   }
 
   return (

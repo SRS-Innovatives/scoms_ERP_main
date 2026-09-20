@@ -1,9 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import PrintLayout from '../../components/print/PrintLayout';
 import attendanceService from '../../services/attendanceService';
 import profileService from '../../services/profileService';
 import { useNotification } from '../../context/NotificationContext';
 import { Loader2 } from 'lucide-react';
+import ErrorState from '../../components/common/ErrorState';
 
 const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
@@ -15,8 +16,11 @@ export const PrintAttendanceRegister = () => {
   const [roster, setRoster] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadingRoster, setLoadingRoster] = useState(false);
+  const [error, setError] = useState(false);
 
-  useEffect(() => {
+  const load = useCallback(() => {
+    setLoading(true);
+    setError(false);
     Promise.all([attendanceService.getMyClasses(), profileService.getMyProfile()])
       .then(([classesRes, profileRes]) => {
         const mappingsData = classesRes.data || [];
@@ -27,9 +31,11 @@ export const PrintAttendanceRegister = () => {
         if (unique.length > 0) setSectionId(unique[0].section.id);
         setProfile(profileRes.data);
       })
-      .catch((err) => showError(err.message || 'Failed to load classes', 'Load Failed'))
+      .catch((err) => { showError(err.message || 'Failed to load classes', 'Load Failed'); setError(true); })
       .finally(() => setLoading(false));
   }, [showError]);
+
+  useEffect(() => { load(); }, [load]);
 
   useEffect(() => {
     if (!sectionId) return;
@@ -42,6 +48,10 @@ export const PrintAttendanceRegister = () => {
 
   if (loading) {
     return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-sky-600" /></div>;
+  }
+
+  if (error) {
+    return <ErrorState onRetry={load} />;
   }
 
   if (mappings.length === 0) {

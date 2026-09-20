@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNotification } from '../../context/NotificationContext';
 import { UploadCloud, Save, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import materialService from '../../services/materialService';
+import ErrorState from '../../components/common/ErrorState';
 
 const FILE_TYPES = ['PDF', 'PPT', 'DOC', 'VIDEO', 'LINK'];
 
@@ -11,20 +12,25 @@ export const UploadMaterialPage = () => {
   const navigate = useNavigate();
   const [subjects, setSubjects] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   const [form, setForm] = useState({ title: '', description: '', subjectId: '', fileType: 'PDF', fileUrl: '' });
 
-  useEffect(() => {
+  const load = useCallback(() => {
+    setLoading(true);
+    setError(false);
     materialService.getMySubjects()
       .then((res) => {
         const data = res.data || [];
         setSubjects(data);
         if (data.length > 0) setForm((prev) => ({ ...prev, subjectId: data[0].id }));
       })
-      .catch((err) => showError(err.message || 'Failed to load your subjects', 'Load Failed'))
+      .catch((err) => { showError(err.message || 'Failed to load your subjects', 'Load Failed'); setError(true); })
       .finally(() => setLoading(false));
   }, [showError]);
+
+  useEffect(() => { load(); }, [load]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -42,6 +48,10 @@ export const UploadMaterialPage = () => {
 
   if (loading) {
     return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-sky-600" /></div>;
+  }
+
+  if (error) {
+    return <ErrorState onRetry={load} />;
   }
 
   if (subjects.length === 0) {

@@ -5,6 +5,7 @@ import { Loader2, Inbox } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import { useNotification } from '../../context/NotificationContext';
 import assignmentService from '../../services/assignmentService';
+import ErrorState from '../../components/common/ErrorState';
 
 export const StudentSubmissionsPage = () => {
   const [searchParams] = useSearchParams();
@@ -13,17 +14,19 @@ export const StudentSubmissionsPage = () => {
   const [assignment, setAssignment] = useState(null);
   const [submissions, setSubmissions] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [selectedSubmission, setSelectedSubmission] = useState(null);
 
   const load = useCallback(() => {
     if (!id) { setLoading(false); return; }
     setLoading(true);
+    setError(false);
     assignmentService.getSubmissions(id)
       .then((res) => {
         setAssignment(res.data.assignment);
         setSubmissions(res.data.submissions || []);
       })
-      .catch((err) => showError(err.message || 'Failed to load submissions', 'Load Failed'))
+      .catch((err) => { showError(err.message || 'Failed to load submissions', 'Load Failed'); setError(true); })
       .finally(() => setLoading(false));
   }, [id, showError]);
 
@@ -31,6 +34,10 @@ export const StudentSubmissionsPage = () => {
 
   if (loading) {
     return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-sky-600" /></div>;
+  }
+
+  if (error) {
+    return <ErrorState onRetry={load} />;
   }
 
   return (

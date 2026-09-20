@@ -3,6 +3,7 @@ import { useNotification } from '../../context/NotificationContext';
 import { FlaskConical, Check, Loader2, RotateCcw } from 'lucide-react';
 import labService from '../../services/labService';
 import attendanceService from '../../services/attendanceService';
+import ErrorState from '../../components/common/ErrorState';
 
 export const EquipmentIssuePage = () => {
   const { success, error: showError } = useNotification();
@@ -10,6 +11,7 @@ export const EquipmentIssuePage = () => {
   const [assets, setAssets] = useState([]);
   const [issues, setIssues] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [saving, setSaving] = useState(false);
 
   const [studentId, setStudentId] = useState('');
@@ -17,6 +19,7 @@ export const EquipmentIssuePage = () => {
   const [quantity, setQuantity] = useState(1);
 
   const load = () => {
+    setError(false);
     Promise.all([attendanceService.getMyClasses(), labService.getAssets(), labService.getIssuedEquipment()])
       .then(async ([classesRes, assetsRes, issuesRes]) => {
         const mappings = classesRes.data || [];
@@ -38,7 +41,7 @@ export const EquipmentIssuePage = () => {
 
         setIssues(issuesRes.data || []);
       })
-      .catch((err) => showError(err.message || 'Failed to load data', 'Load Failed'))
+      .catch((err) => { showError(err.message || 'Failed to load data', 'Load Failed'); setError(true); })
       .finally(() => setLoading(false));
   };
 
@@ -73,6 +76,10 @@ export const EquipmentIssuePage = () => {
 
   if (loading) {
     return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-purple-600" /></div>;
+  }
+
+  if (error) {
+    return <ErrorState onRetry={load} />;
   }
 
   if (students.length === 0) {

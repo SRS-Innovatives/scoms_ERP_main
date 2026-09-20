@@ -1,7 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { Calendar, Loader2 } from 'lucide-react';
 import attendanceService from '../../services/attendanceService';
 import { useNotification } from '../../context/NotificationContext';
+import ErrorState from '../../components/common/ErrorState';
 
 const STATUS_LABEL = { PRESENT: 'P', ABSENT: 'A', LATE: 'L', LEAVE: 'OD' };
 const STATUS_COLOR = { PRESENT: 'text-emerald-600', ABSENT: 'text-rose-600', LATE: 'text-amber-600', LEAVE: 'text-sky-600' };
@@ -17,9 +18,12 @@ export const MonthlyAttendancePage = () => {
   const [year, setYear] = useState(today.getFullYear());
   const [grid, setGrid] = useState({ days: [], grid: [] });
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [loadingGrid, setLoadingGrid] = useState(false);
 
-  useEffect(() => {
+  const loadClasses = useCallback(() => {
+    setLoading(true);
+    setError(false);
     attendanceService.getMyClasses()
       .then((res) => {
         // de-dupe sections (a teacher may teach multiple subjects in the same section)
@@ -29,9 +33,11 @@ export const MonthlyAttendancePage = () => {
         setMappings(unique);
         if (unique.length > 0) setSelectedSectionId(unique[0].section.id);
       })
-      .catch((err) => showError(err.message || 'Failed to load classes', 'Load Failed'))
+      .catch((err) => { showError(err.message || 'Failed to load classes', 'Load Failed'); setError(true); })
       .finally(() => setLoading(false));
   }, [showError]);
+
+  useEffect(() => { loadClasses(); }, [loadClasses]);
 
   useEffect(() => {
     if (!selectedSectionId) return;
@@ -44,6 +50,10 @@ export const MonthlyAttendancePage = () => {
 
   if (loading) {
     return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-indigo-600" /></div>;
+  }
+
+  if (error) {
+    return <ErrorState onRetry={loadClasses} />;
   }
 
   const selectedLabel = mappings.find((m) => m.section.id === selectedSectionId);

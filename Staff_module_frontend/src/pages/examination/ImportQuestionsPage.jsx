@@ -3,6 +3,7 @@ import FileUpload from '../../components/common/FileUpload';
 import { UploadCloud, Loader2, Download, CheckCircle2, XCircle } from 'lucide-react';
 import examService from '../../services/examService';
 import { useNotification } from '../../context/NotificationContext';
+import ErrorState from '../../components/common/ErrorState';
 
 const TEMPLATE_HEADER = 'chapter,topic,type,difficulty,marks,questionText,options,correctAnswer';
 const TEMPLATE_SAMPLE = 'Optics,Refraction,MCQ,EASY,1,"What is the speed of light in vacuum?","3x10^8 m/s|3x10^6 m/s|3x10^10 m/s","3x10^8 m/s"';
@@ -32,20 +33,25 @@ export const ImportQuestionsPage = () => {
   const [subjects, setSubjects] = useState([]);
   const [subjectId, setSubjectId] = useState('');
   const [loadingSubjects, setLoadingSubjects] = useState(true);
+  const [error, setError] = useState(false);
   const [file, setFile] = useState(null);
   const [importing, setImporting] = useState(false);
   const [result, setResult] = useState(null);
 
-  useEffect(() => {
+  const loadSubjects = () => {
+    setLoadingSubjects(true);
+    setError(false);
     examService.getMySubjects()
       .then((res) => {
         const list = res.data || [];
         setSubjects(list);
         if (list.length > 0) setSubjectId(list[0].id);
       })
-      .catch((err) => showError(err.message || 'Failed to load subjects', 'Load Failed'))
+      .catch((err) => { showError(err.message || 'Failed to load subjects', 'Load Failed'); setError(true); })
       .finally(() => setLoadingSubjects(false));
-  }, [showError]);
+  };
+
+  useEffect(loadSubjects, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleImport = async () => {
     if (!file) return;
@@ -107,6 +113,10 @@ export const ImportQuestionsPage = () => {
 
   if (loadingSubjects) {
     return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-indigo-600" /></div>;
+  }
+
+  if (error) {
+    return <ErrorState onRetry={loadSubjects} />;
   }
 
   if (subjects.length === 0) {

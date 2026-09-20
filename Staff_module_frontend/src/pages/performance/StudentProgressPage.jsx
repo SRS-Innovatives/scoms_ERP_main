@@ -1,9 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import PerformanceChart from '../../components/common/PerformanceChart';
 import StudentTable from '../../components/common/StudentTable';
 import examService from '../../services/examService';
 import { useNotification } from '../../context/NotificationContext';
 import { Loader2 } from 'lucide-react';
+import ErrorState from '../../components/common/ErrorState';
 
 const BANDS = [
   { label: '<60%', test: (v) => v < 60 },
@@ -16,16 +17,25 @@ export const StudentProgressPage = () => {
   const { error: showError } = useNotification();
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
-  useEffect(() => {
+  const load = useCallback(() => {
+    setLoading(true);
+    setError(false);
     examService.getStudentPerformance()
       .then((res) => setStudents(res.data || []))
-      .catch((err) => showError(err.message || 'Failed to load student progress', 'Load Failed'))
+      .catch((err) => { showError(err.message || 'Failed to load student progress', 'Load Failed'); setError(true); })
       .finally(() => setLoading(false));
   }, [showError]);
 
+  useEffect(() => { load(); }, [load]);
+
   if (loading) {
     return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-sky-600" /></div>;
+  }
+
+  if (error) {
+    return <ErrorState onRetry={load} />;
   }
 
   const withMarks = students.filter((s) => s.avgMarksPercent !== null);

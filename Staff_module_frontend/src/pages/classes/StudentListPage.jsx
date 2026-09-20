@@ -1,10 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import StudentTable from '../../components/common/StudentTable';
 import SearchFilterBar from '../../components/common/SearchFilterBar';
 import attendanceService from '../../services/attendanceService';
 import { useNotification } from '../../context/NotificationContext';
 import { useNavigate } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
+import ErrorState from '../../components/common/ErrorState';
 
 const toRow = (s, classLabel) => ({
   id: s.id,
@@ -25,8 +26,11 @@ export const StudentListPage = () => {
   const [classOptions, setClassOptions] = useState([{ value: 'All', label: 'All Classes' }]);
   const [allStudents, setAllStudents] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
-  useEffect(() => {
+  const load = useCallback(() => {
+    setLoading(true);
+    setError(false);
     attendanceService.getMyClasses()
       .then(async (res) => {
         const mappings = res.data || [];
@@ -48,9 +52,11 @@ export const StudentListPage = () => {
         const unique = Array.from(new Map(flat.map((s) => [s.id, s])).values());
         setAllStudents(unique);
       })
-      .catch((err) => showError(err.message || 'Failed to load students', 'Load Failed'))
+      .catch((err) => { showError(err.message || 'Failed to load students', 'Load Failed'); setError(true); })
       .finally(() => setLoading(false));
   }, [showError]);
+
+  useEffect(() => { load(); }, [load]);
 
   const filtered = allStudents.filter((s) => {
     const matchSearch = s.name.toLowerCase().includes(search.toLowerCase()) || s.rollNo?.includes(search);
@@ -60,6 +66,10 @@ export const StudentListPage = () => {
 
   if (loading) {
     return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-indigo-600" /></div>;
+  }
+
+  if (error) {
+    return <ErrorState onRetry={load} />;
   }
 
   return (

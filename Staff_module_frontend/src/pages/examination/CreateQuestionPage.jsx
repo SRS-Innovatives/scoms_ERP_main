@@ -3,6 +3,7 @@ import { useNotification } from '../../context/NotificationContext';
 import { PlusCircle, Save, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import examService from '../../services/examService';
+import ErrorState from '../../components/common/ErrorState';
 
 const TYPE_OPTIONS = [
   { value: 'MCQ', label: 'MCQ (Multiple Choice)' },
@@ -19,6 +20,7 @@ export const CreateQuestionPage = () => {
 
   const [subjects, setSubjects] = useState([]);
   const [loadingSubjects, setLoadingSubjects] = useState(true);
+  const [error, setError] = useState(false);
   const [saving, setSaving] = useState(false);
 
   const [subjectId, setSubjectId] = useState('');
@@ -32,16 +34,20 @@ export const CreateQuestionPage = () => {
   const [options, setOptions] = useState(['', '', '', '']);
   const [correctAnswer, setCorrectAnswer] = useState('');
 
-  useEffect(() => {
+  const loadSubjects = () => {
+    setLoadingSubjects(true);
+    setError(false);
     examService.getMySubjects()
       .then((res) => {
         const list = res.data || [];
         setSubjects(list);
         if (list.length > 0) setSubjectId(list[0].id);
       })
-      .catch((err) => showError(err.message || 'Failed to load subjects', 'Load Failed'))
+      .catch((err) => { showError(err.message || 'Failed to load subjects', 'Load Failed'); setError(true); })
       .finally(() => setLoadingSubjects(false));
-  }, [showError]);
+  };
+
+  useEffect(loadSubjects, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const isChoiceType = type === 'MCQ' || type === 'MULTIPLE_CORRECT';
 
@@ -76,6 +82,10 @@ export const CreateQuestionPage = () => {
 
   if (loadingSubjects) {
     return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-sky-600" /></div>;
+  }
+
+  if (error) {
+    return <ErrorState onRetry={loadSubjects} />;
   }
 
   if (subjects.length === 0) {

@@ -1,16 +1,20 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import PerformanceChart from '../../components/common/PerformanceChart';
 import attendanceService from '../../services/attendanceService';
 import { useNotification } from '../../context/NotificationContext';
 import { Loader2, AlertTriangle } from 'lucide-react';
+import ErrorState from '../../components/common/ErrorState';
 
 export const AttendanceReportsPage = () => {
   const { error: showError } = useNotification();
   const [trend, setTrend] = useState([]);
   const [defaulters, setDefaulters] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
-  useEffect(() => {
+  const load = useCallback(() => {
+    setLoading(true);
+    setError(false);
     Promise.all([attendanceService.getMyClasses(), attendanceService.getHistory()])
       .then(async ([classesRes, historyRes]) => {
         const history = historyRes.data || [];
@@ -38,12 +42,18 @@ export const AttendanceReportsPage = () => {
         const flat = rosters.flat().filter((s) => s.attendancePercent !== null && s.attendancePercent < 75);
         setDefaulters(flat.sort((a, b) => a.attendancePercent - b.attendancePercent));
       })
-      .catch((err) => showError(err.message || 'Failed to load attendance reports', 'Load Failed'))
+      .catch((err) => { showError(err.message || 'Failed to load attendance reports', 'Load Failed'); setError(true); })
       .finally(() => setLoading(false));
   }, [showError]);
 
+  useEffect(() => { load(); }, [load]);
+
   if (loading) {
     return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-indigo-600" /></div>;
+  }
+
+  if (error) {
+    return <ErrorState onRetry={load} />;
   }
 
   return (

@@ -4,6 +4,7 @@ import { Plus, Sparkles, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import examService from '../../services/examService';
 import { useNotification } from '../../context/NotificationContext';
+import ErrorState from '../../components/common/ErrorState';
 
 const TYPE_FILTERS = [
   { value: 'All', label: 'All Question Types' },
@@ -22,13 +23,18 @@ export const QuestionBankPage = () => {
   const [filterType, setFilterType] = useState('All');
   const [questions, setQuestions] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
-  useEffect(() => {
+  const load = () => {
+    setLoading(true);
+    setError(false);
     examService.getQuestions()
       .then((res) => setQuestions(res.data || []))
-      .catch((err) => showError(err.message || 'Failed to load question bank', 'Load Failed'))
+      .catch((err) => { showError(err.message || 'Failed to load question bank', 'Load Failed'); setError(true); })
       .finally(() => setLoading(false));
-  }, [showError]);
+  };
+
+  useEffect(load, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const filtered = questions.filter((q) => {
     const matchSearch = q.questionText.toLowerCase().includes(search.toLowerCase()) || (q.chapter || '').toLowerCase().includes(search.toLowerCase());
@@ -38,6 +44,10 @@ export const QuestionBankPage = () => {
 
   if (loading) {
     return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-sky-600" /></div>;
+  }
+
+  if (error) {
+    return <ErrorState onRetry={load} />;
   }
 
   return (
