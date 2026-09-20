@@ -255,7 +255,20 @@ const hasPermission = (userRole, requiredPermission) => {
   return permissions.includes(requiredPermission);
 };
 
+/** Same decision as hasPermission(), but checks a saved RolePermissionOverride row
+ * first — SuperAdmin's Permission Matrix page writes there (userController.js
+ * updateRolePermissions), and until this function existed nothing ever read it back
+ * for real enforcement, only for redisplaying it in that same page. A role with no
+ * override row behaves exactly like hasPermission(). */
+const hasPermissionAsync = async (prisma, userRole, requiredPermission) => {
+  if (userRole === ROLES.SUPER_ADMIN) return true;
+  const override = await prisma.rolePermissionOverride.findUnique({ where: { role: userRole } });
+  const permissions = override ? override.permissions : (ROLE_PERMISSIONS[userRole] || []);
+  return Array.isArray(permissions) && permissions.includes(requiredPermission);
+};
+
 module.exports = {
   ROLE_PERMISSIONS,
   hasPermission,
+  hasPermissionAsync,
 };
