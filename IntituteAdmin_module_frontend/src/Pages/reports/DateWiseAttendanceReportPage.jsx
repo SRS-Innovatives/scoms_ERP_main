@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import ReportConfigBox from '../../components/common/ReportConfigBox';
 import EmptyState from '../../components/common/EmptyState';
+import ErrorState from '../../components/common/ErrorState';
 import { useNotification } from '../../context/NotificationContext';
 import { CalendarDays, Printer, Loader2, RefreshCw, Check, X, Clock } from 'lucide-react';
 import attendanceService from '../../services/attendanceService';
@@ -27,23 +28,30 @@ export const DateWiseAttendanceReportPage = () => {
   const [loadingOptions, setLoadingOptions] = useState(true);
   const [loadingReport, setLoadingReport] = useState(false);
   const [statusFilter, setStatusFilter] = useState('ALL');
+  const [optionsError, setOptionsError] = useState(false);
+  const [reportError, setReportError] = useState(false);
 
-  useEffect(() => {
+  const loadOptions = useCallback(() => {
+    setLoadingOptions(true);
+    setOptionsError(false);
     sectionService.getAll()
       .then((res) => {
         setSections(res.data || []);
         if ((res.data || []).length > 0) setSectionId(res.data[0].id);
       })
-      .catch((err) => notifyError(`Failed to load sections: ${err.message}`))
+      .catch((err) => { notifyError(`Failed to load sections: ${err.message}`); setOptionsError(true); })
       .finally(() => setLoadingOptions(false));
   }, [notifyError]);
+
+  useEffect(() => { loadOptions(); }, [loadOptions]);
 
   const generate = useCallback(() => {
     if (!sectionId || !date) return;
     setLoadingReport(true);
+    setReportError(false);
     attendanceService.getDateWiseReport(sectionId, date)
       .then((res) => setReport(res.data))
-      .catch((err) => notifyError(`Failed to generate report: ${err.message}`))
+      .catch((err) => { notifyError(`Failed to generate report: ${err.message}`); setReportError(true); })
       .finally(() => setLoadingReport(false));
   }, [sectionId, date, notifyError]);
 
@@ -54,6 +62,10 @@ export const DateWiseAttendanceReportPage = () => {
 
   if (loadingOptions) {
     return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-indigo-600" /></div>;
+  }
+
+  if (optionsError) {
+    return <ErrorState onRetry={loadOptions} />;
   }
 
   return (
@@ -108,6 +120,8 @@ export const DateWiseAttendanceReportPage = () => {
 
       {loadingReport ? (
         <div className="flex justify-center py-16"><Loader2 className="w-7 h-7 animate-spin text-indigo-600" /></div>
+      ) : reportError ? (
+        <ErrorState onRetry={generate} />
       ) : !report || report.rows.length === 0 ? (
         <EmptyState title="No Students in This Section" icon={CalendarDays} />
       ) : filteredRows.length === 0 ? (

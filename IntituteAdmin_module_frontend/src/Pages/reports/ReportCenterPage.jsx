@@ -1,10 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { Loader2, Sparkles, History, Bookmark, MessageSquarePlus } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
 import reportService from '../../services/reportService';
 import { useNotification } from '../../context/NotificationContext';
 import ReportCatalog from '../../components/reports/ReportCatalog';
 import ReportGenerator from '../../components/reports/ReportGenerator';
+import ErrorState from '../../components/common/ErrorState';
 
 /**
  * Reports Dashboard — the single entry point for the whole Dynamic Report Engine.
@@ -17,17 +18,26 @@ export const ReportCenterPage = () => {
   const [searchParams] = useSearchParams();
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [selectedCode, setSelectedCode] = useState(searchParams.get('report'));
 
-  useEffect(() => {
+  const load = useCallback(() => {
+    setLoading(true);
+    setError(false);
     reportService.getCatalog()
       .then((res) => setReports(res.data || []))
-      .catch((err) => showError(`Failed to load report catalog: ${err.message}`))
+      .catch((err) => { showError(`Failed to load report catalog: ${err.message}`); setError(true); })
       .finally(() => setLoading(false));
   }, [showError]);
 
+  useEffect(() => { load(); }, [load]);
+
   if (loading) {
     return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-indigo-600" /></div>;
+  }
+
+  if (error) {
+    return <ErrorState onRetry={load} />;
   }
 
   return (

@@ -1,16 +1,20 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import FormSection from '../../components/common/FormSection';
 import { useNotification } from '../../context/NotificationContext';
 import { MessageSquare, Save, Loader2, Bell } from 'lucide-react';
 import settingsService from '../../services/settingsService';
+import ErrorState from '../../components/common/ErrorState';
 
 export const SMSSettingsPage = () => {
   const { notifySuccess, notifyError } = useNotification();
   const [form, setForm] = useState({ smsProvider: '', smsSenderId: '', smsDltEntityId: '', staffAttendanceSmsEnabled: true });
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
+  const load = useCallback(() => {
+    setLoading(true);
+    setError(false);
     settingsService.getSettings()
       .then((res) => setForm({
         smsProvider: res.data.smsProvider || '',
@@ -18,9 +22,11 @@ export const SMSSettingsPage = () => {
         smsDltEntityId: res.data.smsDltEntityId || '',
         staffAttendanceSmsEnabled: res.data.staffAttendanceSmsEnabled !== false,
       }))
-      .catch((err) => notifyError(`Failed to load SMS settings: ${err.message}`))
+      .catch((err) => { notifyError(`Failed to load SMS settings: ${err.message}`); setError(true); })
       .finally(() => setLoading(false));
   }, [notifyError]);
+
+  useEffect(() => { load(); }, [load]);
 
   const handleSave = async () => {
     setSaving(true);
@@ -36,6 +42,10 @@ export const SMSSettingsPage = () => {
 
   if (loading) {
     return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-indigo-600" /></div>;
+  }
+
+  if (error) {
+    return <ErrorState onRetry={load} />;
   }
 
   return (

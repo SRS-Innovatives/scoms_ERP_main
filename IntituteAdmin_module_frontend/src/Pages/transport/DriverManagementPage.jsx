@@ -1,22 +1,28 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import DataTable from '../../components/common/DataTable';
 import EmptyState from '../../components/common/EmptyState';
 import StatusBadge from '../../components/common/StatusBadge';
 import { useNotification } from '../../context/NotificationContext';
 import { UserRound, Loader2 } from 'lucide-react';
 import transportService from '../../services/transportService';
+import ErrorState from '../../components/common/ErrorState';
 
 export const DriverManagementPage = () => {
   const { notifyError } = useNotification();
   const [vehicles, setVehicles] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
-  useEffect(() => {
+  const load = useCallback(() => {
+    setLoading(true);
+    setError(false);
     transportService.getVehicles()
       .then((res) => setVehicles((res.data || []).filter((v) => v.driverName)))
-      .catch((err) => notifyError(`Failed to load driver directory: ${err.message}`))
+      .catch((err) => { notifyError(`Failed to load driver directory: ${err.message}`); setError(true); })
       .finally(() => setLoading(false));
   }, [notifyError]);
+
+  useEffect(() => { load(); }, [load]);
 
   const isExpired = (date) => date && new Date(date) < new Date();
 
@@ -37,6 +43,8 @@ export const DriverManagementPage = () => {
 
       {loading ? (
         <div className="flex justify-center py-16"><Loader2 className="w-7 h-7 animate-spin text-indigo-600" /></div>
+      ) : error ? (
+        <ErrorState onRetry={load} />
       ) : vehicles.length === 0 ? (
         <EmptyState title="No Drivers on Record" description="Add driver details when registering a vehicle under Fleet & Vehicle Management." icon={UserRound} />
       ) : (

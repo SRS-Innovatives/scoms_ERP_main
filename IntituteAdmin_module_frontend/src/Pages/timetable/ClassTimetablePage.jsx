@@ -5,6 +5,7 @@ import sectionService from '../../services/sectionService';
 import subjectService from '../../services/subjectService';
 import staffService from '../../services/staffService';
 import timetableService from '../../services/timetableService';
+import ErrorState from '../../components/common/ErrorState';
 
 const DAYS = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
 const DAY_LABELS = { MONDAY: 'Monday', TUESDAY: 'Tuesday', WEDNESDAY: 'Wednesday', THURSDAY: 'Thursday', FRIDAY: 'Friday', SATURDAY: 'Saturday' };
@@ -25,25 +26,31 @@ export const ClassTimetablePage = () => {
   const [timetable, setTimetable] = useState(null);
   const [grid, setGrid] = useState({}); // key `${day}_${period}` -> { subjectId, staffId, roomNumber, label }
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [saving, setSaving] = useState(false);
   const [editingCell, setEditingCell] = useState(null);
 
-  useEffect(() => {
+  const loadSetupData = useCallback(() => {
+    setLoading(true);
+    setError(false);
     Promise.all([sectionService.getAll(), staffService.getAll()])
       .then(([secRes, staffRes]) => {
         setSections(secRes.data || []);
         setStaffList(staffRes.data || []);
         if ((secRes.data || []).length > 0) setSectionId(secRes.data[0].id);
       })
-      .catch((err) => notifyError(`Failed to load setup data: ${err.message}`))
+      .catch((err) => { notifyError(`Failed to load setup data: ${err.message}`); setError(true); })
       .finally(() => setLoading(false));
   }, [notifyError]);
+
+  useEffect(() => { loadSetupData(); }, [loadSetupData]);
 
   const selectedSection = sections.find((s) => s.id === sectionId);
 
   const loadTimetable = useCallback(async () => {
     if (!sectionId) return;
     setLoading(true);
+    setError(false);
     try {
       const [ttRes, subRes] = await Promise.all([
         timetableService.getForSection(sectionId),
@@ -58,6 +65,7 @@ export const ClassTimetablePage = () => {
       setGrid(g);
     } catch (err) {
       notifyError(`Failed to load timetable: ${err.message}`);
+      setError(true);
     } finally {
       setLoading(false);
     }
@@ -133,6 +141,8 @@ export const ClassTimetablePage = () => {
 
       {loading ? (
         <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-indigo-600" /></div>
+      ) : error ? (
+        <ErrorState onRetry={() => { loadSetupData(); loadTimetable(); }} />
       ) : (
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-xs">
           <div className="overflow-x-auto">

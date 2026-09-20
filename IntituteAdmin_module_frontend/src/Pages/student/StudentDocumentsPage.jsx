@@ -3,6 +3,7 @@ import FileUpload from '../../components/common/FileUpload';
 import FormSection from '../../components/common/FormSection';
 import DataTable from '../../components/common/DataTable';
 import EmptyState from '../../components/common/EmptyState';
+import ErrorState from '../../components/common/ErrorState';
 import { useNotification } from '../../context/NotificationContext';
 import { FileText, Trash2, ShieldCheck } from 'lucide-react';
 import studentService from '../../services/studentService';
@@ -31,6 +32,7 @@ export const StudentDocumentsPage = () => {
   const [selectedStudentId, setSelectedStudentId] = useState('');
   const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(false);
   const [pendingFile, setPendingFile] = useState(null);
   const [title, setTitle] = useState('');
   const [documentType, setDocumentType] = useState('OTHER');
@@ -45,9 +47,10 @@ export const StudentDocumentsPage = () => {
   const fetchDocuments = useCallback(() => {
     if (!selectedStudentId) { setDocuments([]); return; }
     setLoading(true);
+    setError(false);
     studentDocumentService.getForStudent(selectedStudentId)
       .then((res) => setDocuments(res.data || []))
-      .catch((err) => notifyError(`Failed to load documents: ${err.message}`))
+      .catch((err) => { notifyError(`Failed to load documents: ${err.message}`); setError(true); })
       .finally(() => setLoading(false));
   }, [selectedStudentId, notifyError]);
 
@@ -153,7 +156,9 @@ export const StudentDocumentsPage = () => {
             </button>
           </FormSection>
 
-          {!loading && documents.length === 0 ? (
+          {error ? (
+            <ErrorState onRetry={fetchDocuments} />
+          ) : !loading && documents.length === 0 ? (
             <EmptyState title="No Documents Yet" description="Upload the first document for this student." icon={ShieldCheck} />
           ) : (
             <DataTable columns={columns} data={documents} loading={loading} />

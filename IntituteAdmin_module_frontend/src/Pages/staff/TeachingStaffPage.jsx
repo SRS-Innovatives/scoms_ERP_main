@@ -4,6 +4,7 @@ import SearchFilterBar from '../../components/common/SearchFilterBar';
 import StaffCard from '../../components/common/StaffCard';
 import StatusBadge from '../../components/common/StatusBadge';
 import EmptyState from '../../components/common/EmptyState';
+import ErrorState from '../../components/common/ErrorState';
 import { useNotification } from '../../context/NotificationContext';
 import { useNavigate } from 'react-router-dom';
 import { Grid, List, Plus, GraduationCap } from 'lucide-react';
@@ -35,12 +36,14 @@ export const TeachingStaffPage = () => {
   const [viewMode, setViewMode] = useState('table');
   const [teaching, setTeaching] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   const fetchAll = useCallback(() => {
     setLoading(true);
+    setError(false);
     staffService.getAll('TEACHING')
       .then((res) => setTeaching(res.data || []))
-      .catch((err) => notifyError(`Failed to load teaching faculty: ${err.message}`))
+      .catch((err) => { notifyError(`Failed to load teaching faculty: ${err.message}`); setError(true); })
       .finally(() => setLoading(false));
   }, [notifyError]);
 
@@ -94,7 +97,9 @@ export const TeachingStaffPage = () => {
 
       <SearchFilterBar searchQuery={search} onSearchChange={setSearch} placeholder="Search teaching faculty..." />
 
-      {!loading && filtered.length === 0 ? (
+      {error ? (
+        <ErrorState onRetry={fetchAll} />
+      ) : !loading && filtered.length === 0 ? (
         <EmptyState title="No Teaching Faculty Yet" description="Register the first teaching staff member." actionLabel="Add Teaching Staff" onAction={() => navigate('/admin/staff/registration')} icon={GraduationCap} />
       ) : viewMode === 'table' ? (
         <DataTable columns={columns} data={filtered} loading={loading} />

@@ -1,9 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import StatusBadge from '../../components/common/StatusBadge';
 import { Phone, Mail, MapPin, Loader2 } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useNotification } from '../../context/NotificationContext';
 import studentService from '../../services/studentService';
+import ErrorState from '../../components/common/ErrorState';
 
 export const StudentProfilePage = () => {
   const navigate = useNavigate();
@@ -12,17 +13,26 @@ export const StudentProfilePage = () => {
   const id = searchParams.get('id');
   const [student, setStudent] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
-  useEffect(() => {
+  const load = useCallback(() => {
     if (!id) { setLoading(false); return; }
+    setLoading(true);
+    setError(false);
     studentService.getById(id)
       .then((res) => setStudent(res.data))
-      .catch((err) => notifyError(`Failed to load student: ${err.message}`))
+      .catch((err) => { notifyError(`Failed to load student: ${err.message}`); setError(true); })
       .finally(() => setLoading(false));
   }, [id, notifyError]);
 
+  useEffect(() => { load(); }, [load]);
+
   if (loading) {
     return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-indigo-600" /></div>;
+  }
+
+  if (error) {
+    return <ErrorState onRetry={load} />;
   }
 
   if (!student) {

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import EmptyState from '../../components/common/EmptyState';
+import ErrorState from '../../components/common/ErrorState';
 import StatusBadge from '../../components/common/StatusBadge';
 import { useNotification } from '../../context/NotificationContext';
 import { Save, Loader2, Users } from 'lucide-react';
@@ -13,10 +14,12 @@ export const StaffAttendancePage = () => {
   const [roster, setRoster] = useState([]);
   const [statusMap, setStatusMap] = useState({});
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [saving, setSaving] = useState(false);
 
   const fetchRoster = useCallback(() => {
     setLoading(true);
+    setError(false);
     staffService.getAttendance(date)
       .then((res) => {
         const data = res.data || [];
@@ -25,7 +28,7 @@ export const StaffAttendancePage = () => {
         data.forEach((r) => { initial[r.id] = r.attendance?.status || 'PRESENT'; });
         setStatusMap(initial);
       })
-      .catch((err) => notifyError(`Failed to load staff attendance register: ${err.message}`))
+      .catch((err) => { notifyError(`Failed to load staff attendance register: ${err.message}`); setError(true); })
       .finally(() => setLoading(false));
   }, [date, notifyError]);
 
@@ -62,6 +65,8 @@ export const StaffAttendancePage = () => {
 
       {loading ? (
         <div className="flex justify-center py-16"><Loader2 className="w-7 h-7 animate-spin text-indigo-600" /></div>
+      ) : error ? (
+        <ErrorState onRetry={fetchRoster} />
       ) : roster.length === 0 ? (
         <EmptyState title="No Active Staff" description="Register staff members first to mark attendance." icon={Users} />
       ) : (

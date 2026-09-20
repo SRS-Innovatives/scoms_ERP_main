@@ -1,23 +1,29 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import DataTable from '../../components/common/DataTable';
 import SearchFilterBar from '../../components/common/SearchFilterBar';
 import ChartCard from '../../components/common/ChartCard';
 import { useNotification } from '../../context/NotificationContext';
 import { Printer, Loader2 } from 'lucide-react';
 import studentService from '../../services/studentService';
+import ErrorState from '../../components/common/ErrorState';
 
 export const AdmissionReportPage = () => {
   const { notifyError } = useNotification();
   const [search, setSearch] = useState('');
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
-  useEffect(() => {
+  const load = useCallback(() => {
+    setLoading(true);
+    setError(false);
     studentService.getAll({ limit: 1000 })
       .then((res) => setStudents(res.data || []))
-      .catch((err) => notifyError(`Failed to load admission report: ${err.message}`))
+      .catch((err) => { notifyError(`Failed to load admission report: ${err.message}`); setError(true); })
       .finally(() => setLoading(false));
   }, [notifyError]);
+
+  useEffect(() => { load(); }, [load]);
 
   const { genderBreakdown, courseBreakdown } = useMemo(() => {
     const byGender = {};
@@ -60,6 +66,8 @@ export const AdmissionReportPage = () => {
 
       {loading ? (
         <div className="flex justify-center py-16"><Loader2 className="w-7 h-7 animate-spin text-indigo-600" /></div>
+      ) : error ? (
+        <ErrorState onRetry={load} />
       ) : (
         <>
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import DataTable from '../../components/common/DataTable';
 import EmptyState from '../../components/common/EmptyState';
+import ErrorState from '../../components/common/ErrorState';
 import Tabs from '../../components/common/Tabs';
 import { useNotification } from '../../context/NotificationContext';
 import { GitBranch, Plus, X, CheckCircle2, XCircle, Loader2, ArrowRight } from 'lucide-react';
@@ -127,20 +128,25 @@ export const WorkflowEnginePage = () => {
   const [definitions, setDefinitions] = useState([]);
   const [pending, setPending] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [decidingInstance, setDecidingInstance] = useState(null);
 
   const fetchDefinitions = useCallback(() => {
     setLoading(true);
-    workflowService.getDefinitions().then((res) => setDefinitions(res.data || [])).catch((err) => notifyError(err.message)).finally(() => setLoading(false));
+    setError(false);
+    workflowService.getDefinitions().then((res) => setDefinitions(res.data || [])).catch((err) => { notifyError(err.message); setError(true); }).finally(() => setLoading(false));
   }, [notifyError]);
 
   const fetchPending = useCallback(() => {
     setLoading(true);
-    workflowService.getMyPendingApprovals().then((res) => setPending(res.data || [])).catch((err) => notifyError(err.message)).finally(() => setLoading(false));
+    setError(false);
+    workflowService.getMyPendingApprovals().then((res) => setPending(res.data || [])).catch((err) => { notifyError(err.message); setError(true); }).finally(() => setLoading(false));
   }, [notifyError]);
 
-  useEffect(() => { tab === 'definitions' ? fetchDefinitions() : fetchPending(); }, [tab, fetchDefinitions, fetchPending]);
+  const reload = useCallback(() => { tab === 'definitions' ? fetchDefinitions() : fetchPending(); }, [tab, fetchDefinitions, fetchPending]);
+
+  useEffect(() => { reload(); }, [reload]);
 
   const defColumns = [
     { header: 'Name', key: 'name', render: (val) => <span className="font-bold text-slate-900 dark:text-white">{val}</span> },
@@ -190,6 +196,8 @@ export const WorkflowEnginePage = () => {
 
       {loading ? (
         <div className="flex justify-center py-16"><Loader2 className="w-7 h-7 animate-spin text-indigo-600" /></div>
+      ) : error ? (
+        <ErrorState onRetry={reload} />
       ) : tab === 'definitions' ? (
         definitions.length === 0 ? (
           <EmptyState title="No Approval Chains Yet" description="Configure your first multi-step workflow." actionLabel="New Workflow" onAction={() => setModalOpen(true)} icon={GitBranch} />

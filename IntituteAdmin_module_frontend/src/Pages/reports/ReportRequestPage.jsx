@@ -3,6 +3,7 @@ import { Loader2, MessageSquarePlus, Send } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import reportService from '../../services/reportService';
 import { useNotification } from '../../context/NotificationContext';
+import ErrorState from '../../components/common/ErrorState';
 
 const CATEGORIES = ['STUDENT', 'STAFF', 'ACADEMIC', 'ATTENDANCE', 'EXAMINATION', 'FEES', 'FINANCE', 'LIBRARY', 'HOSTEL', 'TRANSPORT', 'ADMISSION', 'COMMUNICATION', 'ADMINISTRATION', 'ANALYTICS', 'CUSTOM'];
 const PRIORITIES = ['LOW', 'MEDIUM', 'HIGH'];
@@ -22,6 +23,7 @@ export const ReportRequestPage = () => {
   const { error: showError, success } = useNotification();
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   const [title, setTitle] = useState('');
@@ -31,9 +33,11 @@ export const ReportRequestPage = () => {
   const [priority, setPriority] = useState('MEDIUM');
 
   const load = () => {
+    setLoading(true);
+    setError(false);
     reportService.getRequests()
       .then((res) => setRequests(res.data || []))
-      .catch((err) => showError(`Failed to load report requests: ${err.message}`))
+      .catch((err) => { showError(`Failed to load report requests: ${err.message}`); setError(true); })
       .finally(() => setLoading(false));
   };
 
@@ -57,6 +61,10 @@ export const ReportRequestPage = () => {
 
   if (loading) {
     return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-indigo-600" /></div>;
+  }
+
+  if (error) {
+    return <ErrorState onRetry={load} />;
   }
 
   return (

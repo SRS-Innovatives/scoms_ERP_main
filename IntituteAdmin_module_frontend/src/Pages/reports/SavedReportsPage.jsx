@@ -3,17 +3,21 @@ import { Loader2, Bookmark, Trash2, Play } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import reportService from '../../services/reportService';
 import { useNotification } from '../../context/NotificationContext';
+import ErrorState from '../../components/common/ErrorState';
 
 export const SavedReportsPage = () => {
   const { error: showError, success } = useNotification();
   const navigate = useNavigate();
   const [saved, setSaved] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   const load = () => {
+    setLoading(true);
+    setError(false);
     reportService.getSaved()
       .then((res) => setSaved(res.data || []))
-      .catch((err) => showError(`Failed to load saved reports: ${err.message}`))
+      .catch((err) => { showError(`Failed to load saved reports: ${err.message}`); setError(true); })
       .finally(() => setLoading(false));
   };
 
@@ -31,6 +35,10 @@ export const SavedReportsPage = () => {
 
   if (loading) {
     return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-indigo-600" /></div>;
+  }
+
+  if (error) {
+    return <ErrorState onRetry={load} />;
   }
 
   return (

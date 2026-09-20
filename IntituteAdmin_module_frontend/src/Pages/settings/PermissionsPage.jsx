@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import FormSection from '../../components/common/FormSection';
 import { useNotification } from '../../context/NotificationContext';
 import { ShieldCheck, Check, Loader2 } from 'lucide-react';
 import settingsService from '../../services/settingsService';
+import ErrorState from '../../components/common/ErrorState';
 
 const ROLE_LABELS = {
   INSTITUTE_ADMIN: 'Institute Admin',
@@ -23,16 +24,25 @@ export const PermissionsPage = () => {
   const { notifyError } = useNotification();
   const [matrix, setMatrix] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
-  useEffect(() => {
+  const load = useCallback(() => {
+    setLoading(true);
+    setError(false);
     settingsService.getPermissionMatrix()
       .then((res) => setMatrix(res.data || []))
-      .catch((err) => notifyError(`Failed to load permission matrix: ${err.message}`))
+      .catch((err) => { notifyError(`Failed to load permission matrix: ${err.message}`); setError(true); })
       .finally(() => setLoading(false));
   }, [notifyError]);
 
+  useEffect(() => { load(); }, [load]);
+
   if (loading) {
     return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-indigo-600" /></div>;
+  }
+
+  if (error) {
+    return <ErrorState onRetry={load} />;
   }
 
   const modules = [...new Set(matrix.flatMap((r) => r.permissions.map((p) => p.split('.')[0])))].sort();

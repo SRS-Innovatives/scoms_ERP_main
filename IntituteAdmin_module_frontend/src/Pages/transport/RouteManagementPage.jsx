@@ -6,6 +6,7 @@ import FormModal from '../../components/common/FormModal';
 import { useNotification } from '../../context/NotificationContext';
 import { Bus } from 'lucide-react';
 import transportService from '../../services/transportService';
+import ErrorState from '../../components/common/ErrorState';
 
 const emptyForm = { routeName: '', startPoint: '', endPoint: '', monthlyFare: '', vehicleId: '' };
 
@@ -15,18 +16,20 @@ export const RouteManagementPage = () => {
   const [routes, setRoutes] = useState([]);
   const [vehicles, setVehicles] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState(emptyForm);
 
   const fetchAll = useCallback(() => {
     setLoading(true);
+    setError(false);
     Promise.all([transportService.getRoutes(), transportService.getVehicles()])
       .then(([routeRes, vehicleRes]) => {
         setRoutes(routeRes.data || []);
         setVehicles(vehicleRes.data || []);
       })
-      .catch((err) => notifyError(`Failed to load routes: ${err.message}`))
+      .catch((err) => { notifyError(`Failed to load routes: ${err.message}`); setError(true); })
       .finally(() => setLoading(false));
   }, [notifyError]);
 
@@ -67,7 +70,9 @@ export const RouteManagementPage = () => {
 
       <SearchFilterBar searchQuery={search} onSearchChange={setSearch} placeholder="Search bus route..." addLabel="Add Transport Route" onAddClick={() => setModalOpen(true)} />
 
-      {!loading && filtered.length === 0 ? (
+      {error ? (
+        <ErrorState onRetry={fetchAll} />
+      ) : !loading && filtered.length === 0 ? (
         <EmptyState title="No Routes Configured" description="Add the first transport route to get started." actionLabel="Add Transport Route" onAction={() => setModalOpen(true)} icon={Bus} />
       ) : (
         <DataTable columns={columns} data={filtered} loading={loading} />

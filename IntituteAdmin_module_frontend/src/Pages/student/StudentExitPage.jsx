@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import DataTable from '../../components/common/DataTable';
 import StatusBadge from '../../components/common/StatusBadge';
 import EmptyState from '../../components/common/EmptyState';
+import ErrorState from '../../components/common/ErrorState';
 import FormModal from '../../components/common/FormModal';
 import { useNotification } from '../../context/NotificationContext';
 import { LogOut, X, CheckCircle2, XCircle, ArrowRightCircle } from 'lucide-react';
@@ -16,13 +17,15 @@ const ClearanceModal = ({ record: initialRecord, onClose, onRefresh }) => {
   const [record, setRecord] = useState(initialRecord);
   const [computed, setComputed] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [clearanceError, setClearanceError] = useState(false);
   const [busy, setBusy] = useState(false);
 
   const fetchClearance = useCallback(() => {
     setLoading(true);
+    setClearanceError(false);
     studentExitService.getClearanceStatus(record.id)
       .then((res) => setComputed(res.data))
-      .catch((err) => notifyError(err.message))
+      .catch((err) => { notifyError(err.message); setClearanceError(true); })
       .finally(() => setLoading(false));
   }, [record.id, notifyError]);
 
@@ -96,7 +99,9 @@ const ClearanceModal = ({ record: initialRecord, onClose, onRefresh }) => {
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"><X className="w-5 h-5" /></button>
         </div>
 
-        {loading || !computed ? (
+        {clearanceError ? (
+          <ErrorState onRetry={fetchClearance} />
+        ) : loading || !computed ? (
           <p className="text-xs text-slate-400 py-8 text-center">Loading real clearance status...</p>
         ) : (
           <div className="space-y-3 text-xs">
@@ -146,6 +151,7 @@ export const StudentExitPage = () => {
   const [records, setRecords] = useState([]);
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState(emptyForm);
@@ -153,9 +159,10 @@ export const StudentExitPage = () => {
 
   const fetchAll = useCallback(() => {
     setLoading(true);
+    setError(false);
     studentExitService.getExitRecords()
       .then((res) => setRecords(res.data || []))
-      .catch((err) => notifyError(`Failed to load exit records: ${err.message}`))
+      .catch((err) => { notifyError(`Failed to load exit records: ${err.message}`); setError(true); })
       .finally(() => setLoading(false));
   }, [notifyError]);
 
@@ -205,7 +212,9 @@ export const StudentExitPage = () => {
         </button>
       </div>
 
-      {!loading && records.length === 0 ? (
+      {error ? (
+        <ErrorState onRetry={fetchAll} />
+      ) : !loading && records.length === 0 ? (
         <EmptyState title="No Exit Requests" description="Create the first withdrawal or transfer request." actionLabel="New Exit Request" onAction={() => setModalOpen(true)} icon={LogOut} />
       ) : (
         <DataTable columns={columns} data={records} loading={loading} />

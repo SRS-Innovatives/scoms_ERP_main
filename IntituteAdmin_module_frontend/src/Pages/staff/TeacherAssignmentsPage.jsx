@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNotification } from '../../context/NotificationContext';
+import ErrorState from '../../components/common/ErrorState';
 import { Users, BookOpen, X, Loader2, GraduationCap } from 'lucide-react';
 import staffService from '../../services/staffService';
 import sectionService from '../../services/sectionService';
@@ -21,11 +22,13 @@ export const TeacherAssignmentsPage = () => {
   const [teachers, setTeachers] = useState([]);
   const [assignments, setAssignments] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [busyKey, setBusyKey] = useState(null);
   const [selectedSectionId, setSelectedSectionId] = useState('');
 
   const fetchAll = useCallback(() => {
     setLoading(true);
+    setError(false);
     Promise.all([
       sectionService.getAll(),
       staffService.getAll('TEACHING'),
@@ -36,7 +39,7 @@ export const TeacherAssignmentsPage = () => {
         setTeachers(staffRes.data || []);
         setAssignments(assignRes.data || []);
       })
-      .catch((err) => notifyError(`Failed to load assignment data: ${err.message}`))
+      .catch((err) => { notifyError(`Failed to load assignment data: ${err.message}`); setError(true); })
       .finally(() => setLoading(false));
   }, [notifyError]);
 
@@ -101,6 +104,10 @@ export const TeacherAssignmentsPage = () => {
 
   if (loading) {
     return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-indigo-600" /></div>;
+  }
+
+  if (error) {
+    return <ErrorState onRetry={fetchAll} />;
   }
 
   return (

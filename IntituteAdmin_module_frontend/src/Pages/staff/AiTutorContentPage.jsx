@@ -7,6 +7,7 @@ import ConfirmDialog from '../../components/common/ConfirmDialog';
 import { useNotification } from '../../context/NotificationContext';
 import textbookService from '../../services/textbookService';
 import { BrainCircuit, Edit, Trash2 } from 'lucide-react';
+import ErrorState from '../../components/common/ErrorState';
 
 const CLASS_OPTIONS = Array.from({ length: 8 }, (_, i) => ({ value: String(i + 5), label: `Class ${i + 5}` }));
 const LANGUAGE_OPTIONS = [{ value: 'ENGLISH', label: 'English' }, { value: 'TAMIL', label: 'Tamil' }];
@@ -19,6 +20,7 @@ export const AiTutorContentPage = () => {
   const { notifySuccess, notifyError } = useNotification();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [search, setSearch] = useState('');
 
   const [modalOpen, setModalOpen] = useState(false);
@@ -29,9 +31,10 @@ export const AiTutorContentPage = () => {
 
   const fetchAll = useCallback(() => {
     setLoading(true);
+    setError(false);
     textbookService.getAll()
       .then((res) => setItems(res.data || []))
-      .catch((err) => notifyError(`Failed to load textbook content: ${err.message}`))
+      .catch((err) => { notifyError(`Failed to load textbook content: ${err.message}`); setError(true); })
       .finally(() => setLoading(false));
   }, [notifyError]);
 
@@ -106,7 +109,9 @@ export const AiTutorContentPage = () => {
 
       <SearchFilterBar searchQuery={search} onSearchChange={setSearch} placeholder="Search by subject or chapter..." addLabel="Add Chapter" onAddClick={openAdd} onRefreshClick={fetchAll} />
 
-      {!loading && filtered.length === 0 ? (
+      {!loading && error ? (
+        <ErrorState onRetry={fetchAll} />
+      ) : !loading && filtered.length === 0 ? (
         <EmptyState icon={BrainCircuit} title="No Textbook Content Yet" description="Add your first chapter so the AI Tutor has something real to answer from." actionLabel="Add Chapter" onAction={openAdd} />
       ) : (
         <DataTable columns={columns} data={filtered} loading={loading} />

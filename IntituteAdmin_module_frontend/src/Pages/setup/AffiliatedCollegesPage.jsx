@@ -5,6 +5,7 @@ import { useNotification } from '../../context/NotificationContext';
 import { useInstitution } from '../../context/InstitutionContext';
 import affiliationService from '../../services/affiliationService';
 import { Building2, Loader2 } from 'lucide-react';
+import ErrorState from '../../components/common/ErrorState';
 
 const TYPE_LABELS = { COLLEGE: 'College', AUTONOMOUS_COLLEGE: 'Autonomous College' };
 
@@ -17,15 +18,17 @@ export const AffiliatedCollegesPage = () => {
   const [colleges, setColleges] = useState([]);
   const [loading, setLoading] = useState(true);
   const [notApplicable, setNotApplicable] = useState(false);
+  const [error, setError] = useState(false);
 
   const fetchAll = useCallback(() => {
     setLoading(true);
     setNotApplicable(false);
+    setError(false);
     affiliationService.getAffiliatedColleges()
       .then((res) => setColleges(res.data || []))
       .catch((err) => {
         if (err.message?.includes('Only a University')) setNotApplicable(true);
-        else notifyError(`Failed to load affiliated colleges: ${err.message}`);
+        else { notifyError(`Failed to load affiliated colleges: ${err.message}`); setError(true); }
       })
       .finally(() => setLoading(false));
   }, [notifyError]);
@@ -48,6 +51,10 @@ export const AffiliatedCollegesPage = () => {
 
   if (loading) {
     return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-indigo-600" /></div>;
+  }
+
+  if (error) {
+    return <ErrorState onRetry={fetchAll} />;
   }
 
   if (notApplicable) {

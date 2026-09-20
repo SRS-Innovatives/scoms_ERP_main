@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import DataTable from '../../components/common/DataTable';
 import EmptyState from '../../components/common/EmptyState';
+import ErrorState from '../../components/common/ErrorState';
 import { useNotification } from '../../context/NotificationContext';
 import { ShieldCheck, User, Loader2 } from 'lucide-react';
 import settingsService from '../../services/settingsService';
@@ -9,13 +10,18 @@ export const AuditLogsPage = () => {
   const { notifyError } = useNotification();
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
-  useEffect(() => {
+  const load = useCallback(() => {
+    setLoading(true);
+    setError(false);
     settingsService.getAuditLogs()
       .then((res) => setLogs(res.data || []))
-      .catch((err) => notifyError(`Failed to load audit logs: ${err.message}`))
+      .catch((err) => { notifyError(`Failed to load audit logs: ${err.message}`); setError(true); })
       .finally(() => setLoading(false));
   }, [notifyError]);
+
+  useEffect(() => { load(); }, [load]);
 
   const columns = [
     { header: 'User Account', key: 'user', sortable: false, render: (val) => <span className="font-bold text-slate-900 dark:text-white flex items-center gap-2"><User className="w-4 h-4 text-indigo-600" />{val?.email || 'System'}</span> },
@@ -28,6 +34,10 @@ export const AuditLogsPage = () => {
 
   if (loading) {
     return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-indigo-600" /></div>;
+  }
+
+  if (error) {
+    return <ErrorState onRetry={load} />;
   }
 
   return (

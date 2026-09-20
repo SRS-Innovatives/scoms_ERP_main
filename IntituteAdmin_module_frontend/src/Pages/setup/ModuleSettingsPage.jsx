@@ -5,6 +5,7 @@ import StatusBadge from '../../components/common/StatusBadge';
 import { useNotification } from '../../context/NotificationContext';
 import { Loader2, Settings, SlidersHorizontal } from 'lucide-react';
 import moduleConfigService from '../../services/moduleConfigService';
+import ErrorState from '../../components/common/ErrorState';
 
 const FIELD_TYPE_MAP = { TEXT: 'text', NUMBER: 'number', BOOLEAN: 'checkbox', SELECT: 'select' };
 
@@ -12,15 +13,17 @@ export const ModuleSettingsPage = () => {
   const { notifySuccess, notifyError } = useNotification();
   const [modules, setModules] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [activeModule, setActiveModule] = useState(null);
   const [form, setForm] = useState({});
   const [submitting, setSubmitting] = useState(false);
 
   const fetchAll = useCallback(() => {
     setLoading(true);
+    setError(false);
     moduleConfigService.getAssignedModules()
       .then((res) => setModules(res.data || []))
-      .catch((err) => notifyError(`Failed to load module settings: ${err.message}`))
+      .catch((err) => { notifyError(`Failed to load module settings: ${err.message}`); setError(true); })
       .finally(() => setLoading(false));
   }, [notifyError]);
 
@@ -66,6 +69,8 @@ export const ModuleSettingsPage = () => {
 
       {loading ? (
         <div className="flex justify-center py-16"><Loader2 className="w-7 h-7 animate-spin text-indigo-600" /></div>
+      ) : error ? (
+        <ErrorState onRetry={fetchAll} />
       ) : modules.length === 0 ? (
         <EmptyState
           title="No Assigned Modules Yet"
