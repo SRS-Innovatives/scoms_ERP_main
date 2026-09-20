@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import DataTable from '../../components/common/DataTable';
 import EmptyState from '../../components/common/EmptyState';
+import ErrorState from '../../components/common/ErrorState';
 import EmailComposeModal from '../../components/modals/EmailComposeModal';
 import { useNotification } from '../../context/NotificationContext';
 import { Mail, Send, CheckCircle2, XCircle, Loader2 } from 'lucide-react';
@@ -11,12 +12,14 @@ export const EmailCenterPage = () => {
   const [showModal, setShowModal] = useState(false);
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   const fetchLogs = useCallback(() => {
     setLoading(true);
+    setError(false);
     broadcastService.getEmailLogs()
       .then((res) => setLogs(res.data || []))
-      .catch((err) => notifyError(`Failed to load email logs: ${err.message}`))
+      .catch((err) => { notifyError(`Failed to load email logs: ${err.message}`); setError(true); })
       .finally(() => setLoading(false));
   }, [notifyError]);
 
@@ -54,6 +57,8 @@ export const EmailCenterPage = () => {
 
       {loading ? (
         <div className="flex justify-center py-16"><Loader2 className="w-7 h-7 animate-spin text-indigo-600" /></div>
+      ) : error ? (
+        <ErrorState onRetry={fetchLogs} />
       ) : logs.length === 0 ? (
         <EmptyState title="No Emails Sent Yet" description="Compose an email broadcast to get started." icon={Mail} />
       ) : (

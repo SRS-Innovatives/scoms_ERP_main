@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import DataTable from '../../components/common/DataTable';
 import EmptyState from '../../components/common/EmptyState';
+import ErrorState from '../../components/common/ErrorState';
 import { useNotification } from '../../context/NotificationContext';
 import { Trophy, Loader2, BarChart3 } from 'lucide-react';
 import examService from '../../services/examService';
@@ -12,26 +13,30 @@ export const RankListPage = () => {
   const [rankList, setRankList] = useState([]);
   const [subjectAnalysis, setSubjectAnalysis] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
+    setError(false);
     examService.getExams()
       .then((res) => {
         setExams(res.data || []);
         if ((res.data || []).length > 0) setExamId(res.data[0].id);
       })
-      .catch((err) => notifyError(`Failed to load exams: ${err.message}`))
+      .catch((err) => { notifyError(`Failed to load exams: ${err.message}`); setError(true); })
       .finally(() => setLoading(false));
   }, [notifyError]);
 
   const fetchRankList = useCallback(async () => {
     if (!examId) return;
     setLoading(true);
+    setError(false);
     try {
       const res = await examService.getRankList(examId);
       setRankList(res.data.rankList || []);
       setSubjectAnalysis(res.data.subjectAnalysis || []);
     } catch (error) {
       notifyError(`Failed to load rank list: ${error.message}`);
+      setError(true);
     } finally {
       setLoading(false);
     }
@@ -83,6 +88,8 @@ export const RankListPage = () => {
 
       {loading ? (
         <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-indigo-600" /></div>
+      ) : error ? (
+        <ErrorState onRetry={fetchRankList} />
       ) : rankList.length === 0 ? (
         <EmptyState title="No Marks Entered Yet" message="Rank list will appear once marks are entered for at least one subject." icon={Trophy} />
       ) : (

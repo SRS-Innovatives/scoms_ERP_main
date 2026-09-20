@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import DataTable from '../../components/common/DataTable';
 import StatusBadge from '../../components/common/StatusBadge';
 import EmptyState from '../../components/common/EmptyState';
+import ErrorState from '../../components/common/ErrorState';
 import { useNotification } from '../../context/NotificationContext';
 import { Plus, Trash2, Loader2, CalendarClock } from 'lucide-react';
 import feeService from '../../services/feeService';
@@ -11,18 +12,20 @@ export const InstallmentManagementPage = () => {
   const [installments, setInstallments] = useState([]);
   const [assignments, setAssignments] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [assignmentId, setAssignmentId] = useState('');
   const [parts, setParts] = useState([{ amount: '', dueDate: '' }]);
   const [submitting, setSubmitting] = useState(false);
 
   const fetchAll = () => {
     setLoading(true);
+    setError(false);
     Promise.all([feeService.getInstallments(), feeService.getAssignments({ status: 'PENDING' })])
       .then(([instRes, assignRes]) => {
         setInstallments(instRes.data || []);
         setAssignments(assignRes.data || []);
       })
-      .catch((err) => notifyError(`Failed to load installments: ${err.message}`))
+      .catch((err) => { notifyError(`Failed to load installments: ${err.message}`); setError(true); })
       .finally(() => setLoading(false));
   };
 
@@ -68,6 +71,10 @@ export const InstallmentManagementPage = () => {
 
   if (loading) {
     return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-indigo-600" /></div>;
+  }
+
+  if (error) {
+    return <ErrorState onRetry={fetchAll} />;
   }
 
   return (

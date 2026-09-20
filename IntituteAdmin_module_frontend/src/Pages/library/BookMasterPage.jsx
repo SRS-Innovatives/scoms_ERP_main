@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import DataTable from '../../components/common/DataTable';
 import SearchFilterBar from '../../components/common/SearchFilterBar';
 import EmptyState from '../../components/common/EmptyState';
+import ErrorState from '../../components/common/ErrorState';
 import FormModal from '../../components/common/FormModal';
 import { useNotification } from '../../context/NotificationContext';
 import { BookOpen } from 'lucide-react';
@@ -14,15 +15,17 @@ export const BookMasterPage = () => {
   const [search, setSearch] = useState('');
   const [books, setBooks] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState(emptyForm);
 
   const fetchAll = useCallback(() => {
     setLoading(true);
+    setError(false);
     libraryService.getBooks()
       .then((res) => setBooks(res.data || []))
-      .catch((err) => notifyError(`Failed to load books: ${err.message}`))
+      .catch((err) => { notifyError(`Failed to load books: ${err.message}`); setError(true); })
       .finally(() => setLoading(false));
   }, [notifyError]);
 
@@ -66,7 +69,9 @@ export const BookMasterPage = () => {
 
       <SearchFilterBar searchQuery={search} onSearchChange={setSearch} placeholder="Search by title, author, ISBN..." addLabel="Add New Book" onAddClick={() => setModalOpen(true)} />
 
-      {!loading && filtered.length === 0 ? (
+      {!loading && error ? (
+        <ErrorState onRetry={fetchAll} />
+      ) : !loading && filtered.length === 0 ? (
         <EmptyState title="No Books Cataloged Yet" description="Add the first book to the library catalog." actionLabel="Add New Book" onAction={() => setModalOpen(true)} icon={BookOpen} />
       ) : (
         <DataTable columns={columns} data={filtered} loading={loading} />

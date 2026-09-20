@@ -3,6 +3,7 @@ import DataTable from '../../components/common/DataTable';
 import FormModal from '../../components/common/FormModal';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
 import EmptyState from '../../components/common/EmptyState';
+import ErrorState from '../../components/common/ErrorState';
 import Tabs from '../../components/common/Tabs';
 import { useNotification } from '../../context/NotificationContext';
 import { Zap, Plus, Edit, Trash2, History, PlayCircle, Loader2 } from 'lucide-react';
@@ -23,6 +24,7 @@ export const AutomationEnginePage = () => {
   const [events, setEvents] = useState([]);
   const [eventTypes, setEventTypes] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
@@ -34,17 +36,19 @@ export const AutomationEnginePage = () => {
 
   const fetchRules = useCallback(() => {
     setLoading(true);
+    setError(false);
     Promise.all([automationService.getRules(), automationService.getEventTypes()])
       .then(([rulesRes, typesRes]) => { setRules(rulesRes.data || []); setEventTypes(typesRes.data || []); })
-      .catch((err) => notifyError(`Failed to load automation rules: ${err.message}`))
+      .catch((err) => { notifyError(`Failed to load automation rules: ${err.message}`); setError(true); })
       .finally(() => setLoading(false));
   }, [notifyError]);
 
   const fetchEvents = useCallback(() => {
     setLoading(true);
+    setError(false);
     automationService.getEventHistory()
       .then((res) => setEvents(res.data || []))
-      .catch((err) => notifyError(`Failed to load event history: ${err.message}`))
+      .catch((err) => { notifyError(`Failed to load event history: ${err.message}`); setError(true); })
       .finally(() => setLoading(false));
   }, [notifyError]);
 
@@ -156,6 +160,8 @@ export const AutomationEnginePage = () => {
 
       {loading ? (
         <div className="flex justify-center py-16"><Loader2 className="w-7 h-7 animate-spin text-indigo-600" /></div>
+      ) : error ? (
+        <ErrorState onRetry={tab === 'rules' ? fetchRules : fetchEvents} />
       ) : tab === 'rules' ? (
         rules.length === 0 ? (
           <EmptyState title="No Automation Rules" description="Create your first rule." actionLabel="New Rule" onAction={openAddModal} icon={Zap} />

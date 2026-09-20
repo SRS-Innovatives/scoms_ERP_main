@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import FormSection from '../../components/common/FormSection';
+import ErrorState from '../../components/common/ErrorState';
 import { useNotification } from '../../context/NotificationContext';
 import { CheckCircle, Loader2 } from 'lucide-react';
 import feeService from '../../services/feeService';
@@ -13,8 +14,11 @@ export const BulkFeeAssignmentPage = () => {
   const [submitting, setSubmitting] = useState(false);
   const [feeStructureId, setFeeStructureId] = useState('');
   const [courseId, setCourseId] = useState('');
+  const [error, setError] = useState(false);
 
-  useEffect(() => {
+  const loadSetupData = useCallback(() => {
+    setLoading(true);
+    setError(false);
     Promise.all([feeService.getStructures(), courseService.getAll()])
       .then(([structRes, courseRes]) => {
         setStructures(structRes.data || []);
@@ -22,9 +26,11 @@ export const BulkFeeAssignmentPage = () => {
         if ((structRes.data || []).length > 0) setFeeStructureId(structRes.data[0].id);
         if ((courseRes.data || []).length > 0) setCourseId(courseRes.data[0].id);
       })
-      .catch((err) => notifyError(`Failed to load setup data: ${err.message}`))
+      .catch((err) => { notifyError(`Failed to load setup data: ${err.message}`); setError(true); })
       .finally(() => setLoading(false));
   }, [notifyError]);
+
+  useEffect(() => { loadSetupData(); }, [loadSetupData]);
 
   const selectedCourse = courses.find((c) => c.id === courseId);
   const selectedStructure = structures.find((s) => s.id === feeStructureId);
@@ -45,6 +51,10 @@ export const BulkFeeAssignmentPage = () => {
 
   if (loading) {
     return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-indigo-600" /></div>;
+  }
+
+  if (error) {
+    return <ErrorState onRetry={loadSetupData} />;
   }
 
   return (

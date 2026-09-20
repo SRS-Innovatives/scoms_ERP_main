@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import DataTable from '../../components/common/DataTable';
 import EmptyState from '../../components/common/EmptyState';
+import ErrorState from '../../components/common/ErrorState';
 import { useNotification } from '../../context/NotificationContext';
 import { RotateCcw, Loader2 } from 'lucide-react';
 import libraryService from '../../services/libraryService';
@@ -9,13 +10,15 @@ export const ReturnBookPage = () => {
   const { notifySuccess, notifyError } = useNotification();
   const [issues, setIssues] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [busyId, setBusyId] = useState(null);
 
   const fetchAll = useCallback(() => {
     setLoading(true);
+    setError(false);
     libraryService.getActiveIssues()
       .then((res) => setIssues(res.data || []))
-      .catch((err) => notifyError(`Failed to load active issues: ${err.message}`))
+      .catch((err) => { notifyError(`Failed to load active issues: ${err.message}`); setError(true); })
       .finally(() => setLoading(false));
   }, [notifyError]);
 
@@ -61,7 +64,9 @@ export const ReturnBookPage = () => {
         <p className="text-xs text-slate-500 dark:text-slate-400">Process returned books and auto-calculate overdue fines (₹5/day)</p>
       </div>
 
-      {!loading && issues.length === 0 ? (
+      {!loading && error ? (
+        <ErrorState onRetry={fetchAll} />
+      ) : !loading && issues.length === 0 ? (
         <EmptyState title="No Books Currently Issued" description="Every book has been returned to the library." icon={RotateCcw} />
       ) : (
         <DataTable columns={columns} data={issues} loading={loading} />

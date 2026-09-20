@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import FormSection from '../../components/common/FormSection';
+import ErrorState from '../../components/common/ErrorState';
 import { useNotification } from '../../context/NotificationContext';
 import { BookOpen, CheckCircle, Loader2 } from 'lucide-react';
 import libraryService from '../../services/libraryService';
@@ -10,19 +11,24 @@ export const IssueBookPage = () => {
   const [books, setBooks] = useState([]);
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [bookId, setBookId] = useState('');
   const [studentId, setStudentId] = useState('');
 
-  useEffect(() => {
+  const fetchAll = useCallback(() => {
+    setLoading(true);
+    setError(false);
     Promise.all([libraryService.getBooks(), studentService.getAll()])
       .then(([bookRes, studentRes]) => {
         setBooks((bookRes.data || []).filter((b) => b.availableCopies > 0));
         setStudents(studentRes.data || []);
       })
-      .catch((err) => notifyError(`Failed to load setup data: ${err.message}`))
+      .catch((err) => { notifyError(`Failed to load setup data: ${err.message}`); setError(true); })
       .finally(() => setLoading(false));
   }, [notifyError]);
+
+  useEffect(() => { fetchAll(); }, [fetchAll]);
 
   const handleIssue = async (e) => {
     e.preventDefault();
@@ -43,6 +49,10 @@ export const IssueBookPage = () => {
 
   if (loading) {
     return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-indigo-600" /></div>;
+  }
+
+  if (error) {
+    return <ErrorState onRetry={fetchAll} />;
   }
 
   return (

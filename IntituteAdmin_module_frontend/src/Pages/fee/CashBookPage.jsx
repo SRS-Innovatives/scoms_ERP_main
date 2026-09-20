@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import DataTable from '../../components/common/DataTable';
 import EmptyState from '../../components/common/EmptyState';
+import ErrorState from '../../components/common/ErrorState';
 import { useNotification } from '../../context/NotificationContext';
 import { Loader2 } from 'lucide-react';
 import feeService from '../../services/feeService';
@@ -10,12 +11,14 @@ export const CashBookPage = () => {
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [dayBook, setDayBook] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   const fetchDay = useCallback(() => {
     setLoading(true);
+    setError(false);
     feeService.getDayBook(date)
       .then((res) => setDayBook(res.data))
-      .catch((err) => notifyError(`Failed to load cash book: ${err.message}`))
+      .catch((err) => { notifyError(`Failed to load cash book: ${err.message}`); setError(true); })
       .finally(() => setLoading(false));
   }, [date, notifyError]);
 
@@ -50,6 +53,8 @@ export const CashBookPage = () => {
 
       {loading ? (
         <div className="flex justify-center py-16"><Loader2 className="w-7 h-7 animate-spin text-indigo-600" /></div>
+      ) : error ? (
+        <ErrorState onRetry={fetchDay} />
       ) : rows.length === 0 ? (
         <EmptyState title="No Cash Transactions" description="No cash fee payments were recorded on this date." />
       ) : (

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import DataTable from '../../components/common/DataTable';
 import EmptyState from '../../components/common/EmptyState';
+import ErrorState from '../../components/common/ErrorState';
 import FormModal from '../../components/common/FormModal';
 import { useNotification } from '../../context/NotificationContext';
 import { CalendarClock, Plus, Trash2, Loader2 } from 'lucide-react';
@@ -19,20 +20,25 @@ export const ExamSchedulePage = () => {
   const [courseId, setCourseId] = useState('');
   const [subjects, setSubjects] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState(emptyForm);
 
-  useEffect(() => {
+  const fetchInitial = useCallback(() => {
+    setLoading(true);
+    setError(false);
     Promise.all([examService.getExams(), courseService.getAll()])
       .then(([examRes, courseRes]) => {
         setExams(examRes.data || []);
         setCourses(courseRes.data || []);
         if ((examRes.data || []).length > 0) setExamId(examRes.data[0].id);
       })
-      .catch((err) => notifyError(`Failed to load exams: ${err.message}`))
+      .catch((err) => { notifyError(`Failed to load exams: ${err.message}`); setError(true); })
       .finally(() => setLoading(false));
   }, [notifyError]);
+
+  useEffect(() => { fetchInitial(); }, [fetchInitial]);
 
   const fetchSchedules = useCallback(async () => {
     if (!examId) return;
@@ -124,6 +130,8 @@ export const ExamSchedulePage = () => {
 
       {loading ? (
         <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-indigo-600" /></div>
+      ) : error ? (
+        <ErrorState onRetry={fetchInitial} />
       ) : !examId ? (
         <EmptyState title="No Exams Yet" message="Create an exam first under Exam Setup." icon={CalendarClock} />
       ) : schedules.length === 0 ? (

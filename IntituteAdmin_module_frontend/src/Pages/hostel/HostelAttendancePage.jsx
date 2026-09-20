@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import EmptyState from '../../components/common/EmptyState';
+import ErrorState from '../../components/common/ErrorState';
 import { useNotification } from '../../context/NotificationContext';
 import { Save, Loader2, Moon } from 'lucide-react';
 import hostelService from '../../services/hostelService';
@@ -12,10 +13,12 @@ export const HostelAttendancePage = () => {
   const [roster, setRoster] = useState([]);
   const [statusMap, setStatusMap] = useState({});
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [saving, setSaving] = useState(false);
 
   const fetchRoster = useCallback(() => {
     setLoading(true);
+    setError(false);
     hostelService.getAttendance(date)
       .then((res) => {
         const data = res.data || [];
@@ -24,7 +27,7 @@ export const HostelAttendancePage = () => {
         data.forEach((r) => { initial[r.bedId] = r.attendance?.status || 'PRESENT'; });
         setStatusMap(initial);
       })
-      .catch((err) => notifyError(`Failed to load hostel roster: ${err.message}`))
+      .catch((err) => { notifyError(`Failed to load hostel roster: ${err.message}`); setError(true); })
       .finally(() => setLoading(false));
   }, [date, notifyError]);
 
@@ -46,6 +49,10 @@ export const HostelAttendancePage = () => {
 
   if (loading) {
     return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-indigo-600" /></div>;
+  }
+
+  if (error) {
+    return <ErrorState onRetry={fetchRoster} />;
   }
 
   return (

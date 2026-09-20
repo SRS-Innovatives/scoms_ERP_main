@@ -3,6 +3,7 @@ import DataTable from '../../components/common/DataTable';
 import SearchFilterBar from '../../components/common/SearchFilterBar';
 import EmptyState from '../../components/common/EmptyState';
 import FormModal from '../../components/common/FormModal';
+import ErrorState from '../../components/common/ErrorState';
 import { useNotification } from '../../context/NotificationContext';
 import { Calendar, Trash2 } from 'lucide-react';
 import academicCalendarService from '../../services/academicCalendarService';
@@ -30,15 +31,17 @@ export const AcademicCalendarPage = () => {
   const [search, setSearch] = useState('');
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState(emptyForm);
 
   const fetchAll = useCallback(() => {
     setLoading(true);
+    setError(false);
     academicCalendarService.getEvents()
       .then((res) => setEvents(res.data || []))
-      .catch((err) => notifyError(`Failed to load calendar: ${err.message}`))
+      .catch((err) => { notifyError(`Failed to load calendar: ${err.message}`); setError(true); })
       .finally(() => setLoading(false));
   }, [notifyError]);
 
@@ -93,7 +96,9 @@ export const AcademicCalendarPage = () => {
 
       <SearchFilterBar searchQuery={search} onSearchChange={setSearch} placeholder="Search events..." addLabel="Add Event" onAddClick={() => setModalOpen(true)} />
 
-      {!loading && filtered.length === 0 ? (
+      {!loading && error ? (
+        <ErrorState onRetry={fetchAll} />
+      ) : !loading && filtered.length === 0 ? (
         <EmptyState title="No Events Yet" description="Add the first calendar event." actionLabel="Add Event" onAction={() => setModalOpen(true)} icon={Calendar} />
       ) : (
         <DataTable columns={columns} data={filtered} loading={loading} />

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import DataTable from '../../components/common/DataTable';
 import SearchFilterBar from '../../components/common/SearchFilterBar';
 import EmptyState from '../../components/common/EmptyState';
+import ErrorState from '../../components/common/ErrorState';
 import FormModal from '../../components/common/FormModal';
 import StatusBadge from '../../components/common/StatusBadge';
 import SummaryCard from '../../components/common/SummaryCard';
@@ -34,6 +35,7 @@ export const ExpenseManagementPage = () => {
   const [summary, setSummary] = useState(null);
   const [budgets, setBudgets] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [expenseForm, setExpenseForm] = useState(emptyExpenseForm);
@@ -41,17 +43,19 @@ export const ExpenseManagementPage = () => {
 
   const fetchExpenses = useCallback(() => {
     setLoading(true);
+    setError(false);
     Promise.all([expenseService.getExpenses(), expenseService.getSummary()])
       .then(([expRes, sumRes]) => { setExpenses(expRes.data || []); setSummary(sumRes.data); })
-      .catch((err) => notifyError(`Failed to load expenses: ${err.message}`))
+      .catch((err) => { notifyError(`Failed to load expenses: ${err.message}`); setError(true); })
       .finally(() => setLoading(false));
   }, [notifyError]);
 
   const fetchBudgets = useCallback(() => {
     setLoading(true);
+    setError(false);
     budgetService.getBudgets()
       .then((res) => setBudgets(res.data || []))
-      .catch((err) => notifyError(`Failed to load budgets: ${err.message}`))
+      .catch((err) => { notifyError(`Failed to load budgets: ${err.message}`); setError(true); })
       .finally(() => setLoading(false));
   }, [notifyError]);
 
@@ -149,6 +153,10 @@ export const ExpenseManagementPage = () => {
   ];
 
   const filteredExpenses = expenses.filter((e) => e.title.toLowerCase().includes(search.toLowerCase()));
+
+  if (error) {
+    return <ErrorState onRetry={tab === 'expenses' ? fetchExpenses : fetchBudgets} />;
+  }
 
   return (
     <div className="space-y-6">

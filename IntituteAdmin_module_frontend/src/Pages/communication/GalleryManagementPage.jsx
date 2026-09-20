@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import EmptyState from '../../components/common/EmptyState';
+import ErrorState from '../../components/common/ErrorState';
 import FormModal from '../../components/common/FormModal';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
 import { useNotification } from '../../context/NotificationContext';
@@ -20,6 +21,7 @@ export const GalleryManagementPage = () => {
   const { notifySuccess, notifyError } = useNotification();
   const [albums, setAlbums] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   const [openAlbum, setOpenAlbum] = useState(null); // { album, photos } | null
   const [loadingPhotos, setLoadingPhotos] = useState(false);
@@ -33,9 +35,10 @@ export const GalleryManagementPage = () => {
 
   const fetchAlbums = useCallback(() => {
     setLoading(true);
+    setError(false);
     galleryService.getAlbums()
       .then((res) => setAlbums(res.data || []))
-      .catch((err) => notifyError(`Failed to load albums: ${err.message}`))
+      .catch((err) => { notifyError(`Failed to load albums: ${err.message}`); setError(true); })
       .finally(() => setLoading(false));
   }, [notifyError]);
 
@@ -117,6 +120,10 @@ export const GalleryManagementPage = () => {
 
   if (loading) {
     return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-indigo-600" /></div>;
+  }
+
+  if (error) {
+    return <ErrorState onRetry={fetchAlbums} />;
   }
 
   // --- Album detail view ---

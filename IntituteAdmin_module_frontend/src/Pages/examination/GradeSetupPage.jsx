@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import DataTable from '../../components/common/DataTable';
 import EmptyState from '../../components/common/EmptyState';
+import ErrorState from '../../components/common/ErrorState';
 import FormModal from '../../components/common/FormModal';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
 import { useNotification } from '../../context/NotificationContext';
@@ -13,6 +14,7 @@ export const GradeSetupPage = () => {
   const { notifySuccess, notifyError } = useNotification();
   const [scale, setScale] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [seeding, setSeeding] = useState(false);
 
   const [modalOpen, setModalOpen] = useState(false);
@@ -23,9 +25,10 @@ export const GradeSetupPage = () => {
 
   const fetchScale = useCallback(() => {
     setLoading(true);
+    setError(false);
     gradeScaleService.getAll()
       .then((res) => setScale(res.data || []))
-      .catch((err) => notifyError(`Failed to load grade scale: ${err.message}`))
+      .catch((err) => { notifyError(`Failed to load grade scale: ${err.message}`); setError(true); })
       .finally(() => setLoading(false));
   }, [notifyError]);
 
@@ -117,6 +120,10 @@ export const GradeSetupPage = () => {
 
   if (loading) {
     return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-indigo-600" /></div>;
+  }
+
+  if (error) {
+    return <ErrorState onRetry={fetchScale} />;
   }
 
   return (

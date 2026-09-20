@@ -3,6 +3,7 @@ import DataTable from '../../components/common/DataTable';
 import SearchFilterBar from '../../components/common/SearchFilterBar';
 import StatusBadge from '../../components/common/StatusBadge';
 import EmptyState from '../../components/common/EmptyState';
+import ErrorState from '../../components/common/ErrorState';
 import FormModal from '../../components/common/FormModal';
 import { useNotification } from '../../context/NotificationContext';
 import { Wrench, CheckCircle2, PlayCircle } from 'lucide-react';
@@ -24,19 +25,21 @@ export const AssetMaintenancePage = () => {
   const [assets, setAssets] = useState([]);
   const [vendors, setVendors] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState(emptyForm);
 
   const fetchAll = useCallback(() => {
     setLoading(true);
+    setError(false);
     Promise.all([inventoryService.getMaintenanceRecords(), inventoryService.getAssets(), inventoryService.getVendors()])
       .then(([recRes, assetRes, vendorRes]) => {
         setRecords(recRes.data || []);
         setAssets(assetRes.data || []);
         setVendors(vendorRes.data || []);
       })
-      .catch((err) => notifyError(`Failed to load maintenance records: ${err.message}`))
+      .catch((err) => { notifyError(`Failed to load maintenance records: ${err.message}`); setError(true); })
       .finally(() => setLoading(false));
   }, [notifyError]);
 
@@ -101,7 +104,9 @@ export const AssetMaintenancePage = () => {
 
       <SearchFilterBar searchQuery={search} onSearchChange={setSearch} placeholder="Search by asset or description..." addLabel="Schedule Maintenance" onAddClick={() => setModalOpen(true)} />
 
-      {!loading && filtered.length === 0 ? (
+      {!loading && error ? (
+        <ErrorState onRetry={fetchAll} />
+      ) : !loading && filtered.length === 0 ? (
         <EmptyState title="No Maintenance Scheduled" description="Schedule the first service/repair event." actionLabel="Schedule Maintenance" onAction={() => setModalOpen(true)} icon={Wrench} />
       ) : (
         <DataTable columns={columns} data={filtered} loading={loading} />

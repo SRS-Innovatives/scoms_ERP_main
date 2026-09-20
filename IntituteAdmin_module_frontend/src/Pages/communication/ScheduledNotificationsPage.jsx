@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import DataTable from '../../components/common/DataTable';
 import EmptyState from '../../components/common/EmptyState';
+import ErrorState from '../../components/common/ErrorState';
 import StatusBadge from '../../components/common/StatusBadge';
 import ScheduleNotificationModal from '../../components/modals/ScheduleNotificationModal';
 import { useNotification } from '../../context/NotificationContext';
@@ -12,12 +13,14 @@ export const ScheduledNotificationsPage = () => {
   const [showModal, setShowModal] = useState(false);
   const [scheduled, setScheduled] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   const fetchAll = useCallback(() => {
     setLoading(true);
+    setError(false);
     notificationSchedulerService.getScheduled()
       .then((res) => setScheduled(res.data || []))
-      .catch((err) => notifyError(`Failed to load scheduled notifications: ${err.message}`))
+      .catch((err) => { notifyError(`Failed to load scheduled notifications: ${err.message}`); setError(true); })
       .finally(() => setLoading(false));
   }, [notifyError]);
 
@@ -69,6 +72,8 @@ export const ScheduledNotificationsPage = () => {
 
       {loading ? (
         <div className="flex justify-center py-16"><Loader2 className="w-7 h-7 animate-spin text-indigo-600" /></div>
+      ) : error ? (
+        <ErrorState onRetry={fetchAll} />
       ) : scheduled.length === 0 ? (
         <EmptyState title="Nothing Scheduled" description="Queue your first future broadcast." icon={Clock} />
       ) : (

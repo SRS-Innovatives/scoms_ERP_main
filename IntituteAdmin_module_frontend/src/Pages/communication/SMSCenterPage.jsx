@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import DataTable from '../../components/common/DataTable';
 import EmptyState from '../../components/common/EmptyState';
+import ErrorState from '../../components/common/ErrorState';
 import SMSComposeModal from '../../components/modals/SMSComposeModal';
 import { useNotification } from '../../context/NotificationContext';
 import { MessageSquare, Send, CheckCircle2, XCircle, Loader2 } from 'lucide-react';
@@ -11,12 +12,14 @@ export const SMSCenterPage = () => {
   const [showModal, setShowModal] = useState(false);
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   const fetchLogs = useCallback(() => {
     setLoading(true);
+    setError(false);
     broadcastService.getSmsLogs()
       .then((res) => setLogs(res.data || []))
-      .catch((err) => notifyError(`Failed to load SMS logs: ${err.message}`))
+      .catch((err) => { notifyError(`Failed to load SMS logs: ${err.message}`); setError(true); })
       .finally(() => setLoading(false));
   }, [notifyError]);
 
@@ -58,6 +61,8 @@ export const SMSCenterPage = () => {
 
       {loading ? (
         <div className="flex justify-center py-16"><Loader2 className="w-7 h-7 animate-spin text-indigo-600" /></div>
+      ) : error ? (
+        <ErrorState onRetry={fetchLogs} />
       ) : logs.length === 0 ? (
         <EmptyState title="No SMS Sent Yet" description="Compose a bulk SMS to get started." icon={MessageSquare} />
       ) : (

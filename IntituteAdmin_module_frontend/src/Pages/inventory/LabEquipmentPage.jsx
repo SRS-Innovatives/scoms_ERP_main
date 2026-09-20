@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import DataTable from '../../components/common/DataTable';
 import StatusBadge from '../../components/common/StatusBadge';
 import EmptyState from '../../components/common/EmptyState';
+import ErrorState from '../../components/common/ErrorState';
 import FormModal from '../../components/common/FormModal';
 import { useNotification } from '../../context/NotificationContext';
 import { FlaskConical } from 'lucide-react';
@@ -13,15 +14,17 @@ export const LabEquipmentPage = () => {
   const { notifySuccess, notifyError } = useNotification();
   const [equipment, setEquipment] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState(emptyForm);
 
   const fetchAll = useCallback(() => {
     setLoading(true);
+    setError(false);
     inventoryService.getAssets()
       .then((res) => setEquipment((res.data || []).filter((a) => a.calibrationDueDate)))
-      .catch((err) => notifyError(`Failed to load lab equipment: ${err.message}`))
+      .catch((err) => { notifyError(`Failed to load lab equipment: ${err.message}`); setError(true); })
       .finally(() => setLoading(false));
   }, [notifyError]);
 
@@ -65,7 +68,9 @@ export const LabEquipmentPage = () => {
         </button>
       </div>
 
-      {!loading && equipment.length === 0 ? (
+      {!loading && error ? (
+        <ErrorState onRetry={fetchAll} />
+      ) : !loading && equipment.length === 0 ? (
         <EmptyState title="No Lab Equipment Registered" description="Add the first calibrated instrument to the register." actionLabel="Add Lab Equipment" onAction={() => setModalOpen(true)} icon={FlaskConical} />
       ) : (
         <DataTable columns={columns} data={equipment} loading={loading} />

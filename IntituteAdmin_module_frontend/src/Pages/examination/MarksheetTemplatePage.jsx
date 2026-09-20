@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import PrintHeader from '../../components/common/PrintHeader';
 import EmptyState from '../../components/common/EmptyState';
+import ErrorState from '../../components/common/ErrorState';
 import { useNotification } from '../../context/NotificationContext';
 import { Printer, FileText, Loader2 } from 'lucide-react';
 import examService from '../../services/examService';
@@ -16,8 +17,11 @@ export const MarksheetTemplatePage = () => {
   const [loadingOptions, setLoadingOptions] = useState(true);
   const [loadingSheet, setLoadingSheet] = useState(false);
   const [sheet, setSheet] = useState(null);
+  const [error, setError] = useState(false);
 
-  useEffect(() => {
+  const loadOptions = useCallback(() => {
+    setLoadingOptions(true);
+    setError(false);
     Promise.all([examService.getExams(), studentService.getAll()])
       .then(([examRes, studentRes]) => {
         setExams(examRes.data || []);
@@ -25,9 +29,11 @@ export const MarksheetTemplatePage = () => {
         if ((examRes.data || []).length > 0) setExamId(examRes.data[0].id);
         if ((studentRes.data || []).length > 0) setStudentId(studentRes.data[0].id);
       })
-      .catch((err) => notifyError(`Failed to load options: ${err.message}`))
+      .catch((err) => { notifyError(`Failed to load options: ${err.message}`); setError(true); })
       .finally(() => setLoadingOptions(false));
   }, [notifyError]);
+
+  useEffect(() => { loadOptions(); }, [loadOptions]);
 
   const generate = useCallback(() => {
     if (!examId || !studentId) return;
@@ -42,6 +48,10 @@ export const MarksheetTemplatePage = () => {
 
   if (loadingOptions) {
     return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-indigo-600" /></div>;
+  }
+
+  if (error) {
+    return <ErrorState onRetry={loadOptions} />;
   }
 
   return (

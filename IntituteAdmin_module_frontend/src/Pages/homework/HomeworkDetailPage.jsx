@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useNotification } from '../../context/NotificationContext';
 import { ArrowLeft, Loader2, Calendar, Paperclip, FileText, Download, CheckCircle2, XCircle } from 'lucide-react';
 import homeworkService from '../../services/homeworkService';
+import ErrorState from '../../components/common/ErrorState';
 
 export const HomeworkDetailPage = () => {
   const { id } = useParams();
@@ -10,16 +11,25 @@ export const HomeworkDetailPage = () => {
   const { error: showError } = useNotification();
   const [hw, setHw] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
-  useEffect(() => {
+  const load = useCallback(() => {
+    setLoading(true);
+    setError(false);
     homeworkService.getById(id)
       .then((res) => setHw(res.data))
-      .catch((err) => showError(err.message || 'Failed to load homework', 'Load Failed'))
+      .catch((err) => { showError(err.message || 'Failed to load homework', 'Load Failed'); setError(true); })
       .finally(() => setLoading(false));
   }, [id, showError]);
 
+  useEffect(() => { load(); }, [load]);
+
   if (loading) {
     return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-indigo-600" /></div>;
+  }
+
+  if (error) {
+    return <ErrorState onRetry={load} />;
   }
 
   if (!hw) {

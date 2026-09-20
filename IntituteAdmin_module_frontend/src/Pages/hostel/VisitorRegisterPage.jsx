@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import DataTable from '../../components/common/DataTable';
 import StatusBadge from '../../components/common/StatusBadge';
 import EmptyState from '../../components/common/EmptyState';
+import ErrorState from '../../components/common/ErrorState';
 import FormModal from '../../components/common/FormModal';
 import { useNotification } from '../../context/NotificationContext';
 import { UserCheck, LogOut } from 'lucide-react';
@@ -15,6 +16,7 @@ export const VisitorRegisterPage = () => {
   const [visitors, setVisitors] = useState([]);
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState(emptyForm);
@@ -22,12 +24,13 @@ export const VisitorRegisterPage = () => {
 
   const fetchAll = useCallback(() => {
     setLoading(true);
+    setError(false);
     Promise.all([hostelService.getVisitors(), studentService.getAll()])
       .then(([visitorRes, studentRes]) => {
         setVisitors(visitorRes.data || []);
         setStudents(studentRes.data || []);
       })
-      .catch((err) => notifyError(`Failed to load visitor register: ${err.message}`))
+      .catch((err) => { notifyError(`Failed to load visitor register: ${err.message}`); setError(true); })
       .finally(() => setLoading(false));
   }, [notifyError]);
 
@@ -79,6 +82,10 @@ export const VisitorRegisterPage = () => {
       ),
     },
   ];
+
+  if (error) {
+    return <ErrorState onRetry={fetchAll} />;
+  }
 
   return (
     <div className="space-y-6">
