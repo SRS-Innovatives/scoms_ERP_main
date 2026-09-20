@@ -4,6 +4,8 @@ const { toCsv } = require('./exporters/csvExporter');
 const { toExcelBuffer } = require('./exporters/excelExporter');
 const { toPdfBuffer } = require('./exporters/pdfExporter');
 const { REPORT_REGISTRY } = require('./registry');
+const { listDataSources } = require('./dynamicSources');
+const { runDynamicReport } = require('./dynamicEngine');
 
 module.exports = {
   getReportDefinition,
@@ -13,4 +15,6 @@ module.exports = {
   toExcelBuffer,
   toPdfBuffer,
   REPORT_REGISTRY,
+  listDataSources,
+  runDynamicReport,
 };

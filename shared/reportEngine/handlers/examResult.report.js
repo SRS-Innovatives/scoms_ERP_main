@@ -7,14 +7,16 @@ const { getGradeScale, resolveGrade } = require('../../utils/grading');
  * every other exam feature uses), and an absent student shows "AB" rather than being
  * silently scored as a fail. */
 module.exports = async (institutionId, filters) => {
-  const { examId, sectionId } = filters;
+  const { examId, sectionId, studentId } = filters;
   if (!examId) throw new ValidationError('examId is required');
 
   const [marks, scale] = await Promise.all([
     prisma.studentMark.findMany({
       where: {
         examSchedule: { examId, exam: { institutionId } },
-        ...(sectionId && { student: { sectionId } }),
+        // studentId narrows to one student's own per-subject results for this exam;
+        // sectionId (whole-class) only applies when no specific student was picked.
+        ...(studentId ? { studentId } : (sectionId && { student: { sectionId } })),
       },
       include: {
         student: { select: { firstName: true, lastName: true, rollNumber: true, section: { select: { name: true } } } },

@@ -19,8 +19,11 @@ const { ROLE_PERMISSIONS, hasPermission } = require('./permissions/permissionMat
 const requireAuth = require('./middleware/requireAuth');
 const requireTenant = require('./middleware/requireTenant');
 const requireModule = require('./middleware/requireModule');
+const resolveActiveChild = require('./middleware/resolveActiveChild');
+const blockParentWrite = require('./middleware/blockParentWrite');
 const { loginLimiter, otpLimiter, publicSubmissionLimiter } = require('./middleware/rateLimiter');
 const { requirePermission, requireRole } = require('./middleware/requirePermission');
+const shadowPermission = require('./middleware/shadowPermission');
 const errorHandler = require('./middleware/errorHandler');
 const schemas = require('./validation/schemas');
 
@@ -31,9 +34,13 @@ const paymentGateway = require('./utils/paymentGateway');
 const { formatClassLabel } = require('./utils/classLabel');
 const { getHealthPayload } = require('./utils/health');
 const reportEngine = require('./reportEngine');
+const moduleRegistry = require('./moduleRegistry');
 const certificateEngine = require('./certificateEngine');
 const { pushNotification, pushNotificationToMany } = require('./utils/notificationCenter');
 const { askAi, getAiSettings } = require('./utils/aiProvider');
+const { emitEvent } = require('./events/dispatcher');
+const { EVENT_TYPES } = require('./events/eventTypes');
+const { seedIntegrationProviders } = require('./integrations/seedIntegrationProviders');
 const {
   handleGetNotifications,
   handleGetUnreadCount,
@@ -69,12 +76,15 @@ module.exports = {
   formatClassLabel,
   getHealthPayload,
   reportEngine,
+  moduleRegistry,
   certificateEngine,
   ROLE_PERMISSIONS,
   hasPermission,
   requireAuth,
   requireTenant,
   requireModule,
+  resolveActiveChild,
+  blockParentWrite,
   loginLimiter,
   otpLimiter,
   publicSubmissionLimiter,
@@ -89,6 +99,7 @@ module.exports = {
   getActiveList,
   requirePermission,
   requireRole,
+  shadowPermission,
   errorHandler,
   schemas,
   pushNotification,
@@ -99,4 +110,7 @@ module.exports = {
   handleMarkAllNotificationsRead,
   askAi,
   getAiSettings,
+  emitEvent,
+  EVENT_TYPES,
+  seedIntegrationProviders,
 };

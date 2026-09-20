@@ -4,9 +4,12 @@ const { ValidationError } = require('../../errors/customErrors');
 const startOfDay = (d) => { const x = new Date(d); x.setHours(0, 0, 0, 0); return x; };
 const endOfDay = (d) => { const x = new Date(d); x.setHours(23, 59, 59, 999); return x; };
 
-/** ATTENDANCE_SUMMARY — per-section attendance rate aggregated over a date range. */
+/** ATTENDANCE_SUMMARY — attendance rate over a date range, aggregated per section by
+ * default. Narrow to studentId for a single student's own summary instead — the rows
+ * then become "how did THIS student do in each of their sections" (normally just one),
+ * same shape either way. */
 module.exports = async (institutionId, filters) => {
-  const { dateFrom, dateTo, sectionId } = filters;
+  const { dateFrom, dateTo, sectionId, studentId } = filters;
   if (!dateFrom || !dateTo) throw new ValidationError('dateFrom and dateTo are required');
 
   const sessions = await prisma.attendanceSession.findMany({
@@ -14,10 +17,11 @@ module.exports = async (institutionId, filters) => {
       institutionId,
       date: { gte: startOfDay(dateFrom), lte: endOfDay(dateTo) },
       ...(sectionId && { sectionId }),
+      ...(studentId && { records: { some: { studentId } } }),
     },
     include: {
       section: { select: { name: true, semester: { select: { course: { select: { name: true } } } } } },
-      records: { select: { status: true } },
+      records: { select: { status: true, studentId: true } },
     },
   });
 
@@ -34,7 +38,9 @@ module.exports = async (institutionId, filters) => {
       };
     }
     bySection[key].sessions += 1;
-    s.records.forEach((r) => {
+    // When scoped to one student, only that student's own record in this session counts.
+    const relevant = studentId ? s.records.filter((r) => r.studentId === studentId) : s.records;
+    relevant.forEach((r) => {
       bySection[key].total += 1;
       if (r.status === 'PRESENT' || r.status === 'LATE') bySection[key].present += 1;
       else if (r.status === 'ABSENT') bySection[key].absent += 1;

@@ -83,6 +83,25 @@ const handleUnifiedLogin = async (req, res, next, allowedRoles = null) => {
             department: { select: { name: true } },
           },
         },
+        parent: {
+          select: {
+            id: true,
+            fatherName: true,
+            motherName: true,
+            guardianName: true,
+            students: {
+              select: {
+                relation: true,
+                student: {
+                  select: {
+                    id: true, firstName: true, lastName: true, admissionNumber: true, rollNumber: true,
+                    course: { select: { name: true } }, section: { select: { name: true } },
+                  },
+                },
+              },
+            },
+          },
+        },
       },
     });
 
@@ -123,6 +142,10 @@ const handleUnifiedLogin = async (req, res, next, allowedRoles = null) => {
       institutionId: user.institutionId,
       studentId: user.student ? user.student.id : undefined,
       staffId: user.staff ? user.staff.id : undefined,
+      // A parent can have more than one child, so the token carries parentId only — the
+      // active child is resolved per-request (see shared/middleware/resolveActiveChild.js),
+      // never baked into the token itself.
+      parentId: user.parent ? user.parent.id : undefined,
     };
 
     const accessToken = generateAccessToken(payload);
@@ -159,6 +182,9 @@ const handleUnifiedLogin = async (req, res, next, allowedRoles = null) => {
           institutionName: user.institution ? user.institution.name : null,
           student: user.student || null,
           staff: user.staff || null,
+          // For a parent's own login response: every real child linked to them, so the
+          // frontend can render a child-switcher immediately with no extra round-trip.
+          children: user.parent ? user.parent.students.map((ps) => ({ ...ps.student, relation: ps.relation })) : undefined,
         },
         accessToken,
         refreshToken,

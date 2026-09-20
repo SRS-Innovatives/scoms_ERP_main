@@ -7,7 +7,7 @@ const { verifyRefreshToken, generateAccessToken, generateRefreshToken } = requir
 const { hashPassword, comparePassword } = require('./password');
 const { sendSuccess } = require('../utils/responseFormatter');
 const { AuthenticationError, NotFoundError, BusinessRuleError } = require('../errors/customErrors');
-const { resolveEnabledModules } = require('../constants/institutionModules');
+const { resolveEnabledModulesForInstitution } = require('../moduleRegistry/resolveModules');
 
 const handleRefreshToken = async (req, res, next) => {
   try {
@@ -141,12 +141,15 @@ const handleGetMe = async (req, res, next) => {
 
     // Resolve the institution's enabled optional modules so the frontend can gate
     // navigation without duplicating the default/legacy-institution fallback logic.
+    // Goes through the same dual-path resolver requireModule() uses (Phase 1 Module
+    // Registry, with an identical-output fallback to the legacy Institution.modules
+    // array) so nav visibility and route access can never disagree.
     const enrichedUser = user.institution
       ? {
           ...user,
           institution: {
             ...user.institution,
-            enabledModules: resolveEnabledModules(user.institution.modules),
+            enabledModules: await resolveEnabledModulesForInstitution(user.institution),
           },
         }
       : user;

@@ -8,7 +8,7 @@
  * Super Admin toggle takes effect immediately, without requiring the user to log out.
  */
 const prisma = require('../database/client');
-const { resolveEnabledModules } = require('../constants/institutionModules');
+const { resolveEnabledModulesForInstitution } = require('../moduleRegistry/resolveModules');
 const { BusinessRuleError } = require('../errors/customErrors');
 
 const requireModule = (moduleKey) => async (req, res, next) => {
@@ -23,7 +23,11 @@ const requireModule = (moduleKey) => async (req, res, next) => {
       select: { modules: true },
     });
 
-    const enabled = resolveEnabledModules(institution?.modules);
+    // Dual-path (Phase 1): resolves through the new registry only for an institution
+    // that's been explicitly assigned into it AND only with MODULE_REGISTRY_ENABLED=true
+    // — everyone else gets exactly the legacy resolveEnabledModules() behavior this
+    // always called directly. See shared/moduleRegistry/resolveModules.js.
+    const enabled = await resolveEnabledModulesForInstitution({ id: req.institutionId, modules: institution?.modules });
     if (!enabled.includes(moduleKey)) {
       throw new BusinessRuleError(`This module is not enabled for your institution. Contact your Super Admin to activate it.`);
     }
