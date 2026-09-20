@@ -97,11 +97,21 @@ export const AdmissionFieldApprovalsPage = () => {
     },
     {
       header: 'Form', key: 'entityType', sortable: false,
-      render: (v) => (
-        <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${v === 'STAFF_PROFILE' ? 'bg-violet-50 dark:bg-violet-950/40 text-violet-700 dark:text-violet-400' : 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-400'}`}>
-          {v === 'STAFF_PROFILE' ? 'Staff Registration' : 'Admission Form'}
-        </span>
-      ),
+      render: (v) => {
+        const styles = {
+          STAFF_PROFILE: 'bg-violet-50 dark:bg-violet-950/40 text-violet-700 dark:text-violet-400',
+          TRANSPORT_ENROLLMENT: 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400',
+          HOSTEL_ALLOCATION: 'bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-400',
+          FEE_ASSIGNMENT: 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400',
+          LIBRARY_MEMBERSHIP: 'bg-sky-50 dark:bg-sky-950/40 text-sky-700 dark:text-sky-400',
+        };
+        const labels = { STAFF_PROFILE: 'Staff Registration', TRANSPORT_ENROLLMENT: 'Transport Enrollment', HOSTEL_ALLOCATION: 'Hostel Allocation', FEE_ASSIGNMENT: 'Fee Assignment', LIBRARY_MEMBERSHIP: 'Library Membership' };
+        return (
+          <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${styles[v] || 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-400'}`}>
+            {labels[v] || 'Admission Form'}
+          </span>
+        );
+      },
     },
     {
       header: 'Field', key: 'label',

@@ -11,7 +11,8 @@ import {
   ShieldAlert,
   Server,
   Settings,
-  FileBarChart
+  FileBarChart,
+  Layers
 } from 'lucide-react';
 
 export const navigationConfig = [
@@ -31,6 +32,14 @@ export const navigationConfig = [
       { key: 'institution-modules', title: 'Institution Modules', path: '/super-admin/institutions/modules' },
       { key: 'institution-activity', title: 'Institution Activity', path: '/super-admin/institutions/activity' },
       { key: 'admission-field-approvals', title: 'Admission Field Approvals', path: '/super-admin/institutions/admission-fields' }
+    ]
+  },
+  {
+    key: 'module-registry',
+    title: 'Module Management',
+    icon: Layers,
+    children: [
+      { key: 'module-registry-list', title: 'Module Registry', path: '/super-admin/modules' }
     ]
   },
   {
@@ -69,6 +78,7 @@ export const navigationConfig = [
     title: 'Billing & GST',
     icon: Receipt,
     children: [
+      { key: 'billing-dashboard', title: 'Billing Dashboard', path: '/super-admin/billing/dashboard' },
       { key: 'invoices', title: 'Invoices', path: '/super-admin/invoices' },
       { key: 'payments', title: 'Payments', path: '/super-admin/payments' },
       { key: 'refunds', title: 'Refunds', path: '/super-admin/billing/refunds' },
