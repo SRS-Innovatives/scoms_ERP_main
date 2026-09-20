@@ -5,6 +5,80 @@ import { useParams } from 'react-router-dom';
 import institutionService from '../../services/institutionService';
 import StatusBadge from '../../components/common/StatusBadge';
 
+const EDITABLE_FIELDS = [
+  { key: 'name', label: 'Institution Name', required: true },
+  { key: 'affiliation', label: 'Affiliation' },
+  { key: 'registrationNumber', label: 'Registration Number' },
+  { key: 'gstin', label: 'GSTIN' },
+  { key: 'email', label: 'Official Email', type: 'email' },
+  { key: 'phone', label: 'Phone' },
+  { key: 'website', label: 'Website' },
+  { key: 'principalName', label: 'Principal / Director' },
+  { key: 'establishedYear', label: 'Established Year', type: 'number' },
+  { key: 'address', label: 'Address', span: true },
+  { key: 'city', label: 'City' },
+  { key: 'state', label: 'State' },
+  { key: 'pincode', label: 'Pincode' },
+];
+
+const InstitutionEditForm = ({ inst, onSaved }) => {
+  const { success, error: showError } = useNotification();
+  const [form, setForm] = useState(() =>
+    Object.fromEntries(EDITABLE_FIELDS.map((f) => [f.key, inst[f.key] ?? '']))
+  );
+  const [saving, setSaving] = useState(false);
+
+  const handleChange = (key, value) => setForm((prev) => ({ ...prev, [key]: value }));
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!form.name.trim()) {
+      showError('Institution name is required', 'Missing Field');
+      return;
+    }
+    setSaving(true);
+    try {
+      const payload = { ...form, establishedYear: form.establishedYear ? Number(form.establishedYear) : null };
+      const res = await institutionService.updateInstitution(inst.id, payload);
+      onSaved(res.data);
+      success('Institution details updated', 'Saved');
+    } catch (err) {
+      showError(err.message || 'Failed to update institution', 'Save Failed');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4 text-xs">
+      <div>
+        <h3 className="font-bold text-sm text-slate-900 dark:text-slate-100">Institution Details</h3>
+        <p className="text-[11px] text-slate-500 mt-0.5">Correct or update this institution's master profile. Login credentials and module access are managed separately.</p>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {EDITABLE_FIELDS.map((f) => (
+          <div key={f.key} className={f.span ? 'sm:col-span-2' : ''}>
+            <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">{f.label}{f.required && ' *'}</label>
+            <input
+              type={f.type || 'text'}
+              required={f.required}
+              value={form[f.key]}
+              onChange={(e) => handleChange(f.key, e.target.value)}
+              className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white font-medium"
+            />
+          </div>
+        ))}
+      </div>
+      <div className="flex justify-end pt-2">
+        <button type="submit" disabled={saving} className="flex items-center gap-1.5 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-semibold shadow-sm disabled:opacity-50">
+          {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+          {saving ? 'Saving...' : 'Save Changes'}
+        </button>
+      </div>
+    </form>
+  );
+};
+
 export const InstitutionDetailPage = () => {
   const { id } = useParams();
   const { success, warning, error: showError } = useNotification();
@@ -155,18 +229,18 @@ export const InstitutionDetailPage = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs">
             <div className="space-y-3">
               <h3 className="font-bold text-sm text-slate-900 dark:text-slate-100 border-b pb-2">Institutional Master Info</h3>
-              <p><span className="text-slate-500">Affiliation:</span> <span className="font-semibold">{inst.affiliation}</span></p>
-              <p><span className="text-slate-500">Registration Number:</span> <span className="font-mono font-semibold">{inst.regNo}</span></p>
-              <p><span className="text-slate-500">Official Email:</span> <span className="font-semibold">{inst.email}</span></p>
-              <p><span className="text-slate-500">Phone:</span> <span className="font-semibold">{inst.phone}</span></p>
-              <p><span className="text-slate-500">Established Year:</span> <span className="font-semibold">{inst.establishedYear}</span></p>
+              <p><span className="text-slate-500">Affiliation:</span> <span className="font-semibold">{inst.affiliation || '—'}</span></p>
+              <p><span className="text-slate-500">Registration Number:</span> <span className="font-mono font-semibold">{inst.registrationNumber || '—'}</span></p>
+              <p><span className="text-slate-500">Official Email:</span> <span className="font-semibold">{inst.email || '—'}</span></p>
+              <p><span className="text-slate-500">Phone:</span> <span className="font-semibold">{inst.phone || '—'}</span></p>
+              <p><span className="text-slate-500">Established Year:</span> <span className="font-semibold">{inst.establishedYear || '—'}</span></p>
             </div>
             <div className="space-y-3">
               <h3 className="font-bold text-sm text-slate-900 dark:text-slate-100 border-b pb-2">Location & Leadership</h3>
-              <p><span className="text-slate-500">Address:</span> <span className="font-semibold">{inst.address}, {inst.city}, {inst.state} - {inst.pincode}</span></p>
-              <p><span className="text-slate-500">Principal / Director:</span> <span className="font-semibold">{inst.principal}</span></p>
-              <p><span className="text-slate-500">Contact Person:</span> <span className="font-semibold">{inst.contactPerson}</span></p>
-              <p><span className="text-slate-500">Active Subscription:</span> <span className="font-bold text-indigo-600">{inst.plan}</span></p>
+              <p><span className="text-slate-500">Address:</span> <span className="font-semibold">{[inst.address, inst.city, inst.state].filter(Boolean).join(', ') || '—'}{inst.pincode ? ` - ${inst.pincode}` : ''}</span></p>
+              <p><span className="text-slate-500">Principal / Director:</span> <span className="font-semibold">{inst.principalName || '—'}</span></p>
+              <p><span className="text-slate-500">Website:</span> <span className="font-semibold">{inst.website || '—'}</span></p>
+              <p><span className="text-slate-500">Active Subscription:</span> <span className="font-bold text-indigo-600">{inst.planName || '—'}</span></p>
             </div>
           </div>
         )}
@@ -228,7 +302,11 @@ export const InstitutionDetailPage = () => {
            <div className="text-xs text-slate-500 py-4">Audit logs fetching will be wired up via API.</div>
         )}
 
-        {['Students', 'Staff', 'Subscription', 'Documents', 'Settings'].includes(activeTab) && (
+        {activeTab === 'Settings' && (
+          <InstitutionEditForm inst={inst} onSaved={(updated) => setInst((prev) => ({ ...prev, ...updated }))} />
+        )}
+
+        {['Students', 'Staff', 'Subscription', 'Documents'].includes(activeTab) && (
           <div className="text-xs text-slate-500 py-4">
             <p className="font-bold text-slate-800 dark:text-slate-200">{activeTab} Panel for {inst.name}</p>
             <p className="mt-1">Tenant isolated data loaded cleanly for Super Admin inspection.</p>

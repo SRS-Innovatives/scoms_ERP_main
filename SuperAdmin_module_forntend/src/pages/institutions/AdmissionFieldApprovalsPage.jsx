@@ -85,6 +85,16 @@ export const AdmissionFieldApprovalsPage = () => {
     }
   };
 
+  const handleBulkApprove = async (selectedIds) => {
+    try {
+      const res = await admissionFieldService.bulkReview(selectedIds, 'APPROVED');
+      success(`${res.data?.updated ?? selectedIds.length} field(s) approved`, 'Approved');
+      fetchAll();
+    } catch (err) {
+      showError(err.message, 'Bulk Approve Failed');
+    }
+  };
+
   const columns = [
     {
       header: 'Institution', key: 'institution', sortable: false,
@@ -161,7 +171,7 @@ export const AdmissionFieldApprovalsPage = () => {
       ) : fields.length === 0 ? (
         <EmptyState icon={ListChecks} title="Nothing Pending" message="No institution currently has a custom admission field awaiting your review." />
       ) : (
-        <DataTable columns={columns} data={fields} />
+        <DataTable columns={columns} data={fields} onBulkAction={handleBulkApprove} bulkActionLabel="Approve Selected" />
       )}
 
       <RejectModal field={rejecting} onClose={() => setRejecting(null)} onConfirm={handleReject} submitting={busyId === rejecting?.id} />
