@@ -6,6 +6,7 @@ import { ArrowLeft, Loader2, Calendar, FileText, MessageSquare, Paperclip, Downl
 import { useNotification } from '../../context/NotificationContext';
 import { useStudentAuth } from '../../context/StudentAuthContext';
 import assignmentService from '../../services/assignmentService';
+import ErrorState from '../../components/common/ErrorState';
 
 const MAX_ATTACHMENT_BYTES = 5 * 1024 * 1024; // 5MB
 
@@ -16,19 +17,22 @@ export const AssignmentDetailPage = () => {
   const { isParent } = useStudentAuth();
   const [asn, setAsn] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [content, setContent] = useState('');
   const [fileUrl, setFileUrl] = useState('');
   const [fileName, setFileName] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   const load = () => {
+    setLoading(true);
+    setError(false);
     assignmentService.getAssignments()
       .then((res) => {
         const found = (res.data || []).find((a) => a.id === id) || null;
         setAsn(found);
         setContent(found?.mySubmission?.content || '');
       })
-      .catch((err) => showError(err.message || 'Failed to load assignment', 'Load Failed'))
+      .catch((err) => { showError(err.message || 'Failed to load assignment', 'Load Failed'); setError(true); })
       .finally(() => setLoading(false));
   };
 
@@ -71,6 +75,10 @@ export const AssignmentDetailPage = () => {
 
   if (loading) {
     return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-indigo-600" /></div>;
+  }
+
+  if (error) {
+    return <ErrorState onRetry={load} />;
   }
 
   if (!asn) {

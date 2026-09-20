@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import StatusBadge from '../../components/common/StatusBadge';
 import examService from '../../services/examService';
 import { useStudentAuth } from '../../context/StudentAuthContext';
 import { useNotification } from '../../context/NotificationContext';
+import ErrorState from '../../components/common/ErrorState';
 import { Printer, Award, Loader2 } from 'lucide-react';
 
 export const StudentResultsPage = () => {
@@ -10,13 +11,18 @@ export const StudentResultsPage = () => {
   const { error: showError } = useNotification();
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
-  useEffect(() => {
+  const load = useCallback(() => {
+    setLoading(true);
+    setError(false);
     examService.getResults()
       .then((res) => setResults(res.data || []))
-      .catch((err) => showError(err.message || 'Failed to load results', 'Load Failed'))
+      .catch((err) => { showError(err.message || 'Failed to load results', 'Load Failed'); setError(true); })
       .finally(() => setLoading(false));
   }, [showError]);
+
+  useEffect(() => { load(); }, [load]);
 
   const handlePrint = () => window.print();
 
@@ -30,6 +36,10 @@ export const StudentResultsPage = () => {
 
   if (loading) {
     return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-indigo-600" /></div>;
+  }
+
+  if (error) {
+    return <ErrorState onRetry={load} />;
   }
 
   return (

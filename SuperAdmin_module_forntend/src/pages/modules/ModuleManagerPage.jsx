@@ -7,6 +7,7 @@ import EmptyState from '../../components/common/EmptyState';
 import { Loader2, Layers, Plus, X, ChevronRight } from 'lucide-react';
 import moduleRegistryService from '../../services/moduleRegistryService';
 import { useNotification } from '../../context/NotificationContext';
+import ErrorState from '../../components/common/ErrorState';
 
 const MODULE_TYPES = ['CORE', 'STANDARD', 'PLUGIN', 'CUSTOM'];
 
@@ -96,13 +97,15 @@ export const ModuleManagerPage = () => {
   const { error: showError } = useNotification();
   const [modules, setModules] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
 
   const fetchAll = useCallback(() => {
     setLoading(true);
+    setError(false);
     moduleRegistryService.getModules()
       .then((res) => setModules(res.data || []))
-      .catch((err) => showError(err.message, 'Load Failed'))
+      .catch((err) => { showError(err.message, 'Load Failed'); setError(true); })
       .finally(() => setLoading(false));
   }, [showError]);
 
@@ -150,6 +153,8 @@ export const ModuleManagerPage = () => {
 
       {loading ? (
         <div className="flex justify-center py-16"><Loader2 className="w-7 h-7 animate-spin text-indigo-600" /></div>
+      ) : error ? (
+        <ErrorState onRetry={fetchAll} />
       ) : modules.length === 0 ? (
         <EmptyState icon={Layers} title="No Modules Defined Yet" message="Create your first module definition to start assigning it to institutions." />
       ) : (

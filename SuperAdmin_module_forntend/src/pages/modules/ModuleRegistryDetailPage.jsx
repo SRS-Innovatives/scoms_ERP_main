@@ -6,6 +6,7 @@ import EmptyState from '../../components/common/EmptyState';
 import { Loader2, ArrowLeft, X, Plus, Trash2, GitBranch, Link2, Building2, Pencil } from 'lucide-react';
 import moduleRegistryService from '../../services/moduleRegistryService';
 import { useNotification } from '../../context/NotificationContext';
+import ErrorState from '../../components/common/ErrorState';
 
 const MODULE_STATUSES = ['DRAFT', 'TESTING', 'PUBLISHED', 'ACTIVE', 'SUSPENDED', 'DEPRECATED'];
 const ASSIGNMENT_STATUSES = ['AVAILABLE', 'INSTALLED', 'ENABLED', 'DISABLED', 'SUSPENDED', 'TRIAL', 'EXPIRED'];
@@ -227,11 +228,13 @@ export const ModuleRegistryDetailPage = () => {
   const [allModules, setAllModules] = useState([]);
   const [institutions, setInstitutions] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [busy, setBusy] = useState(false);
   const [modal, setModal] = useState(null); // 'edit' | 'version' | 'dependency' | 'assign'
 
   const fetchAll = useCallback(() => {
     setLoading(true);
+    setError(false);
     Promise.all([
       moduleRegistryService.getModuleById(id),
       moduleRegistryService.getModules(),
@@ -242,7 +245,7 @@ export const ModuleRegistryDetailPage = () => {
         setAllModules(allRes.data || []);
         setInstitutions(instRes.data || []);
       })
-      .catch((err) => showError(err.message, 'Load Failed'))
+      .catch((err) => { showError(err.message, 'Load Failed'); setError(true); })
       .finally(() => setLoading(false));
   }, [id, showError]);
 
@@ -358,6 +361,9 @@ export const ModuleRegistryDetailPage = () => {
 
   if (loading) {
     return <div className="flex justify-center py-16"><Loader2 className="w-7 h-7 animate-spin text-indigo-600" /></div>;
+  }
+  if (error) {
+    return <ErrorState onRetry={fetchAll} />;
   }
   if (!module) {
     return <EmptyState title="Module Not Found" message="This module may have been removed." />;

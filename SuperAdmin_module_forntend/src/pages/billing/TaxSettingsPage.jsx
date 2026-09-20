@@ -1,23 +1,29 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import PageHeader from '../../components/common/PageHeader';
 import FormInput from '../../components/common/FormInput';
 import LoadingState from '../../components/common/LoadingState';
 import { useNotification } from '../../context/NotificationContext';
 import billingService from '../../services/billingService';
 import { Save, ShieldCheck } from 'lucide-react';
+import ErrorState from '../../components/common/ErrorState';
 
 export const TaxSettingsPage = () => {
   const { success, error: showError } = useNotification();
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({ companyName: '', companyGstin: '', companyState: '', companyAddress: '' });
 
-  useEffect(() => {
+  const load = useCallback(() => {
+    setLoading(true);
+    setError(false);
     billingService.getGstProfile()
       .then((res) => setForm(res.data))
-      .catch((err) => showError(err.message || 'Failed to load GST profile', 'Load Failed'))
+      .catch((err) => { showError(err.message || 'Failed to load GST profile', 'Load Failed'); setError(true); })
       .finally(() => setLoading(false));
-  }, []);
+  }, [showError]);
+
+  useEffect(() => { load(); }, [load]);
 
   const handleSave = async (e) => {
     e.preventDefault();
@@ -42,6 +48,8 @@ export const TaxSettingsPage = () => {
 
       {loading ? (
         <LoadingState message="Loading GST profile..." />
+      ) : error ? (
+        <ErrorState onRetry={load} />
       ) : (
         <form onSubmit={handleSave} className="glass-card p-6 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-4">
           <FormInput

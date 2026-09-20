@@ -6,21 +6,24 @@ import { useNotification } from '../../context/NotificationContext';
 import { Edit, Users, Briefcase, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import subscriptionService from '../../services/subscriptionService';
+import ErrorState from '../../components/common/ErrorState';
 
 export const PlansListPage = () => {
   const navigate = useNavigate();
   const { success, error: showError } = useNotification();
   const [plans, setPlans] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState({});
   const [saving, setSaving] = useState(false);
 
   const load = useCallback(() => {
     setLoading(true);
+    setError(false);
     subscriptionService.getPlans()
       .then((res) => setPlans(res.data || []))
-      .catch((err) => showError(err.message || 'Failed to load plans', 'Load Failed'))
+      .catch((err) => { showError(err.message || 'Failed to load plans', 'Load Failed'); setError(true); })
       .finally(() => setLoading(false));
   }, [showError]);
 
@@ -48,6 +51,10 @@ export const PlansListPage = () => {
 
   if (loading) {
     return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-indigo-600" /></div>;
+  }
+
+  if (error) {
+    return <ErrorState onRetry={load} />;
   }
 
   return (

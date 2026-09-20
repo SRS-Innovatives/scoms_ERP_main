@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import PageHeader from '../../components/common/PageHeader';
 import FormInput from '../../components/common/FormInput';
 import { useNotification } from '../../context/NotificationContext';
@@ -6,19 +6,23 @@ import { Printer, Loader2, Save } from 'lucide-react';
 import studentService from '../../services/studentService';
 import examService from '../../services/examService';
 import resumeService from '../../services/resumeService';
+import ErrorState from '../../components/common/ErrorState';
 
 export const ResumeBuilderPage = () => {
   const { success, error: showError } = useNotification();
   const [profile, setProfile] = useState(null);
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [saving, setSaving] = useState(false);
 
   const [summary, setSummary] = useState('');
   const [skills, setSkills] = useState('');
   const [projects, setProjects] = useState('');
 
-  useEffect(() => {
+  const load = useCallback(() => {
+    setLoading(true);
+    setError(false);
     Promise.all([studentService.getProfile(), examService.getResults(), resumeService.getMyResume()])
       .then(([profileRes, resultsRes, resumeRes]) => {
         setProfile(profileRes.data);
@@ -27,9 +31,11 @@ export const ResumeBuilderPage = () => {
         setSkills((resumeRes.data?.skills || []).join(', '));
         setProjects((resumeRes.data?.projects || []).join(', '));
       })
-      .catch((err) => showError(err.message || 'Failed to load resume data', 'Load Failed'))
+      .catch((err) => { showError(err.message || 'Failed to load resume data', 'Load Failed'); setError(true); })
       .finally(() => setLoading(false));
   }, [showError]);
+
+  useEffect(() => { load(); }, [load]);
 
   const gpa = useMemo(() => {
     if (results.length === 0) return null;
@@ -58,6 +64,10 @@ export const ResumeBuilderPage = () => {
 
   if (loading) {
     return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-indigo-600" /></div>;
+  }
+
+  if (error) {
+    return <ErrorState onRetry={load} />;
   }
 
   const fullName = `${profile.firstName} ${profile.lastName}`;

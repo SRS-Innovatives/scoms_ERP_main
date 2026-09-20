@@ -1,21 +1,27 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import PageHeader from '../../components/common/PageHeader';
 import { useNotification } from '../../context/NotificationContext';
 import { ShieldAlert, Power, Loader2 } from 'lucide-react';
 import settingsService from '../../services/settingsService';
+import ErrorState from '../../components/common/ErrorState';
 
 export const MaintenanceModePage = () => {
   const { warning, success, error: showError } = useNotification();
   const [config, setConfig] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [toggling, setToggling] = useState(false);
 
-  useEffect(() => {
+  const load = useCallback(() => {
+    setLoading(true);
+    setError(false);
     settingsService.getSettings()
       .then((res) => setConfig(res.data))
-      .catch((err) => showError(err.message || 'Failed to load settings', 'Load Failed'))
+      .catch((err) => { showError(err.message || 'Failed to load settings', 'Load Failed'); setError(true); })
       .finally(() => setLoading(false));
   }, [showError]);
+
+  useEffect(() => { load(); }, [load]);
 
   const toggleMaintenance = async () => {
     setToggling(true);
@@ -32,6 +38,10 @@ export const MaintenanceModePage = () => {
 
   if (loading) {
     return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-indigo-600" /></div>;
+  }
+
+  if (error) {
+    return <ErrorState onRetry={load} />;
   }
 
   return (

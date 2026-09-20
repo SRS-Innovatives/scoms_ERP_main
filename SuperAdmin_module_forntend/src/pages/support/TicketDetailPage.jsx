@@ -4,6 +4,7 @@ import { useNotification } from '../../context/NotificationContext';
 import { ArrowLeft, Loader2, Save } from 'lucide-react';
 import { useParams, useNavigate } from 'react-router-dom';
 import supportService from '../../services/supportService';
+import ErrorState from '../../components/common/ErrorState';
 
 const STATUS_OPTIONS = ['OPEN', 'IN_PROGRESS', 'RESOLVED', 'CLOSED'];
 const PRIORITY_OPTIONS = ['LOW', 'MEDIUM', 'HIGH', 'URGENT'];
@@ -14,18 +15,20 @@ export const TicketDetailPage = () => {
   const { success, error: showError } = useNotification();
   const [ticket, setTicket] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({ status: '', priority: '', assignedTo: '' });
 
   const load = useCallback(() => {
     setLoading(true);
+    setError(false);
     supportService.getTickets()
       .then((res) => {
         const found = (res.data || []).find((t) => t.id === id);
         setTicket(found || null);
         if (found) setForm({ status: found.status, priority: found.priority, assignedTo: found.assignedTo || '' });
       })
-      .catch((err) => showError(err.message || 'Failed to load ticket', 'Load Failed'))
+      .catch((err) => { showError(err.message || 'Failed to load ticket', 'Load Failed'); setError(true); })
       .finally(() => setLoading(false));
   }, [id, showError]);
 
@@ -47,6 +50,10 @@ export const TicketDetailPage = () => {
 
   if (loading) {
     return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-indigo-600" /></div>;
+  }
+
+  if (error) {
+    return <ErrorState onRetry={load} />;
   }
 
   if (!ticket) {

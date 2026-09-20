@@ -3,18 +3,21 @@ import PageHeader from '../../components/common/PageHeader';
 import { useNotification } from '../../context/NotificationContext';
 import { Calendar, MapPin, Loader2, CheckCircle2, PartyPopper } from 'lucide-react';
 import eventService from '../../services/eventService';
+import ErrorState from '../../components/common/ErrorState';
 
 export const EventsPage = () => {
   const { success, error: showError } = useNotification();
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [registering, setRegistering] = useState(null);
 
   const load = useCallback(() => {
     setLoading(true);
+    setError(false);
     eventService.getEvents()
       .then((res) => setEvents(res.data || []))
-      .catch((err) => showError(err.message || 'Failed to load events', 'Load Failed'))
+      .catch((err) => { showError(err.message || 'Failed to load events', 'Load Failed'); setError(true); })
       .finally(() => setLoading(false));
   }, [showError]);
 
@@ -35,6 +38,10 @@ export const EventsPage = () => {
 
   if (loading) {
     return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-indigo-600" /></div>;
+  }
+
+  if (error) {
+    return <ErrorState onRetry={load} />;
   }
 
   return (

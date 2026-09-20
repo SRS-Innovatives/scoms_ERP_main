@@ -8,20 +8,27 @@ import billingService from '../../services/billingService';
 import auditLogService from '../../services/auditLogService';
 import subscriptionService from '../../services/subscriptionService';
 import StatusBadge from '../../components/common/StatusBadge';
+import ErrorState from '../../components/common/ErrorState';
 
 const InstitutionUsersTab = ({ institutionId }) => {
   const { error: showError } = useNotification();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
-  React.useEffect(() => {
+  const load = React.useCallback(() => {
+    setLoading(true);
+    setError(false);
     userService.getUsers({ institutionId, limit: 100 })
       .then((res) => setUsers(res.data || []))
-      .catch((err) => showError(err.message || 'Failed to load users', 'Load Failed'))
+      .catch((err) => { showError(err.message || 'Failed to load users', 'Load Failed'); setError(true); })
       .finally(() => setLoading(false));
   }, [institutionId, showError]);
 
+  React.useEffect(() => { load(); }, [load]);
+
   if (loading) return <div className="flex justify-center py-10"><Loader2 className="w-6 h-6 animate-spin text-indigo-600" /></div>;
+  if (error) return <ErrorState onRetry={load} />;
   if (users.length === 0) return <p className="text-xs text-slate-500 py-4">No users found for this institution.</p>;
 
   return (
@@ -48,15 +55,21 @@ const InstitutionBillingTab = ({ institutionId }) => {
   const { error: showError } = useNotification();
   const [invoices, setInvoices] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
-  React.useEffect(() => {
+  const load = React.useCallback(() => {
+    setLoading(true);
+    setError(false);
     billingService.getInvoices({ institutionId, limit: 50 })
       .then((res) => setInvoices(res.data || []))
-      .catch((err) => showError(err.message || 'Failed to load invoices', 'Load Failed'))
+      .catch((err) => { showError(err.message || 'Failed to load invoices', 'Load Failed'); setError(true); })
       .finally(() => setLoading(false));
   }, [institutionId, showError]);
 
+  React.useEffect(() => { load(); }, [load]);
+
   if (loading) return <div className="flex justify-center py-10"><Loader2 className="w-6 h-6 animate-spin text-indigo-600" /></div>;
+  if (error) return <ErrorState onRetry={load} />;
   if (invoices.length === 0) return <p className="text-xs text-slate-500 py-4">No invoices raised for this institution yet.</p>;
 
   return (
@@ -82,15 +95,21 @@ const InstitutionActivityTab = ({ institutionId }) => {
   const { error: showError } = useNotification();
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
-  React.useEffect(() => {
+  const load = React.useCallback(() => {
+    setLoading(true);
+    setError(false);
     auditLogService.getAuditLogs({ institutionId, limit: 50 })
       .then((res) => setLogs(res.data || []))
-      .catch((err) => showError(err.message || 'Failed to load audit logs', 'Load Failed'))
+      .catch((err) => { showError(err.message || 'Failed to load audit logs', 'Load Failed'); setError(true); })
       .finally(() => setLoading(false));
   }, [institutionId, showError]);
 
+  React.useEffect(() => { load(); }, [load]);
+
   if (loading) return <div className="flex justify-center py-10"><Loader2 className="w-6 h-6 animate-spin text-indigo-600" /></div>;
+  if (error) return <ErrorState onRetry={load} />;
   if (logs.length === 0) return <p className="text-xs text-slate-500 py-4">No recorded activity for this institution yet.</p>;
 
   return (
@@ -112,15 +131,21 @@ const InstitutionSubscriptionTab = ({ institutionId }) => {
   const { error: showError } = useNotification();
   const [subscriptions, setSubscriptions] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
-  React.useEffect(() => {
+  const load = React.useCallback(() => {
+    setLoading(true);
+    setError(false);
     subscriptionService.getSubscriptions({ institutionId, limit: 20 })
       .then((res) => setSubscriptions(res.data || []))
-      .catch((err) => showError(err.message || 'Failed to load subscriptions', 'Load Failed'))
+      .catch((err) => { showError(err.message || 'Failed to load subscriptions', 'Load Failed'); setError(true); })
       .finally(() => setLoading(false));
   }, [institutionId, showError]);
 
+  React.useEffect(() => { load(); }, [load]);
+
   if (loading) return <div className="flex justify-center py-10"><Loader2 className="w-6 h-6 animate-spin text-indigo-600" /></div>;
+  if (error) return <ErrorState onRetry={load} />;
   if (subscriptions.length === 0) return <p className="text-xs text-slate-500 py-4">No subscription history for this institution yet.</p>;
 
   return (
@@ -222,6 +247,7 @@ export const InstitutionDetailPage = () => {
   const { success, warning, error: showError } = useNotification();
   const [inst, setInst] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [activeTab, setActiveTab] = useState('Overview');
 
   const [moduleCatalog, setModuleCatalog] = useState([]);
@@ -229,31 +255,32 @@ export const InstitutionDetailPage = () => {
   const [savingModules, setSavingModules] = useState(false);
   const [updatingStatus, setUpdatingStatus] = useState(false);
 
-  React.useEffect(() => {
-    const fetchInst = async () => {
-      try {
-        setLoading(true);
-        const [instRes, catalogRes] = await Promise.all([
-          institutionService.getInstitutionById(id),
-          institutionService.getModuleCatalog(),
-        ]);
-        if (instRes?.data) {
-          setInst(instRes.data);
-          setSelectedModules(
-            Array.isArray(instRes.data.modules) && instRes.data.modules.length > 0
-              ? instRes.data.modules
-              : (catalogRes.data || []).map((m) => m.key) // legacy/unset institutions default to everything enabled
-          );
-        }
-        setModuleCatalog(catalogRes.data || []);
-      } catch (err) {
-        console.error("Failed to fetch institution", err);
-      } finally {
-        setLoading(false);
+  const fetchInst = React.useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(false);
+      const [instRes, catalogRes] = await Promise.all([
+        institutionService.getInstitutionById(id),
+        institutionService.getModuleCatalog(),
+      ]);
+      if (instRes?.data) {
+        setInst(instRes.data);
+        setSelectedModules(
+          Array.isArray(instRes.data.modules) && instRes.data.modules.length > 0
+            ? instRes.data.modules
+            : (catalogRes.data || []).map((m) => m.key) // legacy/unset institutions default to everything enabled
+        );
       }
-    };
-    fetchInst();
-  }, [id]);
+      setModuleCatalog(catalogRes.data || []);
+    } catch (err) {
+      showError(err.message || 'Failed to load institution', 'Load Failed');
+      setError(true);
+    } finally {
+      setLoading(false);
+    }
+  }, [id, showError]);
+
+  React.useEffect(() => { fetchInst(); }, [fetchInst]);
 
   const toggleModule = (key) => {
     setSelectedModules((prev) => (prev.includes(key) ? prev.filter((m) => m !== key) : [...prev, key]));
@@ -305,6 +332,10 @@ export const InstitutionDetailPage = () => {
         <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
       </div>
     );
+  }
+
+  if (error) {
+    return <ErrorState onRetry={fetchInst} />;
   }
 
   if (!inst) {

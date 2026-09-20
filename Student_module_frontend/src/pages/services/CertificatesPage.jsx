@@ -4,6 +4,7 @@ import StatusBadge from '../../components/common/StatusBadge';
 import { Award, ExternalLink, Loader2, Inbox } from 'lucide-react';
 import { useNotification } from '../../context/NotificationContext';
 import certificateService from '../../services/certificateService';
+import ErrorState from '../../components/common/ErrorState';
 
 const TYPE_OPTIONS = [
   { value: 'BONAFIDE', label: 'Bonafide Certificate (Bank & Bus Pass Purpose)' },
@@ -19,18 +20,20 @@ export const CertificatesPage = () => {
   const [certificates, setCertificates] = useState([]);
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [requestType, setRequestType] = useState(TYPE_OPTIONS[0].value);
   const [reason, setReason] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   const load = useCallback(() => {
     setLoading(true);
+    setError(false);
     Promise.all([certificateService.getMyCertificates(), certificateService.getMyCertificateRequests()])
       .then(([certRes, reqRes]) => {
         setCertificates(certRes.data || []);
         setRequests(reqRes.data || []);
       })
-      .catch((err) => showError(err.message || 'Failed to load certificates', 'Load Failed'))
+      .catch((err) => { showError(err.message || 'Failed to load certificates', 'Load Failed'); setError(true); })
       .finally(() => setLoading(false));
   }, [showError]);
 
@@ -53,6 +56,10 @@ export const CertificatesPage = () => {
 
   if (loading) {
     return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-indigo-600" /></div>;
+  }
+
+  if (error) {
+    return <ErrorState onRetry={load} />;
   }
 
   return (

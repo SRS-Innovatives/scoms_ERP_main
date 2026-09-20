@@ -5,6 +5,7 @@ import EmptyState from '../../components/common/EmptyState';
 import { Loader2, CheckCircle2, XCircle, X, ListChecks } from 'lucide-react';
 import admissionFieldService from '../../services/admissionFieldService';
 import { useNotification } from '../../context/NotificationContext';
+import ErrorState from '../../components/common/ErrorState';
 
 const FIELD_TYPE_LABEL = { TEXT: 'Text', NUMBER: 'Number', DATE: 'Date', EMAIL: 'Email', PHONE: 'Phone', TEXTAREA: 'Paragraph', SELECT: 'Dropdown', CHECKBOX: 'Checkbox' };
 
@@ -45,14 +46,16 @@ export const AdmissionFieldApprovalsPage = () => {
   const { success, error: showError } = useNotification();
   const [fields, setFields] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [rejecting, setRejecting] = useState(null);
   const [busyId, setBusyId] = useState(null);
 
   const fetchAll = useCallback(() => {
     setLoading(true);
+    setError(false);
     admissionFieldService.getPending()
       .then((res) => setFields(res.data || []))
-      .catch((err) => showError(err.message, 'Load Failed'))
+      .catch((err) => { showError(err.message, 'Load Failed'); setError(true); })
       .finally(() => setLoading(false));
   }, [showError]);
 
@@ -168,6 +171,8 @@ export const AdmissionFieldApprovalsPage = () => {
 
       {loading ? (
         <div className="flex justify-center py-16"><Loader2 className="w-7 h-7 animate-spin text-indigo-600" /></div>
+      ) : error ? (
+        <ErrorState onRetry={fetchAll} />
       ) : fields.length === 0 ? (
         <EmptyState icon={ListChecks} title="Nothing Pending" message="No institution currently has a custom admission field awaiting your review." />
       ) : (

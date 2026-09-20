@@ -4,18 +4,21 @@ import StatusBadge from '../../components/common/StatusBadge';
 import { BookOpen, RefreshCw, Loader2 } from 'lucide-react';
 import { useNotification } from '../../context/NotificationContext';
 import campusService from '../../services/campusService';
+import ErrorState from '../../components/common/ErrorState';
 
 export const DigitalLibraryPage = () => {
   const { success, error: showError } = useNotification();
   const [issues, setIssues] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [busyId, setBusyId] = useState(null);
 
   const fetchAll = useCallback(() => {
     setLoading(true);
+    setError(false);
     campusService.getMyLibrary()
       .then((res) => setIssues(res.data || []))
-      .catch((err) => showError(err.message || 'Failed to load library records', 'Load Failed'))
+      .catch((err) => { showError(err.message || 'Failed to load library records', 'Load Failed'); setError(true); })
       .finally(() => setLoading(false));
   }, [showError]);
 
@@ -39,6 +42,10 @@ export const DigitalLibraryPage = () => {
 
   if (loading) {
     return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-indigo-600" /></div>;
+  }
+
+  if (error) {
+    return <ErrorState onRetry={fetchAll} />;
   }
 
   return (

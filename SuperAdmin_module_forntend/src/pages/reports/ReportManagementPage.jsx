@@ -3,6 +3,7 @@ import { Loader2, Archive, ArchiveRestore, Copy, Link as LinkIcon, FileBarChart 
 import { Link } from 'react-router-dom';
 import reportManagementService from '../../services/reportManagementService';
 import { useNotification } from '../../context/NotificationContext';
+import ErrorState from '../../components/common/ErrorState';
 
 /** Super Admin — Report Catalog Management. Lists every report in the system (SYSTEM
  * defaults + INSTITUTION custom reports created from approved requests), with archive and
@@ -12,11 +13,14 @@ export const ReportManagementPage = () => {
   const { error: showError, success } = useNotification();
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   const load = () => {
+    setLoading(true);
+    setError(false);
     reportManagementService.getReports()
       .then((res) => setReports(res.data || []))
-      .catch((err) => showError(`Failed to load reports: ${err.message}`))
+      .catch((err) => { showError(`Failed to load reports: ${err.message}`); setError(true); })
       .finally(() => setLoading(false));
   };
 
@@ -51,6 +55,10 @@ export const ReportManagementPage = () => {
 
   if (loading) {
     return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-amber-600" /></div>;
+  }
+
+  if (error) {
+    return <ErrorState onRetry={load} />;
   }
 
   return (

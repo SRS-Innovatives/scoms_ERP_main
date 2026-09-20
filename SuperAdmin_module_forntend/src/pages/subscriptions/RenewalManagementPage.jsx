@@ -5,22 +5,25 @@ import DataTable from '../../components/common/DataTable';
 import { CalendarRange, ShieldAlert, CreditCard, Clock, Loader2 } from 'lucide-react';
 import { useNotification } from '../../context/NotificationContext';
 import subscriptionService from '../../services/subscriptionService';
+import ErrorState from '../../components/common/ErrorState';
 
 export const RenewalManagementPage = () => {
   const { success, error: showError } = useNotification();
   const [subscriptions, setSubscriptions] = useState([]);
   const [kpis, setKpis] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [sending, setSending] = useState(null);
 
   const load = useCallback(() => {
     setLoading(true);
+    setError(false);
     subscriptionService.getRenewals()
       .then((res) => {
         setSubscriptions(res.data?.subscriptions || []);
         setKpis(res.data?.kpis || null);
       })
-      .catch((err) => showError(err.message || 'Failed to load renewals', 'Load Failed'))
+      .catch((err) => { showError(err.message || 'Failed to load renewals', 'Load Failed'); setError(true); })
       .finally(() => setLoading(false));
   }, [showError]);
 
@@ -82,6 +85,10 @@ export const RenewalManagementPage = () => {
 
   if (loading) {
     return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-indigo-600" /></div>;
+  }
+
+  if (error) {
+    return <ErrorState onRetry={load} />;
   }
 
   return (

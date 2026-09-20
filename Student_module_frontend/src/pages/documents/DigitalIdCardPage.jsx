@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { Printer, ShieldCheck, RefreshCw, Loader2 } from 'lucide-react';
 import { useNotification } from '../../context/NotificationContext';
 import studentService from '../../services/studentService';
+import ErrorState from '../../components/common/ErrorState';
 
 // The institution's chosen orientation/template (set by the Institute Admin under
 // Settings → ID Card Generator) decides layout dimensions and color treatment — the
@@ -40,17 +41,26 @@ export const DigitalIdCardPage = () => {
   const { error: showError } = useNotification();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [side, setSide] = useState('Front');
 
-  useEffect(() => {
+  const load = useCallback(() => {
+    setLoading(true);
+    setError(false);
     studentService.getIdCard()
       .then((res) => setData(res.data))
-      .catch((err) => showError(err.message || 'Failed to load ID card', 'Load Failed'))
+      .catch((err) => { showError(err.message || 'Failed to load ID card', 'Load Failed'); setError(true); })
       .finally(() => setLoading(false));
   }, [showError]);
 
+  useEffect(() => { load(); }, [load]);
+
   if (loading) {
     return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-indigo-600" /></div>;
+  }
+
+  if (error) {
+    return <ErrorState onRetry={load} />;
   }
 
   if (!data?.student) {

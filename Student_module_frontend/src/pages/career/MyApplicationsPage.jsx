@@ -1,9 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import PageHeader from '../../components/common/PageHeader';
 import StatusBadge from '../../components/common/StatusBadge';
 import { useNotification } from '../../context/NotificationContext';
 import { Briefcase, Loader2, Inbox } from 'lucide-react';
 import jobPostingService from '../../services/jobPostingService';
+import ErrorState from '../../components/common/ErrorState';
 
 const STATUS_LABELS = { APPLIED: 'Applied', SHORTLISTED: 'Shortlisted', SELECTED: 'Selected', REJECTED: 'Not Selected' };
 const TYPE_LABELS = { INTERNSHIP: 'Internship', PLACEMENT: 'Placement' };
@@ -12,16 +13,25 @@ export const MyApplicationsPage = () => {
   const { error: showError } = useNotification();
   const [applications, setApplications] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
-  useEffect(() => {
+  const load = useCallback(() => {
+    setLoading(true);
+    setError(false);
     jobPostingService.getMyApplications()
       .then((res) => setApplications(res.data || []))
-      .catch((err) => showError(err.message || 'Failed to load applications', 'Load Failed'))
+      .catch((err) => { showError(err.message || 'Failed to load applications', 'Load Failed'); setError(true); })
       .finally(() => setLoading(false));
   }, [showError]);
 
+  useEffect(() => { load(); }, [load]);
+
   if (loading) {
     return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-indigo-600" /></div>;
+  }
+
+  if (error) {
+    return <ErrorState onRetry={load} />;
   }
 
   return (

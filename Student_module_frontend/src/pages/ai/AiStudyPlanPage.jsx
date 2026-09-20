@@ -6,16 +6,19 @@ import studentService from '../../services/studentService';
 import attendanceService from '../../services/attendanceService';
 import examService from '../../services/examService';
 import aiService from '../../services/aiService';
+import ErrorState from '../../components/common/ErrorState';
 
 export const AiStudyPlanPage = () => {
   const { error: showError } = useNotification();
   const [subjects, setSubjects] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [plan, setPlan] = useState(null);
 
   const loadSubjects = () => {
     setLoading(true);
+    setError(false);
     Promise.all([studentService.getMySubjects(), attendanceService.getAttendance(), examService.getResults()])
       .then(([subjectsRes, attendanceRes, resultsRes]) => {
         const attendanceBySubject = {};
@@ -39,7 +42,7 @@ export const AiStudyPlanPage = () => {
 
         setSubjects(merged);
       })
-      .catch((err) => showError(err.message || 'Failed to load subject performance', 'Load Failed'))
+      .catch((err) => { showError(err.message || 'Failed to load subject performance', 'Load Failed'); setError(true); })
       .finally(() => setLoading(false));
   };
 
@@ -66,6 +69,10 @@ export const AiStudyPlanPage = () => {
 
   if (loading) {
     return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-indigo-600" /></div>;
+  }
+
+  if (error) {
+    return <ErrorState onRetry={loadSubjects} />;
   }
 
   return (

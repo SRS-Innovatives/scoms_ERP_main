@@ -4,6 +4,7 @@ import StatusBadge from '../../components/common/StatusBadge';
 import { useNotification } from '../../context/NotificationContext';
 import { Briefcase, Loader2, Inbox } from 'lucide-react';
 import jobPostingService from '../../services/jobPostingService';
+import ErrorState from '../../components/common/ErrorState';
 
 const STATUS_LABELS = { APPLIED: 'Applied', SHORTLISTED: 'Shortlisted', SELECTED: 'Selected', REJECTED: 'Not Selected' };
 
@@ -11,13 +12,15 @@ export const InternshipsPage = ({ postingType = 'INTERNSHIP', title = 'Campus In
   const { success, error: showError } = useNotification();
   const [postings, setPostings] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [applying, setApplying] = useState(null);
 
   const load = useCallback(() => {
     setLoading(true);
+    setError(false);
     jobPostingService.getPostings(postingType)
       .then((res) => setPostings(res.data || []))
-      .catch((err) => showError(err.message || 'Failed to load postings', 'Load Failed'))
+      .catch((err) => { showError(err.message || 'Failed to load postings', 'Load Failed'); setError(true); })
       .finally(() => setLoading(false));
   }, [postingType, showError]);
 
@@ -38,6 +41,10 @@ export const InternshipsPage = ({ postingType = 'INTERNSHIP', title = 'Campus In
 
   if (loading) {
     return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-indigo-600" /></div>;
+  }
+
+  if (error) {
+    return <ErrorState onRetry={load} />;
   }
 
   return (

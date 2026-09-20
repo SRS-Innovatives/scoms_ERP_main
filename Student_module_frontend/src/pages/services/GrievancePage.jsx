@@ -4,6 +4,7 @@ import StatusBadge from '../../components/common/StatusBadge';
 import { useNotification } from '../../context/NotificationContext';
 import { Loader2, ShieldCheck } from 'lucide-react';
 import grievanceService from '../../services/grievanceService';
+import ErrorState from '../../components/common/ErrorState';
 
 const displayStatus = (status) => {
   if (status === 'SUBMITTED') return 'Submitted';
@@ -18,13 +19,15 @@ export const GrievancePage = () => {
   const [complaint, setComplaint] = useState('');
   const [grievances, setGrievances] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   const load = useCallback(() => {
     setLoading(true);
+    setError(false);
     grievanceService.getMyGrievances()
       .then((res) => setGrievances(res.data || []))
-      .catch((err) => showError(err.message || 'Failed to load grievances', 'Load Failed'))
+      .catch((err) => { showError(err.message || 'Failed to load grievances', 'Load Failed'); setError(true); })
       .finally(() => setLoading(false));
   }, [showError]);
 
@@ -75,6 +78,8 @@ export const GrievancePage = () => {
 
       {loading ? (
         <div className="flex justify-center py-10"><Loader2 className="w-6 h-6 animate-spin text-indigo-600" /></div>
+      ) : error ? (
+        <ErrorState onRetry={load} />
       ) : grievances.length === 0 ? (
         <div className="glass-card p-8 rounded-2xl border border-slate-200 dark:border-slate-800 text-center text-xs text-slate-500 flex flex-col items-center gap-2">
           <ShieldCheck className="w-7 h-7 text-slate-300" /> No grievances logged yet.

@@ -1,23 +1,33 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import PageHeader from '../../components/common/PageHeader';
 import { FileText, ExternalLink, Loader2, FolderOpen } from 'lucide-react';
 import { useNotification } from '../../context/NotificationContext';
+import ErrorState from '../../components/common/ErrorState';
 import materialService from '../../services/materialService';
 
 export const MaterialLibraryPage = () => {
   const { error: showError } = useNotification();
   const [materials, setMaterials] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
-  useEffect(() => {
+  const load = useCallback(() => {
+    setLoading(true);
+    setError(false);
     materialService.getMaterials()
       .then((res) => setMaterials(res.data || []))
-      .catch((err) => showError(err.message || 'Failed to load materials', 'Load Failed'))
+      .catch((err) => { showError(err.message || 'Failed to load materials', 'Load Failed'); setError(true); })
       .finally(() => setLoading(false));
   }, [showError]);
 
+  useEffect(() => { load(); }, [load]);
+
   if (loading) {
     return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-indigo-600" /></div>;
+  }
+
+  if (error) {
+    return <ErrorState onRetry={load} />;
   }
 
   return (

@@ -4,6 +4,7 @@ import StatusBadge from '../../components/common/StatusBadge';
 import { useNotification } from '../../context/NotificationContext';
 import { CreditCard, MessageSquare, Mail, HardDrive, Video, Fingerprint, Radio, MapPin, Plus, X, Loader2, Pencil } from 'lucide-react';
 import systemService from '../../services/systemService';
+import ErrorState from '../../components/common/ErrorState';
 
 const CHANNEL_META = {
   SMS: { label: 'SMS', icon: MessageSquare },
@@ -135,14 +136,16 @@ export const IntegrationsPage = () => {
   const { success, error: showError } = useNotification();
   const [providers, setProviders] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingProvider, setEditingProvider] = useState(null);
 
   const fetchAll = useCallback(() => {
     setLoading(true);
+    setError(false);
     systemService.getIntegrationProviders()
       .then((res) => setProviders(res.data || []))
-      .catch((err) => showError(err.message, 'Load Failed'))
+      .catch((err) => { showError(err.message, 'Load Failed'); setError(true); })
       .finally(() => setLoading(false));
   }, [showError]);
 
@@ -166,6 +169,8 @@ export const IntegrationsPage = () => {
 
       {loading ? (
         <div className="flex justify-center py-16"><Loader2 className="w-7 h-7 animate-spin text-indigo-600" /></div>
+      ) : error ? (
+        <ErrorState onRetry={fetchAll} />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {byChannel.map(({ channel, active, alternatives }) => {
