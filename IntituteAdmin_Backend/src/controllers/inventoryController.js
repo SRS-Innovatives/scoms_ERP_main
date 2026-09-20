@@ -258,6 +258,91 @@ const updatePurchaseOrderStatus = async (req, res, next) => {
   }
 };
 
+// ============================================================
+// Asset Maintenance (service/repair/calibration events — distinct from
+// EquipmentIssue, which is who currently has an asset checked out)
+// ============================================================
+const MAINTENANCE_STATUSES = ['SCHEDULED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'];
+
+const getMaintenanceRecords = async (req, res, next) => {
+  try {
+    const { assetId, status } = req.query;
+    const records = await prisma.assetMaintenanceRecord.findMany({
+      where: {
+        asset: { institutionId: req.institutionId },
+        ...(assetId && { assetId }),
+        ...(status && { status }),
+      },
+      include: { asset: { select: { name: true, assetTag: true } }, vendor: { select: { name: true } } },
+      orderBy: { scheduledDate: 'desc' },
+    });
+    return sendSuccess(res, records, 'Maintenance records retrieved successfully');
+  } catch (err) {
+    next(err);
+  }
+};
+
+const scheduleMaintenance = async (req, res, next) => {
+  try {
+    const { assetId, description, scheduledDate, vendorId, cost, notes } = req.body;
+    if (!assetId || !description || !scheduledDate) throw new ValidationError('assetId, description and scheduledDate are required');
+
+    const asset = await prisma.asset.findFirst({ where: { id: assetId, institutionId: req.institutionId } });
+    if (!asset) throw new NotFoundError('Asset not found or access denied');
+
+    if (vendorId) {
+      const vendor = await prisma.vendor.findFirst({ where: { id: vendorId, institutionId: req.institutionId } });
+      if (!vendor) throw new NotFoundError('Vendor not found or access denied');
+    }
+
+    const record = await prisma.assetMaintenanceRecord.create({
+      data: {
+        assetId,
+        description,
+        scheduledDate: new Date(scheduledDate),
+        vendorId: vendorId || null,
+        cost: cost || null,
+        notes: notes || null,
+        createdById: req.user.id,
+      },
+    });
+    return sendSuccess(res, record, 'Maintenance scheduled successfully', 201);
+  } catch (err) {
+    next(err);
+  }
+};
+
+const updateMaintenanceStatus = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { status, cost, notes } = req.body;
+    if (!status || !MAINTENANCE_STATUSES.includes(status)) throw new ValidationError(`status must be one of ${MAINTENANCE_STATUSES.join(', ')}`);
+
+    const existing = await prisma.assetMaintenanceRecord.findFirst({ where: { id, asset: { institutionId: req.institutionId } } });
+    if (!existing) throw new NotFoundError('Maintenance record not found');
+
+    const record = await prisma.assetMaintenanceRecord.update({
+      where: { id },
+      data: {
+        status,
+        ...(cost !== undefined && { cost }),
+        ...(notes !== undefined && { notes }),
+        ...(status === 'COMPLETED' && { completedDate: new Date() }),
+      },
+    });
+
+    // Completing a repair is a real signal the asset is usable again — same convention
+    // as EquipmentIssue return updating Asset elsewhere in this controller.
+    if (status === 'COMPLETED') {
+      await prisma.asset.update({ where: { id: existing.assetId }, data: { condition: 'GOOD' } });
+    }
+
+    return sendSuccess(res, record, 'Maintenance record updated successfully');
+  } catch (err) {
+    next(err);
+  }
+};
+
 module.exports = {
   getVendors,
   createVendor,
@@ -272,4 +357,7 @@ module.exports = {
   getPurchaseOrders,
   createPurchaseOrder,
   updatePurchaseOrderStatus,
+  getMaintenanceRecords,
+  scheduleMaintenance,
+  updateMaintenanceStatus,
 };

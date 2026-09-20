@@ -156,7 +156,10 @@ const getStudentAssignments = async (req, res, next) => {
 
 const assignFeeToStudent = async (req, res, next) => {
   try {
-    const { feeStructureId, studentId, discountAmount, scholarshipName, scholarshipRef } = req.body;
+    // Institution-specific extra assignment fields (SuperAdmin-approved only — see
+    // AdmissionCustomField, entityType FEE_ASSIGNMENT). Same trust convention as
+    // admission/transport/hostel: frontend only ever renders APPROVED fields.
+    const { feeStructureId, studentId, discountAmount, scholarshipName, scholarshipRef, customFields } = req.body;
     if (!feeStructureId || !studentId) throw new ValidationError('feeStructureId and studentId are required');
 
     const structure = await prisma.feeStructure.findFirst({ where: { id: feeStructureId, institutionId: req.institutionId } });
@@ -177,6 +180,7 @@ const assignFeeToStudent = async (req, res, next) => {
         ...computeAssignment(structure, discountAmount),
         scholarshipName: scholarshipName || null,
         scholarshipRef: scholarshipRef || null,
+        customFields: customFields && Object.keys(customFields).length > 0 ? customFields : undefined,
       },
     });
 

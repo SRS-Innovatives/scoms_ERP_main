@@ -195,6 +195,72 @@ const getLibraryReports = async (req, res, next) => {
   }
 };
 
+// ============================================================
+// Library Membership (formal card registration — entirely optional; issueBook above
+// never checks for a membership record, so an institution that skips this keeps
+// working exactly as it always has)
+// ============================================================
+const getMembers = async (req, res, next) => {
+  try {
+    const members = await prisma.libraryMember.findMany({
+      where: { institutionId: req.institutionId },
+      include: { student: { select: { firstName: true, lastName: true, rollNumber: true } } },
+      orderBy: { joinedAt: 'desc' },
+    });
+    return sendSuccess(res, members, 'Library members retrieved successfully');
+  } catch (err) {
+    next(err);
+  }
+};
+
+const registerMember = async (req, res, next) => {
+  try {
+    // Institution-specific extra registration fields (SuperAdmin-approved only — see
+    // AdmissionCustomField, entityType LIBRARY_MEMBERSHIP).
+    const { studentId, membershipNumber, customFields } = req.body;
+    if (!studentId || !membershipNumber) throw new ValidationError('studentId and membershipNumber are required');
+
+    const student = await prisma.student.findFirst({ where: { id: studentId, institutionId: req.institutionId } });
+    if (!student) throw new NotFoundError('Student not found or access denied');
+
+    const existingForStudent = await prisma.libraryMember.findUnique({ where: { studentId } });
+    if (existingForStudent) throw new BusinessRuleError('This student is already a registered library member');
+
+    const existingNumber = await prisma.libraryMember.findUnique({
+      where: { institutionId_membershipNumber: { institutionId: req.institutionId, membershipNumber } },
+    });
+    if (existingNumber) throw new ValidationError('This membership number is already in use');
+
+    const member = await prisma.libraryMember.create({
+      data: {
+        institutionId: req.institutionId,
+        studentId,
+        membershipNumber,
+        customFields: customFields && Object.keys(customFields).length > 0 ? customFields : undefined,
+      },
+    });
+    return sendSuccess(res, member, 'Library membership registered successfully', 201);
+  } catch (err) {
+    next(err);
+  }
+};
+
+const updateMemberStatus = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+    if (!['ACTIVE', 'SUSPENDED', 'EXPIRED'].includes(status)) throw new ValidationError('status must be ACTIVE, SUSPENDED, or EXPIRED');
+
+    const existing = await prisma.libraryMember.findFirst({ where: { id, institutionId: req.institutionId } });
+    if (!existing) throw new NotFoundError('Library member not found');
+
+    const updated = await prisma.libraryMember.update({ where: { id }, data: { status } });
+    return sendSuccess(res, updated, `Membership status updated to ${status}`);
+  } catch (err) {
+    next(err);
+  }
+};
+
 module.exports = {
   getBooks,
   createBook,
@@ -204,4 +270,7 @@ module.exports = {
   getFines,
   collectFine,
   getLibraryReports,
+  getMembers,
+  registerMember,
+  updateMemberStatus,
 };
