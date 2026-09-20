@@ -133,19 +133,147 @@ model Institution {
   messageTemplates                MessageTemplate[]
   preAdmissionApplications        PreAdmissionApplication[]
   preAdmissionApiKey              String?                          @unique // set once Institute Admin generates it from Front Office settings
+  preAdmissionFeeAmount           Float? // when set, the public form must collect this application fee before an application is accepted; null/0 = no fee required
   admissionCustomFields           AdmissionCustomField[]
   customLists                     InstitutionCustomList[]
+  libraryMembers                  LibraryMember[]
+  academicCalendarEvents          AcademicCalendarEvent[]
+  scheduledNotifications          ScheduledNotification[]
+  studentDocuments                StudentDocument[]
+  expenses                        Expense[]
+  budgets                         Budget[]
+  studentExitRecords              StudentExitRecord[]
+  jobOpenings                     JobOpening[]
+  workflowDefinitions             WorkflowDefinition[]
+  workflowInstances               WorkflowInstance[]
+  dynamicReportDefinitions        DynamicReportDefinition[]
+  eventLogs                       EventLog[]
+  automationRules                 AutomationRule[]
 
   // Real University <-> College affiliation, when the university is itself a SCOMS tenant
   // (not just a free-text label) — enables real oversight: a University can see every
   // College affiliated to it, and an exam/degree can name who actually holds authority.
-  affiliatedUniversity    Institution?   @relation("UniversityAffiliation", fields: [affiliatedUniversityId], references: [id])
-  affiliatedColleges      Institution[]  @relation("UniversityAffiliation")
-  examsConductedForOthers Exam[]         @relation("ExamConductedBy")
-  degreesIssuedForOthers  DegreeRecord[] @relation("DegreeIssuedBy")
+  affiliatedUniversity    Institution?                  @relation("UniversityAffiliation", fields: [affiliatedUniversityId], references: [id])
+  affiliatedColleges      Institution[]                 @relation("UniversityAffiliation")
+  examsConductedForOthers Exam[]                        @relation("ExamConductedBy")
+  degreesIssuedForOthers  DegreeRecord[]                @relation("DegreeIssuedBy")
+  moduleAssignments       InstitutionModuleAssignment[]
 
   @@index([code])
   @@index([status])
+}
+
+// ------------------------------------------------------
+// MODULE REGISTRY (Phase 1) — additive, dormant by default.
+//
+// Institution.modules (a flat Json array of key strings) remains the live source of
+// truth for every existing institution unless MODULE_REGISTRY_ENABLED=true AND that
+// specific institution has real InstitutionModuleAssignment rows — see
+// shared/moduleRegistry/resolveModules.js for the exact dual-path resolution order.
+// Nothing here is read by anything until an institution is explicitly migrated into it.
+// ------------------------------------------------------
+
+enum ModuleType {
+  CORE
+  STANDARD
+  PLUGIN
+  CUSTOM
+}
+
+enum ModuleDefinitionStatus {
+  DRAFT
+  TESTING
+  PUBLISHED
+  ACTIVE
+  SUSPENDED
+  DEPRECATED
+}
+
+enum ModuleAssignmentStatus {
+  AVAILABLE
+  INSTALLED
+  ENABLED
+  DISABLED
+  SUSPENDED
+  TRIAL
+  EXPIRED
+}
+
+/// The registry entry itself — one row per module key, mirroring (not replacing) the
+/// static MODULE_CATALOG in shared/constants/institutionModules.js. Seeded from that
+/// exact catalog so every key/label/description an institution sees today is unchanged.
+model ModuleDefinition {
+  id                 String                 @id @default(uuid())
+  key                String                 @unique // matches the existing MODULE_CATALOG key exactly, e.g. "transport"
+  name               String
+  description        String?
+  category           String? // free-text grouping for the future registry UI — not read by any enforcement logic
+  moduleType         ModuleType             @default(STANDARD)
+  status             ModuleDefinitionStatus @default(ACTIVE)
+  icon               String?
+  frontendRoute      String?
+  backendRoutePrefix String?
+  currentVersion     String                 @default("1.0.0")
+  createdAt          DateTime               @default(now())
+  updatedAt          DateTime               @updatedAt
+
+  versions     ModuleVersion[]
+  dependents   ModuleDependency[]            @relation("ModuleDependents")
+  dependencies ModuleDependency[]            @relation("ModuleDependencies")
+  assignments  InstitutionModuleAssignment[]
+}
+
+/// Real version history per module. An institution's assignment pins one version
+/// (installedVersion on InstitutionModuleAssignment) — publishing a new version here
+/// never silently changes what an already-assigned institution is running.
+model ModuleVersion {
+  id                  String   @id @default(uuid())
+  moduleId            String
+  version             String // semver string, e.g. "1.1.0"
+  changelog           String?
+  configSchema        Json? // shape of this version's per-institution config — informational in Phase 1, not yet enforced
+  requiredPermissions Json? // e.g. ["transport.view", "transport.manage"] — feeds Phase 3, unused until then
+  createdAt           DateTime @default(now())
+
+  module ModuleDefinition @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+
+  @@unique([moduleId, version])
+}
+
+/// Self-referencing: "moduleId requires dependsOnModuleId to be enabled first." Checked
+/// only by the new registry's own activation path (Phase 2+) — never by the legacy
+/// Institution.modules toggle, which has no concept of dependencies today and keeps none.
+model ModuleDependency {
+  id                String   @id @default(uuid())
+  moduleId          String
+  dependsOnModuleId String
+  createdAt         DateTime @default(now())
+
+  module          ModuleDefinition @relation("ModuleDependencies", fields: [moduleId], references: [id], onDelete: Cascade)
+  dependsOnModule ModuleDefinition @relation("ModuleDependents", fields: [dependsOnModuleId], references: [id], onDelete: Cascade)
+
+  @@unique([moduleId, dependsOnModuleId])
+}
+
+/// The new per-institution enablement record — sits ALONGSIDE Institution.modules, never
+/// replacing it. An institution with zero rows here is, by definition, still running on
+/// the legacy array; the resolver checks for real rows before ever trusting this table.
+model InstitutionModuleAssignment {
+  id               String                 @id @default(uuid())
+  institutionId    String
+  moduleId         String
+  status           ModuleAssignmentStatus @default(ENABLED)
+  installedVersion String?
+  config           Json? // per-institution module configuration — informational in Phase 1, not yet enforced
+  assignedById     String? // SuperAdmin User.id — no FK, SuperAdmin users live outside institution scope (same convention as AdmissionCustomField.reviewedById)
+  assignedAt       DateTime               @default(now())
+  updatedAt        DateTime               @updatedAt
+
+  institution Institution      @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  module      ModuleDefinition @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+
+  @@unique([institutionId, moduleId])
+  @@index([institutionId, status])
 }
 
 // ------------------------------------------------------
@@ -247,6 +375,235 @@ model AcademicYear {
   feeStructures FeeStructure[]
 
   @@unique([institutionId, yearName])
+}
+
+/// Institution-wide calendar of holidays, exam windows, events and deadlines — read by
+/// every portal, written only by Institute Admin. Deliberately its own simple model
+/// rather than folded into Exam/Event/etc: those already have their own real dates and
+/// their own detail; this is just the at-a-glance "what's on this month" view across
+/// all of them plus plain holidays that don't belong to any other model.
+enum AcademicCalendarEventType {
+  HOLIDAY
+  EXAM
+  EVENT
+  DEADLINE
+  OTHER
+}
+
+// ------------------------------------------------------
+// WORKFLOW ENGINE — a generic, institution-configurable multi-step approval chain
+// (e.g. Leave Request: Dept Head -> Principal). Deliberately NOT wired into any
+// existing single-step approval flow (Leave, Expense, Custom Field, Student Exit, ...)
+// — those keep working exactly as they do today. This is new, opt-in infrastructure an
+// institution can attach to whatever real record it wants a multi-step chain on, by
+// starting an instance against that record's id. Coexists with, does not replace,
+// every existing approval flow in the app.
+// ------------------------------------------------------
+
+enum WorkflowInstanceStatus {
+  IN_PROGRESS
+  APPROVED
+  REJECTED
+}
+
+enum WorkflowStepDecision {
+  APPROVED
+  REJECTED
+}
+
+/// The configurable chain itself — an ordered list of approver roles. `workflowType` is
+/// a free institution-chosen label (e.g. "LEAVE_REQUEST") so the same shape can back any
+/// number of real-world chains without a new table per use case.
+model WorkflowDefinition {
+  id            String   @id @default(uuid())
+  institutionId String
+  workflowType  String
+  name          String
+  steps         Json // ordered: [{ stepOrder: 0, approverRole: "HOD" }, { stepOrder: 1, approverRole: "PRINCIPAL" }]
+  isActive      Boolean  @default(true)
+  createdById   String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  institution Institution        @relation(fields: [institutionId], references: [id])
+  instances   WorkflowInstance[]
+
+  @@unique([institutionId, workflowType])
+}
+
+/// One real request moving through a WorkflowDefinition's chain. `entityType`/`entityId`
+/// point at whatever real record this instance represents (e.g. entityType
+/// "StaffLeaveRequest", entityId = that leave request's real id) — the engine itself
+/// stays generic and doesn't need to know that model's shape.
+model WorkflowInstance {
+  id                   String                 @id @default(uuid())
+  institutionId        String
+  workflowDefinitionId String
+  entityType           String
+  entityId             String
+  currentStepIndex     Int                    @default(0)
+  status               WorkflowInstanceStatus @default(IN_PROGRESS)
+  startedById          String?
+  createdAt            DateTime               @default(now())
+  updatedAt            DateTime               @updatedAt
+
+  institution        Institution        @relation(fields: [institutionId], references: [id])
+  workflowDefinition WorkflowDefinition @relation(fields: [workflowDefinitionId], references: [id])
+  stepLogs           WorkflowStepLog[]
+
+  @@index([institutionId, status])
+  @@index([entityType, entityId])
+}
+
+/// One approver's real decision at one step — the audit trail of the chain.
+model WorkflowStepLog {
+  id                 String               @id @default(uuid())
+  workflowInstanceId String
+  stepIndex          Int
+  approverRole       String
+  decision           WorkflowStepDecision
+  decidedById        String?
+  comment            String?
+  decidedAt          DateTime             @default(now())
+
+  workflowInstance WorkflowInstance @relation(fields: [workflowInstanceId], references: [id], onDelete: Cascade)
+
+  @@index([workflowInstanceId])
+}
+
+// ------------------------------------------------------
+// INTEGRATION HUB (Phase 12) — a real registry of what each integration channel's
+// active provider is, platform-wide (these are .env-level platform credentials, same
+// scope as systemController's existing LIVE/SIMULATED readout, which this extends).
+// Purely metadata: registering a provider here does NOT change any actual send/payment
+// code — shared/utils/notifications.js and paymentGateway.js are untouched. This is the
+// visibility + "known adapter seam" layer the spec asks for (PaymentService ->
+// RazorpayProvider, StripeProvider, ...), not a functional multi-provider rewrite.
+// ------------------------------------------------------
+
+enum IntegrationChannel {
+  SMS
+  EMAIL
+  WHATSAPP
+  PAYMENT_GATEWAY
+  CLOUD_STORAGE
+  VIDEO_MEETING
+  BIOMETRIC
+  RFID
+  GPS_TRACKING
+}
+
+enum IntegrationProviderStatus {
+  LIVE // real credentials configured, actually used by the app today
+  SIMULATED // this channel's code path exists but falls back to a simulated send/response
+  NOT_IMPLEMENTED // no code path exists yet for this channel at all
+}
+
+/// One row per (channel, providerName) — e.g. (SMS, "Fast2SMS"). `isActive` marks which
+/// provider is the one actually wired into the app's code today for that channel; other
+/// rows for the same channel are documented future options, not live alternatives.
+model IntegrationProvider {
+  id           String                    @id @default(uuid())
+  channel      IntegrationChannel
+  providerName String
+  status       IntegrationProviderStatus
+  isActive     Boolean                   @default(false)
+  notes        String?
+  createdAt    DateTime                  @default(now())
+  updatedAt    DateTime                  @updatedAt
+
+  @@unique([channel, providerName])
+  @@index([channel])
+}
+
+/// A saved ad-hoc report shape from the Dynamic Report Builder (Phase 8) — data
+/// source, selected fields, filters, sort — so an institution can re-run the same
+/// report later without rebuilding it. Deliberately separate from Report/SavedReport
+/// (the existing pre-built-report catalog in this same reportEngine) since those
+/// describe a fixed, code-defined report; this describes an arbitrary one a user
+/// assembled themselves from the safe field allow-list in dynamicSources.js.
+model DynamicReportDefinition {
+  id            String   @id @default(uuid())
+  institutionId String
+  name          String
+  dataSource    String // key into shared/reportEngine/dynamicSources.js DATA_SOURCES
+  fields        Json // string[] of field keys to select
+  filters       Json? // [{ field, operator, value }]
+  sortBy        String?
+  sortDirection String? // "asc" | "desc"
+  createdById   String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  institution Institution @relation(fields: [institutionId], references: [id])
+
+  @@index([institutionId])
+}
+
+// ------------------------------------------------------
+// EVENT / AUTOMATION ENGINE (Phase 9) — a plain in-process event bus (see
+// shared/events/), not new infrastructure (no Kafka/RabbitMQ, per the spec's own
+// "start simple" rule). EventLog is the audit trail of what happened; AutomationRule
+// lets an institution configure "when X event fires, send this notification" without
+// touching any existing controller beyond the handful of places that now emit an event
+// (a fire-and-forget addition — the emit call never affects the calling code's own
+// response or behavior).
+// ------------------------------------------------------
+
+/// One real event that happened, for audit/history — every AutomationRule match is
+/// computed against these as they arrive, not by polling this table.
+model EventLog {
+  id            String   @id @default(uuid())
+  institutionId String
+  eventType     String // e.g. "STUDENT_ADMITTED", "FEE_PAID", "FEE_OVERDUE", "LEAVE_APPROVED"
+  payload       Json?
+  createdAt     DateTime @default(now())
+
+  institution Institution @relation(fields: [institutionId], references: [id])
+
+  @@index([institutionId, eventType, createdAt])
+}
+
+enum AutomationActionType {
+  SEND_SMS
+  SEND_EMAIL
+  SEND_WHATSAPP
+}
+
+/// "WHEN <triggerEvent> THEN <actionType> this message" — the automation itself.
+/// messageTemplate supports {{name}}/{{amount}}/etc placeholders resolved from the
+/// event's own payload, same personalization convention broadcastController already uses.
+model AutomationRule {
+  id              String               @id @default(uuid())
+  institutionId   String
+  name            String
+  triggerEvent    String
+  actionType      AutomationActionType
+  messageTemplate String
+  isActive        Boolean              @default(true)
+  createdById     String?
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+
+  institution Institution @relation(fields: [institutionId], references: [id])
+
+  @@index([institutionId, triggerEvent, isActive])
+}
+
+model AcademicCalendarEvent {
+  id            String                    @id @default(uuid())
+  institutionId String
+  title         String
+  description   String?
+  eventType     AcademicCalendarEventType @default(EVENT)
+  startDate     DateTime                  @db.Date
+  endDate       DateTime?                 @db.Date // null = single-day event
+  createdAt     DateTime                  @default(now())
+  updatedAt     DateTime                  @updatedAt
+
+  institution Institution @relation(fields: [institutionId], references: [id])
+
+  @@index([institutionId, startDate])
 }
 
 model Department {
@@ -383,6 +740,48 @@ enum Gender {
   OTHER
 }
 
+enum StudentExitType {
+  WITHDRAWAL
+  TRANSFER
+}
+
+enum StudentExitStatus {
+  REQUESTED
+  CLEARANCE_PENDING
+  APPROVED
+  COMPLETED
+  CANCELLED
+}
+
+/// The actual withdrawal/transfer workflow — distinct from the TC (Transfer Certificate)
+/// document CertificateController generates, which is just the paper output. This is
+/// the state change: why the student is leaving, whether library/fee/hostel clearance
+/// is done, and the terminal step that actually updates Student.status. A student may
+/// have more than one row over time only if an earlier one was CANCELLED.
+model StudentExitRecord {
+  id                    String            @id @default(uuid())
+  institutionId         String
+  studentId             String
+  exitType              StudentExitType
+  reason                String
+  transferToInstitution String? // only meaningful for TRANSFER
+  requestedDate         DateTime          @default(now())
+  exitDate              DateTime? // actual last day — set when COMPLETED
+  status                StudentExitStatus @default(REQUESTED)
+  libraryCleared        Boolean           @default(false)
+  feesCleared           Boolean           @default(false)
+  hostelCleared         Boolean           @default(false)
+  processedById         String? // User.id who approved/completed it
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+
+  institution Institution @relation(fields: [institutionId], references: [id])
+  student     Student     @relation(fields: [studentId], references: [id])
+
+  @@index([institutionId, status])
+  @@index([studentId])
+}
+
 model Student {
   id              String    @id @default(uuid())
   userId          String    @unique
@@ -474,6 +873,9 @@ model Student {
   feeChallans         FeeChallan[]
   feeRefunds          FeeRefund[]
   bookIssues          BookIssue[]
+  libraryMember       LibraryMember?
+  documents           StudentDocument[]
+  exitRecords         StudentExitRecord[]
   transport           StudentTransportMapping?
   hostelBed           HostelBed?
   hostelVisitorLogs   HostelVisitorLog[]
@@ -1045,6 +1447,10 @@ model StudentFeeAssignment {
   status           String   @default("PENDING") // PENDING, PARTIAL, PAID
   createdAt        DateTime @default(now())
 
+  // Institution-specific extra assignment fields (SuperAdmin-approved only — see
+  // AdmissionCustomField, entityType FEE_ASSIGNMENT), e.g. "Sponsor Name".
+  customFields Json?
+
   feeStructure FeeStructure     @relation(fields: [feeStructureId], references: [id])
   student      Student          @relation(fields: [studentId], references: [id])
   payments     FeePayment[]
@@ -1236,6 +1642,30 @@ model BookIssue {
   student Student @relation(fields: [studentId], references: [id])
 }
 
+/// Optional formal library-card registration for a student — entirely separate from
+/// BookIssue above, which keeps working exactly as before whether or not a student has
+/// ever been registered here. An institution that never uses this still issues/returns
+/// books normally; this only exists for institutions that want a real membership record
+/// (with their own extra fields — see AdmissionCustomField, entityType LIBRARY_MEMBERSHIP)
+/// to track, e.g. a physical library card number.
+model LibraryMember {
+  id               String   @id @default(uuid())
+  institutionId    String
+  studentId        String   @unique
+  membershipNumber String
+  status           String   @default("ACTIVE") // ACTIVE, SUSPENDED, EXPIRED
+  joinedAt         DateTime @default(now())
+
+  // Institution-specific extra registration fields (SuperAdmin-approved only — see
+  // AdmissionCustomField, entityType LIBRARY_MEMBERSHIP).
+  customFields Json?
+
+  institution Institution @relation(fields: [institutionId], references: [id])
+  student     Student     @relation(fields: [studentId], references: [id])
+
+  @@unique([institutionId, membershipNumber])
+}
+
 model Vehicle {
   id                  String    @id @default(uuid())
   institutionId       String
@@ -1292,6 +1722,10 @@ model StudentTransportMapping {
   pickupPoint String
   createdAt   DateTime @default(now())
 
+  // Institution-specific extra enrollment fields (SuperAdmin-approved only — see
+  // AdmissionCustomField, entityType TRANSPORT_ENROLLMENT), e.g. "Emergency Contact".
+  customFields Json?
+
   student Student        @relation(fields: [studentId], references: [id])
   route   TransportRoute @relation(fields: [routeId], references: [id])
 }
@@ -1319,6 +1753,10 @@ model HostelBed {
   studentId  String? @unique
   isOccupied Boolean @default(false)
   monthlyFee Float   @default(5000)
+
+  // Institution-specific extra allocation fields (SuperAdmin-approved only — see
+  // AdmissionCustomField, entityType HOSTEL_ALLOCATION), e.g. "Room Preference".
+  customFields Json?
 
   hostel     Hostel             @relation(fields: [hostelId], references: [id])
   student    Student?           @relation(fields: [studentId], references: [id])
@@ -1614,6 +2052,63 @@ model JobApplication {
   student    Student    @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
   @@unique([jobPostingId, studentId])
+}
+
+// ------------------------------------------------------
+// HR RECRUITMENT — the institution hiring staff. Deliberately separate from
+// JobPosting/JobApplication above (Placement), which is students applying to outside
+// employers — different direction entirely. A SELECTED candidate is not auto-converted
+// into a real Staff record: onboarding still goes through the existing staffController
+// registration flow (salary structure, qualifications, etc.) by hand, same as
+// Pre-Admission requires an explicit "Admit" action rather than a silent auto-create.
+// ------------------------------------------------------
+
+enum JobOpeningStatus {
+  OPEN
+  CLOSED
+}
+
+enum CandidateApplicationStatus {
+  APPLIED
+  SHORTLISTED
+  INTERVIEW_SCHEDULED
+  SELECTED
+  REJECTED
+  HIRED
+}
+
+model JobOpening {
+  id             String           @id @default(uuid())
+  institutionId  String
+  title          String
+  department     String?
+  employmentType String           @default("FULL_TIME") // FULL_TIME, PART_TIME, CONTRACT
+  description    String?
+  requirements   String?
+  openings       Int              @default(1)
+  status         JobOpeningStatus @default(OPEN)
+  postedById     String?
+  createdAt      DateTime         @default(now())
+
+  institution  Institution            @relation(fields: [institutionId], references: [id])
+  applications CandidateApplication[]
+}
+
+model CandidateApplication {
+  id            String                     @id @default(uuid())
+  jobOpeningId  String
+  candidateName String
+  email         String
+  phone         String
+  resumeData    String? // base64 data URI, same convention as StudentDocument.fileData
+  status        CandidateApplicationStatus @default(APPLIED)
+  interviewDate DateTime?
+  notes         String?
+  appliedAt     DateTime                   @default(now())
+
+  jobOpening JobOpening @relation(fields: [jobOpeningId], references: [id], onDelete: Cascade)
+
+  @@index([jobOpeningId, status])
 }
 
 // ------------------------------------------------------
@@ -2108,6 +2603,46 @@ model WhatsappLog {
   @@index([status])
 }
 
+/// A broadcast (see broadcastController's SMS/Email/WhatsApp send) queued for a future
+/// time instead of sent immediately. Reuses the exact same audience-resolution and
+/// {{name}} personalization as an immediate broadcast — dispatch is just "run the same
+/// send logic later." Deliberately its own model, not a field bolted onto SmsLog/
+/// EmailLog/WhatsappLog, since those log something that already happened.
+enum ScheduledNotificationChannel {
+  SMS
+  EMAIL
+  WHATSAPP
+}
+
+enum ScheduledNotificationStatus {
+  PENDING
+  SENT
+  FAILED
+  CANCELLED
+}
+
+model ScheduledNotification {
+  id             String                       @id @default(uuid())
+  institutionId  String
+  channel        ScheduledNotificationChannel
+  recipientGroup String // same RECIPIENT_GROUPS values as an immediate broadcast
+  courseId       String? // only meaningful when recipientGroup = "course"
+  subject        String? // email only
+  message        String
+  scheduledFor   DateTime
+  status         ScheduledNotificationStatus  @default(PENDING)
+  sentAt         DateTime?
+  resultSummary  Json? // { totalRecipients, sent, skipped } once dispatched
+  errorMessage   String?
+  createdById    String?
+  createdAt      DateTime                     @default(now())
+
+  institution Institution @relation(fields: [institutionId], references: [id])
+
+  @@index([status, scheduledFor])
+  @@index([institutionId])
+}
+
 model PlatformWhatsappWallet {
   id             String   @id @default("global")
   balance        Int      @default(0)
@@ -2164,9 +2699,77 @@ model Vendor {
   email         String?
   createdAt     DateTime @default(now())
 
-  institution    Institution     @relation(fields: [institutionId], references: [id])
-  purchaseOrders PurchaseOrder[]
-  Asset          Asset[]
+  institution        Institution              @relation(fields: [institutionId], references: [id])
+  purchaseOrders     PurchaseOrder[]
+  Asset              Asset[]
+  expenses           Expense[]
+  maintenanceRecords AssetMaintenanceRecord[]
+}
+
+/// Institution operating expenses — salaries advances, utilities, maintenance, etc.
+/// Distinct from PurchaseOrder (which is for goods bought against inventory/assets):
+/// an expense is any money spent, with or without a physical item attached to it, and
+/// goes through its own lightweight approval before being marked paid.
+enum ExpenseCategory {
+  UTILITIES
+  MAINTENANCE
+  SUPPLIES
+  TRANSPORT
+  EVENTS
+  MARKETING
+  PROFESSIONAL_FEES
+  SALARY_ADVANCE
+  OTHER
+}
+
+enum ExpenseStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  PAID
+}
+
+model Expense {
+  id              String          @id @default(uuid())
+  institutionId   String
+  category        ExpenseCategory @default(OTHER)
+  title           String
+  description     String?
+  amount          Float
+  expenseDate     DateTime        @db.Date
+  vendorId        String?
+  status          ExpenseStatus   @default(PENDING)
+  requestedById   String? // User.id who logged the expense
+  approvedById    String? // User.id who approved/rejected it
+  approvedAt      DateTime?
+  rejectionReason String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  institution Institution @relation(fields: [institutionId], references: [id])
+  vendor      Vendor?     @relation(fields: [vendorId], references: [id])
+
+  @@index([institutionId, status])
+}
+
+/// How much an institution planned to spend per category per period — compared against
+/// real Expense rows (same ExpenseCategory enum, so the two line up directly) to show
+/// budget vs. actual. Deliberately just a plan record, not a ledger — actual spend
+/// still only exists as real Expense rows.
+model Budget {
+  id              String          @id @default(uuid())
+  institutionId   String
+  category        ExpenseCategory
+  period          String // e.g. "2026-27" (kept a free string so an institution can use an academic year OR a quarter label, same flexibility as FeeStructure.frequency)
+  allocatedAmount Float
+  notes           String?
+  createdById     String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  institution Institution @relation(fields: [institutionId], references: [id])
+
+  @@unique([institutionId, category, period])
 }
 
 model Asset {
@@ -2184,11 +2787,40 @@ model Asset {
   vendorId           String?
   createdAt          DateTime  @default(now())
 
-  institution Institution      @relation(fields: [institutionId], references: [id])
-  vendor      Vendor?          @relation(fields: [vendorId], references: [id])
-  issueLogs   EquipmentIssue[]
+  institution        Institution              @relation(fields: [institutionId], references: [id])
+  vendor             Vendor?                  @relation(fields: [vendorId], references: [id])
+  issueLogs          EquipmentIssue[]
+  maintenanceRecords AssetMaintenanceRecord[]
 
   @@unique([institutionId, assetTag])
+}
+
+enum AssetMaintenanceStatus {
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+/// A service/repair/calibration event for an Asset — distinct from EquipmentIssue
+/// (who currently has it checked out); this is "what work was done to keep it working."
+model AssetMaintenanceRecord {
+  id            String                 @id @default(uuid())
+  assetId       String
+  description   String
+  scheduledDate DateTime               @db.Date
+  completedDate DateTime?              @db.Date
+  cost          Float?
+  vendorId      String? // who performed the maintenance, reusing the same Vendor catalog
+  status        AssetMaintenanceStatus @default(SCHEDULED)
+  notes         String?
+  createdById   String?
+  createdAt     DateTime               @default(now())
+
+  asset  Asset   @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  vendor Vendor? @relation(fields: [vendorId], references: [id])
+
+  @@index([assetId, status])
 }
 
 // A single checkout/return record — who currently holds a piece of lab equipment, and when
@@ -2747,6 +3379,38 @@ model GalleryAlbum {
   @@index([institutionId, category])
 }
 
+/// A real document attached to a student's record — birth certificate, transfer
+/// certificate from a previous school, ID proof, etc. Stored as a base64 data URI, same
+/// convention as GalleryPhoto.imageData/Institution.logo (no external file storage is
+/// wired up in this codebase yet — STORAGE_* env vars are placeholders, see .env).
+enum StudentDocumentType {
+  BIRTH_CERTIFICATE
+  TRANSFER_CERTIFICATE
+  MARKSHEET
+  ID_PROOF
+  ADDRESS_PROOF
+  MEDICAL_RECORD
+  OTHER
+}
+
+model StudentDocument {
+  id            String              @id @default(uuid())
+  institutionId String
+  studentId     String
+  documentType  StudentDocumentType @default(OTHER)
+  title         String
+  fileData      String // base64 data URI
+  fileName      String?
+  mimeType      String?
+  uploadedById  String? // Staff.id or the Institute Admin's User.id — no FK, either can upload
+  uploadedAt    DateTime            @default(now())
+
+  institution Institution @relation(fields: [institutionId], references: [id])
+  student     Student     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([institutionId, studentId])
+}
+
 model GalleryPhoto {
   id           String   @id @default(uuid())
   albumId      String
@@ -2868,6 +3532,12 @@ model PreAdmissionApplication {
   submittedFromIp    String?
   rawPayload         Json? // the full submitted body, kept as-is for audit/debugging
   customFields       Json? // only the values matching APPROVED AdmissionCustomField keys at submission time — this is what actually carries through to the Student on Admit
+  // Application fee — only meaningful when the institution has set Institution.preAdmissionFeeAmount;
+  // feeAmount is snapshotted at submission time so a later fee-amount change never rewrites history.
+  feeAmount          Float?
+  feePaid            Boolean            @default(false)
+  feePaymentId       String? // the real Razorpay payment id once verified (see shared/utils/paymentGateway)
+  feePaidAt          DateTime?
   status             PreAdmissionStatus @default(NEW)
   enrolledAt         DateTime? // when the applicant was accepted/enrolled (the "Enroll" action)
   reviewNotes        String?
@@ -2909,30 +3579,40 @@ enum CustomFieldType {
 
 /// Which real form a custom field applies to — each entity type stores its approved
 /// field values in that entity's own `customFields` Json column (Student.customFields
-/// for ADMISSION, Staff.customFields for STAFF_PROFILE).
+/// for ADMISSION, Staff.customFields for STAFF_PROFILE, StudentTransportMapping.customFields
+/// for TRANSPORT_ENROLLMENT, HostelBed.customFields for HOSTEL_ALLOCATION,
+/// StudentFeeAssignment.customFields for FEE_ASSIGNMENT, LibraryMember.customFields for
+/// LIBRARY_MEMBERSHIP).
 enum CustomFieldEntityType {
   ADMISSION
   STAFF_PROFILE
+  TRANSPORT_ENROLLMENT
+  HOSTEL_ALLOCATION
+  FEE_ASSIGNMENT
+  LIBRARY_MEMBERSHIP
 }
 
 model AdmissionCustomField {
-  id              String                @id @default(uuid())
-  institutionId   String
-  entityType      CustomFieldEntityType @default(ADMISSION)
-  fieldKey        String // machine key, e.g. "blood_donor_consent" — stored as the key inside that entity type's own customFields column
-  label           String
-  fieldType       CustomFieldType       @default(TEXT)
-  section         String                @default("Additional Information")
-  options         Json? // string[] of choices, only meaningful for fieldType SELECT
-  required        Boolean               @default(false)
-  order           Int                   @default(0)
-  status          CustomFieldStatus     @default(DRAFT)
-  submittedAt     DateTime? // when it last moved DRAFT -> PENDING_APPROVAL
-  reviewedById    String? // SuperAdmin User.id who approved/rejected it — no FK, SuperAdmin users live outside institution scope
-  reviewedAt      DateTime?
-  rejectionReason String?
-  createdAt       DateTime              @default(now())
-  updatedAt       DateTime              @updatedAt
+  id                  String                @id @default(uuid())
+  institutionId       String
+  entityType          CustomFieldEntityType @default(ADMISSION)
+  fieldKey            String // machine key, e.g. "blood_donor_consent" — stored as the key inside that entity type's own customFields column
+  label               String
+  fieldType           CustomFieldType       @default(TEXT)
+  section             String                @default("Additional Information")
+  options             Json? // string[] of choices, only meaningful for fieldType SELECT
+  required            Boolean               @default(false)
+  order               Int                   @default(0)
+  helpText            String? // small explanatory text shown under the field label
+  hidden              Boolean               @default(false) // captured but not rendered — e.g. a value set programmatically rather than typed by the user
+  visibilityCondition Json? // { dependsOnFieldKey, operator: 'equals'|'not_equals', value } — only render this field when the referenced field's live value matches; null = always visible (subject to `hidden` above)
+  status              CustomFieldStatus     @default(DRAFT)
+  submittedAt         DateTime? // when it last moved DRAFT -> PENDING_APPROVAL
+  reviewedById        String? // SuperAdmin User.id who approved/rejected it — no FK, SuperAdmin users live outside institution scope
+  reviewedAt          DateTime?
+  rejectionReason     String?
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
 
   institution Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
 
