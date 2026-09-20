@@ -3,12 +3,14 @@ import { FolderDown, ExternalLink, FileText, Plus, Loader2, Trash2 } from 'lucid
 import { useNavigate } from 'react-router-dom';
 import { useNotification } from '../../context/NotificationContext';
 import materialService from '../../services/materialService';
+import ConfirmDialog from '../../components/modals/ConfirmDialog';
 
 export const MaterialLibraryPage = () => {
   const navigate = useNavigate();
   const { error: showError, success } = useNotification();
   const [materials, setMaterials] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [confirming, setConfirming] = useState(null);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -20,7 +22,8 @@ export const MaterialLibraryPage = () => {
 
   useEffect(() => { load(); }, [load]);
 
-  const handleDelete = async (mat) => {
+  const handleDelete = async () => {
+    const mat = confirming;
     try {
       await materialService.deleteMaterial(mat.id);
       success(`Removed "${mat.title}"`, 'Material Removed');
@@ -74,7 +77,7 @@ export const MaterialLibraryPage = () => {
                 <a href={mat.fileUrl} target="_blank" rel="noreferrer" className="p-2 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl">
                   <ExternalLink className="w-5 h-5" />
                 </a>
-                <button onClick={() => handleDelete(mat)} className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950 rounded-xl">
+                <button onClick={() => setConfirming(mat)} className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950 rounded-xl">
                   <Trash2 className="w-4 h-4" />
                 </button>
               </div>
@@ -82,6 +85,14 @@ export const MaterialLibraryPage = () => {
           ))}
         </div>
       )}
+
+      <ConfirmDialog
+        isOpen={Boolean(confirming)}
+        onClose={() => setConfirming(null)}
+        onConfirm={handleDelete}
+        title="Remove Material?"
+        message={confirming ? `"${confirming.title}" will no longer be visible to students. This cannot be undone.` : ''}
+      />
     </div>
   );
 };
