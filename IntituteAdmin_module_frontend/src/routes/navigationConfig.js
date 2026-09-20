@@ -184,6 +184,7 @@ export const navigationConfig = [
       { key: 'student-assignment', title: 'Student Fee Assignment', path: '/admin/fee/assignment' },
       { key: 'bulk-assignment', title: 'Bulk Fee Assignment', path: '/admin/fee/bulk-assignment' },
       { key: 'collect-fee', title: 'Collect Fee (POS/UPI)', path: '/admin/fee/collect' },
+      { key: 'collect-fee-v2', title: 'Collect Fee (Dynamic Engine)', path: '/admin/fee/collect-v2', badge: 'NEW' },
       { key: 'pending-fees', title: 'Pending Fees List', path: '/admin/fee/pending' },
       { key: 'challan', title: 'Bank Challan Generator', path: '/admin/fee/challan' },
       { key: 'receipt-preview', title: 'Fee Receipt Printable', path: '/admin/fee/receipt' },

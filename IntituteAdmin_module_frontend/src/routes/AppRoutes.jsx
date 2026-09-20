@@ -96,6 +96,7 @@ import FeeStructurePage from '../pages/fee/FeeStructurePage';
 import StudentFeeAssignmentPage from '../pages/fee/StudentFeeAssignmentPage';
 import BulkFeeAssignmentPage from '../pages/fee/BulkFeeAssignmentPage';
 import CollectFeePage from '../pages/fee/CollectFeePage';
+import FeeCollectionV2Page from '../pages/fee/FeeCollectionV2Page';
 import PendingFeesPage from '../pages/fee/PendingFeesPage';
 import InstallmentManagementPage from '../pages/fee/InstallmentManagementPage';
 import ScholarshipManagementPage from '../pages/fee/ScholarshipManagementPage';
@@ -312,6 +313,7 @@ export const AppRoutes = () => {
         <Route path="fee/assignment" element={<StudentFeeAssignmentPage />} />
         <Route path="fee/bulk-assignment" element={<BulkFeeAssignmentPage />} />
         <Route path="fee/collect" element={<CollectFeePage />} />
+        <Route path="fee/collect-v2" element={<FeeCollectionV2Page />} />
         <Route path="fee/pending" element={<PendingFeesPage />} />
         <Route path="fee/challan" element={<ChallanGenerationPage />} />
         <Route path="fee/receipt" element={<PrintableReceiptPage />} />
