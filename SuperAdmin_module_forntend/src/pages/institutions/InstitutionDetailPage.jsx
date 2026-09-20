@@ -6,6 +6,7 @@ import institutionService from '../../services/institutionService';
 import userService from '../../services/userService';
 import billingService from '../../services/billingService';
 import auditLogService from '../../services/auditLogService';
+import subscriptionService from '../../services/subscriptionService';
 import StatusBadge from '../../components/common/StatusBadge';
 
 const InstitutionUsersTab = ({ institutionId }) => {
@@ -104,6 +105,41 @@ const InstitutionActivityTab = ({ institutionId }) => {
         </div>
       ))}
     </div>
+  );
+};
+
+const InstitutionSubscriptionTab = ({ institutionId }) => {
+  const { error: showError } = useNotification();
+  const [subscriptions, setSubscriptions] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  React.useEffect(() => {
+    subscriptionService.getSubscriptions({ institutionId, limit: 20 })
+      .then((res) => setSubscriptions(res.data || []))
+      .catch((err) => showError(err.message || 'Failed to load subscriptions', 'Load Failed'))
+      .finally(() => setLoading(false));
+  }, [institutionId, showError]);
+
+  if (loading) return <div className="flex justify-center py-10"><Loader2 className="w-6 h-6 animate-spin text-indigo-600" /></div>;
+  if (subscriptions.length === 0) return <p className="text-xs text-slate-500 py-4">No subscription history for this institution yet.</p>;
+
+  return (
+    <table className="w-full text-left text-xs">
+      <thead className="uppercase text-[10px] font-semibold text-slate-500 border-b border-slate-200 dark:border-slate-800">
+        <tr><th className="py-2 pr-3">Plan</th><th className="py-2 pr-3">Price / Month</th><th className="py-2 pr-3">Start</th><th className="py-2 pr-3">End</th><th className="py-2">Status</th></tr>
+      </thead>
+      <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+        {subscriptions.map((s) => (
+          <tr key={s.id}>
+            <td className="py-2 pr-3 font-semibold text-slate-900 dark:text-white">{s.plan?.name || '—'}</td>
+            <td className="py-2 pr-3 font-mono text-slate-600 dark:text-slate-300">{s.plan?.priceMonthly != null ? `₹${Number(s.plan.priceMonthly).toLocaleString('en-IN')}` : '—'}</td>
+            <td className="py-2 pr-3 text-slate-500">{new Date(s.startDate).toLocaleDateString()}</td>
+            <td className="py-2 pr-3 text-slate-500">{new Date(s.endDate).toLocaleDateString()}</td>
+            <td className="py-2"><StatusBadge status={s.status} size="sm" /></td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
   );
 };
 
@@ -398,11 +434,13 @@ export const InstitutionDetailPage = () => {
 
         {activeTab === 'Activity' && <InstitutionActivityTab institutionId={inst.id} />}
 
+        {activeTab === 'Subscription' && <InstitutionSubscriptionTab institutionId={inst.id} />}
+
         {activeTab === 'Settings' && (
           <InstitutionEditForm inst={inst} onSaved={(updated) => setInst((prev) => ({ ...prev, ...updated }))} />
         )}
 
-        {['Students', 'Staff', 'Subscription', 'Documents'].includes(activeTab) && (
+        {['Students', 'Staff', 'Documents'].includes(activeTab) && (
           <div className="text-xs text-slate-500 py-4">
             <p className="font-bold text-slate-800 dark:text-slate-200">{activeTab} Panel for {inst.name}</p>
             <p className="mt-1">Tenant isolated data loaded cleanly for Super Admin inspection.</p>

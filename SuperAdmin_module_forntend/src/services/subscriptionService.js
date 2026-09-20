@@ -10,8 +10,9 @@ export const subscriptionService = {
   updatePlan: async (id, payload) => {
     return apiCall(`/api/v1/super-admin/plans/${id}`, { method: 'PATCH', body: payload });
   },
-  getSubscriptions: async () => {
-    return apiCall('/api/v1/super-admin/subscriptions');
+  getSubscriptions: async (params = {}) => {
+    const query = new URLSearchParams(params).toString();
+    return apiCall(`/api/v1/super-admin/subscriptions${query ? `?${query}` : ''}`);
   },
   getRenewals: async () => {
     return apiCall('/api/v1/super-admin/subscriptions/renewals');
