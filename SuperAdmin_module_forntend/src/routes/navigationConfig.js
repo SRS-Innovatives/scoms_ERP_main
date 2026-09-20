@@ -14,6 +14,7 @@ import {
   FileBarChart,
   Layers
 } from 'lucide-react';
+import { PERMISSIONS } from '../utils/permissions';
 
 export const navigationConfig = [
   {
@@ -39,7 +40,7 @@ export const navigationConfig = [
     title: 'Module Management',
     icon: Layers,
     children: [
-      { key: 'module-registry-list', title: 'Module Registry', path: '/super-admin/modules' }
+      { key: 'module-registry-list', title: 'Module Registry', path: '/super-admin/modules', requiredPermission: PERMISSIONS.MODULE_REGISTRY_MANAGE }
     ]
   },
   {
@@ -59,7 +60,7 @@ export const navigationConfig = [
     children: [
       { key: 'all-users', title: 'All Users', path: '/super-admin/users' },
       { key: 'roles-list', title: 'Roles', path: '/super-admin/roles' },
-      { key: 'permission-matrix', title: 'Permissions', path: '/super-admin/permissions' }
+      { key: 'permission-matrix', title: 'Permissions', path: '/super-admin/permissions', requiredPermission: PERMISSIONS.USERS_MANAGE_ROLES }
     ]
   },
   {
@@ -67,7 +68,7 @@ export const navigationConfig = [
     title: 'Subscriptions',
     icon: CreditCard,
     children: [
-      { key: 'plans-list', title: 'Plans & Limits', path: '/super-admin/plans' },
+      { key: 'plans-list', title: 'Plans & Limits', path: '/super-admin/plans', requiredPermission: PERMISSIONS.SUBSCRIPTIONS_MANAGE },
       { key: 'active-subscriptions', title: 'Active Subscriptions', path: '/super-admin/subscriptions' },
       { key: 'trial-subscriptions', title: 'Trials', path: '/super-admin/subscriptions/trials' },
       { key: 'renewals', title: 'Renewals', path: '/super-admin/subscriptions/renewals' }
@@ -91,9 +92,9 @@ export const navigationConfig = [
     title: 'Communication',
     icon: MessageSquare,
     children: [
-      { key: 'sms-manager', title: 'SMS Administration', path: '/super-admin/sms' },
-      { key: 'whatsapp-manager', title: 'WhatsApp Integration', path: '/super-admin/whatsapp' },
-      { key: 'email-manager', title: 'Email Administration', path: '/super-admin/email' },
+      { key: 'sms-manager', title: 'SMS Administration', path: '/super-admin/sms', requiredPermission: PERMISSIONS.SMS_MANAGE },
+      { key: 'whatsapp-manager', title: 'WhatsApp Integration', path: '/super-admin/whatsapp', requiredPermission: PERMISSIONS.WHATSAPP_MANAGE },
+      { key: 'email-manager', title: 'Email Administration', path: '/super-admin/email', requiredPermission: PERMISSIONS.EMAIL_MANAGE },
       { key: 'notifications-mgr', title: 'Notifications', path: '/super-admin/notifications' },
       { key: 'announcements-mgr', title: 'Announcements', path: '/super-admin/announcements' }
     ]
@@ -127,7 +128,7 @@ export const navigationConfig = [
     children: [
       { key: 'ai-dashboard', title: 'AI Dashboard', path: '/super-admin/ai' },
       { key: 'ai-usage', title: 'AI Usage & Token Cost', path: '/super-admin/ai/usage' },
-      { key: 'ai-config', title: 'AI Configuration', path: '/super-admin/ai/config' }
+      { key: 'ai-config', title: 'AI Configuration', path: '/super-admin/ai/config', requiredPermission: PERMISSIONS.AI_CONFIG_MANAGE }
     ]
   },
   {
@@ -159,8 +160,8 @@ export const navigationConfig = [
     title: 'Platform Settings',
     icon: Settings,
     children: [
-      { key: 'settings-general', title: 'General & Localization', path: '/super-admin/settings' },
-      { key: 'settings-branding', title: 'Branding & White Label', path: '/super-admin/settings/branding' }
+      { key: 'settings-general', title: 'General & Localization', path: '/super-admin/settings', requiredPermission: PERMISSIONS.PLATFORM_SETTINGS_MANAGE },
+      { key: 'settings-branding', title: 'Branding & White Label', path: '/super-admin/settings/branding', requiredPermission: PERMISSIONS.PLATFORM_SETTINGS_MANAGE }
     ]
   }
 ];
