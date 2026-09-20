@@ -28,7 +28,7 @@ import campusService from '../../services/campusService';
 const TODAY_NAME = new Date().toLocaleDateString('en-US', { weekday: 'long' }).toUpperCase();
 
 export const StudentDashboardPage = () => {
-  const { student } = useStudentAuth();
+  const { student, isParent } = useStudentAuth();
   const { error: showError } = useNotification();
   const navigate = useNavigate();
 
@@ -121,7 +121,9 @@ export const StudentDashboardPage = () => {
                   {student?.status}
                 </span>
               </div>
-              <p className="text-xs text-indigo-200 font-semibold mt-2">{greeting}, {firstName} 👋</p>
+              <p className="text-xs text-indigo-200 font-semibold mt-2">
+                {isParent ? `${greeting} 👋 — viewing` : `${greeting}, ${firstName} 👋`}
+              </p>
               <h2 className="text-xl sm:text-2xl font-black mt-0.5">{student?.name}</h2>
               <p className="text-xs text-indigo-100 mt-0.5">
                 {student?.course} • {student?.department} ({student?.semester}, Sec {student?.section})
