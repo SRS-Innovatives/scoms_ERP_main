@@ -130,7 +130,8 @@ export const navigationConfig = [
       { key: 'daily-timetable', title: 'Daily Schedule', path: '/staff/timetable/daily' },
       { key: 'weekly-timetable', title: 'Weekly Schedule Grid', path: '/staff/timetable/weekly' },
       { key: 'substitute-classes', title: 'Substitute Classes', path: '/staff/timetable/substitute' },
-      { key: 'free-periods', title: 'Free Periods', path: '/staff/timetable/free' }
+      { key: 'free-periods', title: 'Free Periods', path: '/staff/timetable/free' },
+      { key: 'academic-calendar', title: 'Academic Calendar', path: '/staff/academic-calendar' }
     ]
   },
   {

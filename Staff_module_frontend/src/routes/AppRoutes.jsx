@@ -94,6 +94,7 @@ import StudentLeaveApprovalPage from '../pages/leave/StudentLeaveApprovalPage';
 
 // Events
 import EventDutiesPage from '../pages/events/EventDutiesPage';
+import AcademicCalendarPage from '../pages/calendar/AcademicCalendarPage';
 import ClubActivitiesPage from '../pages/events/ClubActivitiesPage';
 import CompetitionManagementPage from '../pages/events/CompetitionManagementPage';
 import EventAttendancePage from '../pages/events/EventAttendancePage';
@@ -239,6 +240,7 @@ export const AppRoutes = () => {
 
             {/* Events */}
             <Route path="events/duties" element={<EventDutiesPage />} />
+            <Route path="academic-calendar" element={<AcademicCalendarPage />} />
             <Route path="events/clubs" element={<ClubActivitiesPage />} />
             <Route path="events/competitions" element={<CompetitionManagementPage />} />
             <Route path="events/attendance" element={<EventAttendancePage />} />
