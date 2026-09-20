@@ -25,7 +25,9 @@ import {
   HeartPulse,
   UserCheck,
   PartyPopper,
-  Images
+  Images,
+  Zap,
+  GitBranch
 } from 'lucide-react';
 
 export const navigationConfig = [
@@ -41,6 +43,7 @@ export const navigationConfig = [
     icon: Building2,
     children: [
       { key: 'profile', title: 'Institute Profile', path: '/admin/setup/profile' },
+      { key: 'module-settings', title: 'Module Settings', path: '/admin/setup/module-settings' },
       { key: 'academic-year', title: 'Academic Year Setup', path: '/admin/setup/academic-year' },
       { key: 'campus', title: 'Campus Setup', path: '/admin/setup/campus' },
       { key: 'department', title: 'Department Setup', path: '/admin/setup/department' },
@@ -73,6 +76,7 @@ export const navigationConfig = [
       { key: 'bonafide', title: 'Bonafide Certificate', path: '/admin/student/bonafide' },
       { key: 'id-card', title: 'ID Card Generator', path: '/admin/student/id-card' },
       { key: 'documents', title: 'Document Vault', path: '/admin/student/documents' },
+      { key: 'exit', title: 'Withdrawal / Transfer', path: '/admin/student/exit' },
       { key: 'promote', title: 'Promote Students', path: '/admin/student/promote' }
     ]
   },
@@ -188,7 +192,8 @@ export const navigationConfig = [
       { key: 'refund', title: 'Refund Management', path: '/admin/fee/refund' },
       { key: 'fee-reports', title: 'Fee Collection Reports', path: '/admin/fee/reports' },
       { key: 'cash-book', title: 'Cash Book', path: '/admin/fee/cash-book' },
-      { key: 'day-book', title: 'Day Book Ledger', path: '/admin/fee/day-book' }
+      { key: 'day-book', title: 'Day Book Ledger', path: '/admin/fee/day-book' },
+      { key: 'fee-assignment-fields', title: 'Fee Form Builder', path: '/admin/fee/form-builder' }
     ]
   },
   {
@@ -199,6 +204,7 @@ export const navigationConfig = [
       { key: 'announcements', title: 'Announcements', path: '/admin/communication/announcements' },
       { key: 'circulars', title: 'Circulars & Notices', path: '/admin/communication/circulars' },
       { key: 'sms-center', title: 'SMS Center (DLT)', path: '/admin/communication/sms-center' },
+      { key: 'scheduled-notifications', title: 'Scheduled Notifications', path: '/admin/communication/scheduled' },
       { key: 'email-center', title: 'Email Broadcast', path: '/admin/communication/email-center' },
       { key: 'whatsapp', title: 'WhatsApp Broadcast', path: '/admin/communication/whatsapp' },
       { key: 'templates', title: 'Message Templates', path: '/admin/communication/templates', badge: 'NEW' },
@@ -254,7 +260,8 @@ export const navigationConfig = [
       { key: 'return-book', title: 'Return & Renew', path: '/admin/library/return' },
       { key: 'fine-collection', title: 'Fine Collection', path: '/admin/library/fines' },
       { key: 'library-card', title: 'Student Library Card', path: '/admin/library/card' },
-      { key: 'library-reports', title: 'Library Reports', path: '/admin/library/reports' }
+      { key: 'library-reports', title: 'Library Reports', path: '/admin/library/reports' },
+      { key: 'library-membership-fields', title: 'Library Form Builder', path: '/admin/library/form-builder' }
     ]
   },
   {
@@ -267,7 +274,8 @@ export const navigationConfig = [
       { key: 'drivers', title: 'Driver Management', path: '/admin/transport/drivers' },
       { key: 'student-mapping', title: 'Student Route Mapping', path: '/admin/transport/mapping' },
       { key: 'transport-fee', title: 'Transport Fee Setup', path: '/admin/transport/fee' },
-      { key: 'vehicle-att', title: 'Vehicle Attendance', path: '/admin/transport/attendance' }
+      { key: 'vehicle-att', title: 'Vehicle Attendance', path: '/admin/transport/attendance' },
+      { key: 'transport-enrollment-fields', title: 'Transport Form Builder', path: '/admin/transport/form-builder' }
     ]
   },
   {
@@ -280,7 +288,8 @@ export const navigationConfig = [
       { key: 'bed-allocation', title: 'Bed Allocation', path: '/admin/hostel/beds' },
       { key: 'hostel-att', title: 'Hostel Attendance', path: '/admin/hostel/attendance' },
       { key: 'mess-fee', title: 'Mess Fee Management', path: '/admin/hostel/mess-fee' },
-      { key: 'visitor-register', title: 'Visitor Register', path: '/admin/hostel/visitors' }
+      { key: 'visitor-register', title: 'Visitor Register', path: '/admin/hostel/visitors' },
+      { key: 'hostel-allocation-fields', title: 'Hostel Form Builder', path: '/admin/hostel/form-builder' }
     ]
   },
   {
@@ -293,8 +302,39 @@ export const navigationConfig = [
       { key: 'computer-lab', title: 'Computer Lab Inventory', path: '/admin/inventory/computer-lab' },
       { key: 'purchase-entry', title: 'Purchase Orders', path: '/admin/inventory/purchase' },
       { key: 'stock-inout', title: 'Stock In / Out', path: '/admin/inventory/stock' },
-      { key: 'vendor-mgmt', title: 'Vendor Directory', path: '/admin/inventory/vendors' }
+      { key: 'vendor-mgmt', title: 'Vendor Directory', path: '/admin/inventory/vendors' },
+      { key: 'asset-maintenance', title: 'Asset Maintenance', path: '/admin/inventory/maintenance' }
     ]
+  },
+  {
+    key: 'academic_calendar',
+    title: 'Academic Calendar',
+    icon: Calendar,
+    path: '/admin/academic-calendar'
+  },
+  {
+    key: 'expense_management',
+    title: 'Expense & Budget',
+    icon: Wallet,
+    path: '/admin/finance/expenses'
+  },
+  {
+    key: 'hr_recruitment',
+    title: 'HR Recruitment',
+    icon: UserPlus,
+    path: '/admin/staff/recruitment'
+  },
+  {
+    key: 'automation_engine',
+    title: 'Event Automation',
+    icon: Zap,
+    path: '/admin/automation'
+  },
+  {
+    key: 'workflow_engine',
+    title: 'Workflow Engine',
+    icon: GitBranch,
+    path: '/admin/workflows'
   },
   {
     key: 'certificates',
@@ -343,6 +383,7 @@ export const navigationConfig = [
     icon: BarChart3,
     children: [
       { key: 'rep-center', title: 'Report Center (Build Your Own)', path: '/admin/reports/center', badge: 'NEW' },
+      { key: 'rep-builder', title: 'Ad-hoc Report Builder', path: '/admin/reports/builder', badge: 'NEW' },
       { key: 'rep-admission', title: 'Admission Report', path: '/admin/reports/admission' },
       { key: 'rep-attendance', title: 'Attendance Report', path: '/admin/reports/attendance' },
       { key: 'rep-attendance-datewise', title: 'Date-wise Attendance Report', path: '/admin/reports/attendance-datewise', badge: 'NEW' },
