@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import PageHeader from '../../components/common/PageHeader';
 import StatusBadge from '../../components/common/StatusBadge';
 import EmptyState from '../../components/common/EmptyState';
-import { Loader2, ArrowLeft, X, Plus, Trash2, GitBranch, Link2, Building2 } from 'lucide-react';
+import { Loader2, ArrowLeft, X, Plus, Trash2, GitBranch, Link2, Building2, Pencil } from 'lucide-react';
 import moduleRegistryService from '../../services/moduleRegistryService';
 import { useNotification } from '../../context/NotificationContext';
 
@@ -112,6 +112,43 @@ const AddVersionModal = ({ open, onClose, onSubmit, submitting }) => {
   );
 };
 
+const EditModuleModal = ({ open, module, onClose, onSubmit, submitting }) => {
+  const [form, setForm] = useState({ name: '', description: '', category: '' });
+  useEffect(() => {
+    if (module) setForm({ name: module.name || '', description: module.description || '', category: module.category || '' });
+  }, [module]);
+  if (!open) return null;
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-sm w-full p-6 shadow-2xl border border-slate-200 dark:border-slate-800">
+        <div className="flex items-center justify-between pb-4 mb-4 border-b border-slate-100 dark:border-slate-800">
+          <h3 className="text-base font-bold text-slate-900 dark:text-white">Edit Module Details</h3>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"><X className="w-5 h-5" /></button>
+        </div>
+        <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1 text-xs">Display Name</label>
+        <input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+          className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs text-slate-900 dark:text-white font-medium mb-3" />
+        <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1 text-xs">Description</label>
+        <textarea rows={2} value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+          className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs text-slate-900 dark:text-white font-medium mb-3" />
+        <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1 text-xs">Category</label>
+        <input value={form.category} onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}
+          className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs text-slate-900 dark:text-white font-medium" />
+        <div className="flex items-center justify-end gap-2 mt-4">
+          <button onClick={onClose} className="px-4 py-2 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-lg font-semibold text-xs">Cancel</button>
+          <button
+            onClick={() => form.name.trim() && onSubmit(form)}
+            disabled={submitting || !form.name.trim()}
+            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-semibold text-xs disabled:opacity-50"
+          >
+            {submitting ? 'Saving...' : 'Save Changes'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const AddDependencyModal = ({ open, onClose, onSubmit, submitting, options }) => {
   const [dependsOnModuleId, setDependsOnModuleId] = useState('');
   if (!open) return null;
@@ -191,7 +228,7 @@ export const ModuleRegistryDetailPage = () => {
   const [institutions, setInstitutions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
-  const [modal, setModal] = useState(null); // 'version' | 'dependency' | 'assign'
+  const [modal, setModal] = useState(null); // 'edit' | 'version' | 'dependency' | 'assign'
 
   const fetchAll = useCallback(() => {
     setLoading(true);
@@ -216,6 +253,20 @@ export const ModuleRegistryDetailPage = () => {
     try {
       await moduleRegistryService.updateModuleStatus(id, status);
       success(`Module is now ${status}`, 'Status Updated');
+      fetchAll();
+    } catch (err) {
+      showError(err.message, 'Update Failed');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleEditModule = async (data) => {
+    setBusy(true);
+    try {
+      await moduleRegistryService.updateModule(id, data);
+      success('Module details updated', 'Saved');
+      setModal(null);
       fetchAll();
     } catch (err) {
       showError(err.message, 'Update Failed');
@@ -326,6 +377,9 @@ export const ModuleRegistryDetailPage = () => {
         title={module.name}
         subtitle={module.description || `Key: ${module.key}`}
         badge={module.moduleType}
+        actionLabel="Edit Details"
+        actionIcon={Pencil}
+        onAction={() => setModal('edit')}
       />
 
       <Card
@@ -429,6 +483,7 @@ export const ModuleRegistryDetailPage = () => {
         )}
       </Card>
 
+      <EditModuleModal open={modal === 'edit'} module={module} onClose={() => setModal(null)} onSubmit={handleEditModule} submitting={busy} />
       <AddVersionModal open={modal === 'version'} onClose={() => setModal(null)} onSubmit={handleAddVersion} submitting={busy} />
       <AddDependencyModal open={modal === 'dependency'} onClose={() => setModal(null)} onSubmit={handleAddDependency} submitting={busy} options={dependencyOptions} />
       <AssignInstitutionModal open={modal === 'assign'} onClose={() => setModal(null)} onSubmit={handleAssign} submitting={busy} institutions={institutions} />
