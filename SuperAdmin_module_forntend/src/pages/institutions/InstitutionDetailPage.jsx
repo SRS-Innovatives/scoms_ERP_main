@@ -3,7 +3,109 @@ import { useNotification } from '../../context/NotificationContext';
 import { Building2, Users, GraduationCap, Briefcase, CreditCard, Receipt, Layers, FileText, Activity, Settings, Check, Loader2, Save } from 'lucide-react';
 import { useParams } from 'react-router-dom';
 import institutionService from '../../services/institutionService';
+import userService from '../../services/userService';
+import billingService from '../../services/billingService';
+import auditLogService from '../../services/auditLogService';
 import StatusBadge from '../../components/common/StatusBadge';
+
+const InstitutionUsersTab = ({ institutionId }) => {
+  const { error: showError } = useNotification();
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  React.useEffect(() => {
+    userService.getUsers({ institutionId, limit: 100 })
+      .then((res) => setUsers(res.data || []))
+      .catch((err) => showError(err.message || 'Failed to load users', 'Load Failed'))
+      .finally(() => setLoading(false));
+  }, [institutionId, showError]);
+
+  if (loading) return <div className="flex justify-center py-10"><Loader2 className="w-6 h-6 animate-spin text-indigo-600" /></div>;
+  if (users.length === 0) return <p className="text-xs text-slate-500 py-4">No users found for this institution.</p>;
+
+  return (
+    <table className="w-full text-left text-xs">
+      <thead className="uppercase text-[10px] font-semibold text-slate-500 border-b border-slate-200 dark:border-slate-800">
+        <tr><th className="py-2 pr-3">Name</th><th className="py-2 pr-3">Email</th><th className="py-2 pr-3">Role</th><th className="py-2 pr-3">Phone</th><th className="py-2">Status</th></tr>
+      </thead>
+      <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+        {users.map((u) => (
+          <tr key={u.id}>
+            <td className="py-2 pr-3 font-semibold text-slate-900 dark:text-white">{u.name}</td>
+            <td className="py-2 pr-3 text-slate-600 dark:text-slate-300">{u.email}</td>
+            <td className="py-2 pr-3 text-slate-600 dark:text-slate-300">{u.role}</td>
+            <td className="py-2 pr-3 text-slate-600 dark:text-slate-300">{u.phone}</td>
+            <td className="py-2"><StatusBadge status={u.status} size="sm" /></td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+};
+
+const InstitutionBillingTab = ({ institutionId }) => {
+  const { error: showError } = useNotification();
+  const [invoices, setInvoices] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  React.useEffect(() => {
+    billingService.getInvoices({ institutionId, limit: 50 })
+      .then((res) => setInvoices(res.data || []))
+      .catch((err) => showError(err.message || 'Failed to load invoices', 'Load Failed'))
+      .finally(() => setLoading(false));
+  }, [institutionId, showError]);
+
+  if (loading) return <div className="flex justify-center py-10"><Loader2 className="w-6 h-6 animate-spin text-indigo-600" /></div>;
+  if (invoices.length === 0) return <p className="text-xs text-slate-500 py-4">No invoices raised for this institution yet.</p>;
+
+  return (
+    <table className="w-full text-left text-xs">
+      <thead className="uppercase text-[10px] font-semibold text-slate-500 border-b border-slate-200 dark:border-slate-800">
+        <tr><th className="py-2 pr-3">Invoice #</th><th className="py-2 pr-3">Amount</th><th className="py-2 pr-3">Status</th><th className="py-2">Date</th></tr>
+      </thead>
+      <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+        {invoices.map((inv) => (
+          <tr key={inv.id}>
+            <td className="py-2 pr-3 font-mono text-slate-600 dark:text-slate-400">{inv.invoiceNumber}</td>
+            <td className="py-2 pr-3 font-semibold text-slate-900 dark:text-white">₹{Number(inv.totalAmount ?? inv.amount ?? 0).toLocaleString('en-IN')}</td>
+            <td className="py-2 pr-3"><StatusBadge status={inv.status} size="sm" /></td>
+            <td className="py-2 text-slate-500">{new Date(inv.createdAt).toLocaleDateString()}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+};
+
+const InstitutionActivityTab = ({ institutionId }) => {
+  const { error: showError } = useNotification();
+  const [logs, setLogs] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  React.useEffect(() => {
+    auditLogService.getAuditLogs({ institutionId, limit: 50 })
+      .then((res) => setLogs(res.data || []))
+      .catch((err) => showError(err.message || 'Failed to load audit logs', 'Load Failed'))
+      .finally(() => setLoading(false));
+  }, [institutionId, showError]);
+
+  if (loading) return <div className="flex justify-center py-10"><Loader2 className="w-6 h-6 animate-spin text-indigo-600" /></div>;
+  if (logs.length === 0) return <p className="text-xs text-slate-500 py-4">No recorded activity for this institution yet.</p>;
+
+  return (
+    <div className="space-y-2">
+      {logs.map((log) => (
+        <div key={log.id} className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 flex items-center justify-between text-xs">
+          <div>
+            <p className="font-semibold text-slate-900 dark:text-white">{log.action} — {log.module}{log.entity ? ` (${log.entity})` : ''}</p>
+            <p className="text-slate-500">{log.user?.email || 'System'}</p>
+          </div>
+          <span className="text-slate-400 font-mono">{new Date(log.createdAt).toLocaleString()}</span>
+        </div>
+      ))}
+    </div>
+  );
+};
 
 const EDITABLE_FIELDS = [
   { key: 'name', label: 'Institution Name', required: true },
@@ -245,9 +347,7 @@ export const InstitutionDetailPage = () => {
           </div>
         )}
 
-        {activeTab === 'Users' && (
-          <div className="text-xs text-slate-500 py-4">Users fetching will be wired up via API.</div>
-        )}
+        {activeTab === 'Users' && <InstitutionUsersTab institutionId={inst.id} />}
 
         {activeTab === 'Modules' && (
           <div className="space-y-4 text-xs">
@@ -294,13 +394,9 @@ export const InstitutionDetailPage = () => {
           </div>
         )}
 
-        {activeTab === 'Billing' && (
-           <div className="text-xs text-slate-500 py-4">Billing data fetching will be wired up via API.</div>
-        )}
+        {activeTab === 'Billing' && <InstitutionBillingTab institutionId={inst.id} />}
 
-        {activeTab === 'Activity' && (
-           <div className="text-xs text-slate-500 py-4">Audit logs fetching will be wired up via API.</div>
-        )}
+        {activeTab === 'Activity' && <InstitutionActivityTab institutionId={inst.id} />}
 
         {activeTab === 'Settings' && (
           <InstitutionEditForm inst={inst} onSaved={(updated) => setInst((prev) => ({ ...prev, ...updated }))} />

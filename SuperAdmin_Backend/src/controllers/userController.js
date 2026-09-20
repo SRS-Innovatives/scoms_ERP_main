@@ -5,7 +5,7 @@ const { prisma, sendSuccess, sendPaginated, ValidationError } = require('../../.
 
 const getUsers = async (req, res, next) => {
   try {
-    const { page = 1, limit = 100, search = '', role = '', group = '' } = req.query; // Increase default limit to 100 for better view in lists
+    const { page = 1, limit = 100, search = '', role = '', group = '', institutionId = '' } = req.query; // Increase default limit to 100 for better view in lists
     const skip = (page - 1) * limit;
 
     // `group` gives dashboard KPI cards a click-through without the frontend needing to
@@ -30,6 +30,7 @@ const getUsers = async (req, res, next) => {
       }),
       ...(role && { role }),
       ...(group && GROUP_ROLE_FILTERS[group] && { role: GROUP_ROLE_FILTERS[group] }),
+      ...(institutionId && { institutionId }),
     };
 
     const [users, total] = await Promise.all([
