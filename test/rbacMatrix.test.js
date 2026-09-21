@@ -16,14 +16,12 @@ process.env.RBAC_ENFORCEMENT_ENABLED = 'true';
 const shadowPermission = require('../shared/middleware/shadowPermission');
 const { ROLES, PERMISSIONS } = require('../shared/constants/roles');
 
-const check = (role, permission) => {
-  let allowed = null;
+const check = (role, permission) => new Promise((resolve) => {
   const mw = shadowPermission(permission);
   mw({ user: { role, id: 'test' }, method: 'GET', originalUrl: '/test' }, {}, (err) => {
-    allowed = !err;
+    resolve(!err);
   });
-  return allowed;
-};
+});
 
 // One representative "core" permission per role — the thing that role most obviously
 // needs to do its job. Every role here must ALLOW its own core permission, or the
@@ -57,28 +55,30 @@ const NEGATIVE_EXPECTATION = [
   [ROLES.ACCOUNTANT, PERMISSIONS.MARKS_ENTER],
 ];
 
-let failures = 0;
+(async () => {
+  let failures = 0;
 
-console.log('--- Core expectation (every role must ALLOW its own core permission) ---');
-for (const [role, permission] of CORE_EXPECTATION) {
-  const allowed = check(role, permission);
-  const ok = allowed === true;
-  if (!ok) failures++;
-  console.log(`${ok ? '✅' : '❌'} ${role.padEnd(20)} ${permission.padEnd(28)} allowed=${allowed}`);
-}
+  console.log('--- Core expectation (every role must ALLOW its own core permission) ---');
+  for (const [role, permission] of CORE_EXPECTATION) {
+    const allowed = await check(role, permission);
+    const ok = allowed === true;
+    if (!ok) failures++;
+    console.log(`${ok ? '✅' : '❌'} ${role.padEnd(20)} ${permission.padEnd(28)} allowed=${allowed}`);
+  }
 
-console.log('\n--- Negative expectation (these role x permission pairs must DENY) ---');
-for (const [role, permission] of NEGATIVE_EXPECTATION) {
-  const allowed = check(role, permission);
-  const ok = allowed === false;
-  if (!ok) failures++;
-  console.log(`${ok ? '✅' : '❌'} ${role.padEnd(20)} ${permission.padEnd(28)} allowed=${allowed} (expected denied)`);
-}
+  console.log('\n--- Negative expectation (these role x permission pairs must DENY) ---');
+  for (const [role, permission] of NEGATIVE_EXPECTATION) {
+    const allowed = await check(role, permission);
+    const ok = allowed === false;
+    if (!ok) failures++;
+    console.log(`${ok ? '✅' : '❌'} ${role.padEnd(20)} ${permission.padEnd(28)} allowed=${allowed} (expected denied)`);
+  }
 
-process.env.RBAC_ENFORCEMENT_ENABLED = 'false';
+  process.env.RBAC_ENFORCEMENT_ENABLED = 'false';
 
-if (failures > 0) {
-  console.error(`\n❌ FAIL: ${failures} matrix expectation(s) not met.`);
-  process.exit(1);
-}
-console.log('\n🎉 RBAC matrix validation PASSED — every core role permission allows, every negative check denies.');
+  if (failures > 0) {
+    console.error(`\n❌ FAIL: ${failures} matrix expectation(s) not met.`);
+    process.exit(1);
+  }
+  console.log('\n🎉 RBAC matrix validation PASSED — every core role permission allows, every negative check denies.');
+})();

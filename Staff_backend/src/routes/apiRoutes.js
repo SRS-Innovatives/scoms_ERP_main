@@ -27,6 +27,12 @@ const achievementController = require('../controllers/achievementController');
 const researchController = require('../controllers/researchController');
 const galleryController = require('../controllers/galleryController');
 const academicCalendarController = require('../controllers/academicCalendarController');
+const examAdminController = require('../controllers/examAdminController');
+const feeDeskController = require('../controllers/feeDeskController');
+const expenseController = require('../controllers/expenseController');
+const transportController = require('../controllers/transportController');
+const hostelController = require('../controllers/hostelController');
+const placementController = require('../controllers/placementController');
 const {
   requireAuth, requireTenant, requireModule, handleForgotPassword, handleVerifyOtp, handleResetPassword,
   loginLimiter, otpLimiter,
@@ -195,5 +201,70 @@ router.post('/gallery/albums/:id/photos', shadowPermission(PERMISSIONS.GALLERY_M
 
 // Academic Calendar (read-only)
 router.get('/academic-calendar', requireModule('academic_calendar'), academicCalendarController.getEvents);
+
+// Exam Setup (Exam Admin — create/schedule; marks entry & publishing already above)
+router.use('/exam-setup', requireModule('examination'));
+router.get('/exam-setup/exams', shadowPermission(PERMISSIONS.EXAMS_VIEW), examAdminController.getExams);
+router.post('/exam-setup/exams', shadowPermission(PERMISSIONS.EXAMS_CREATE), examAdminController.createExam);
+router.patch('/exam-setup/exams/:id/status', shadowPermission(PERMISSIONS.EXAMS_CREATE), examAdminController.updateExamStatus);
+router.post('/exam-setup/schedules', shadowPermission(PERMISSIONS.EXAMS_CREATE), examAdminController.createSchedule);
+router.delete('/exam-setup/schedules/:id', shadowPermission(PERMISSIONS.EXAMS_CREATE), examAdminController.deleteSchedule);
+
+// Fee Collection Desk (Accountant)
+router.use('/fee-desk', requireModule('fee'));
+router.get('/fee-desk/structures', shadowPermission(PERMISSIONS.FEES_VIEW), feeDeskController.getFeeStructures);
+router.get('/fee-desk/assignments', shadowPermission(PERMISSIONS.FEES_VIEW), feeDeskController.getStudentAssignments);
+router.get('/fee-desk/installments', shadowPermission(PERMISSIONS.FEES_VIEW), feeDeskController.getInstallments);
+router.get('/fee-desk/receipts/:id', shadowPermission(PERMISSIONS.FEES_VIEW), feeDeskController.getReceipt);
+router.get('/fee-desk/challans', shadowPermission(PERMISSIONS.FEES_VIEW), feeDeskController.getChallans);
+router.post('/fee-desk/challans', shadowPermission(PERMISSIONS.FEES_COLLECT), feeDeskController.createChallan);
+router.get('/fee-desk/pending', shadowPermission(PERMISSIONS.FEES_VIEW), feeDeskController.getPendingFees);
+router.get('/fee-desk/dashboard', shadowPermission(PERMISSIONS.FEES_VIEW), feeDeskController.getFeeDashboard);
+router.get('/fee-desk/daybook', shadowPermission(PERMISSIONS.FEES_VIEW), feeDeskController.getDayBook);
+router.post('/fee-desk/collect', shadowPermission(PERMISSIONS.FEES_COLLECT), feeDeskController.collectOfflineFee);
+router.get('/fee-desk/refunds', shadowPermission(PERMISSIONS.FEES_VIEW), feeDeskController.getRefunds);
+router.post('/fee-desk/refunds', shadowPermission(PERMISSIONS.FEES_REFUND), feeDeskController.createRefund);
+router.patch('/fee-desk/refunds/:id', shadowPermission(PERMISSIONS.FEES_REFUND), feeDeskController.processRefund);
+
+// Expense Logging (Accountant)
+router.use('/expenses', requireModule('expense_management'));
+router.get('/expenses', shadowPermission(PERMISSIONS.EXPENSES_VIEW), expenseController.getExpenses);
+router.get('/expenses/summary', shadowPermission(PERMISSIONS.EXPENSES_VIEW), expenseController.getExpenseSummary);
+router.post('/expenses', shadowPermission(PERMISSIONS.EXPENSES_CREATE), expenseController.createExpense);
+router.delete('/expenses/:id', shadowPermission(PERMISSIONS.EXPENSES_CREATE), expenseController.deleteExpense);
+
+// Transport Desk (Transport Manager)
+router.use('/transport', requireModule('transport'));
+router.get('/transport/vehicles', shadowPermission(PERMISSIONS.TRANSPORT_MANAGE), transportController.getVehicles);
+router.post('/transport/vehicles', shadowPermission(PERMISSIONS.TRANSPORT_MANAGE), transportController.createVehicle);
+router.get('/transport/routes', shadowPermission(PERMISSIONS.TRANSPORT_MANAGE), transportController.getRoutes);
+router.post('/transport/routes', shadowPermission(PERMISSIONS.TRANSPORT_MANAGE), transportController.createRoute);
+router.get('/transport/mappings', shadowPermission(PERMISSIONS.TRANSPORT_MANAGE), transportController.getMappings);
+router.post('/transport/mappings', shadowPermission(PERMISSIONS.TRANSPORT_MANAGE), transportController.assignStudentToRoute);
+router.get('/transport/trips', shadowPermission(PERMISSIONS.TRANSPORT_MANAGE), transportController.getTrips);
+router.post('/transport/trips/complete', shadowPermission(PERMISSIONS.TRANSPORT_MANAGE), transportController.markTripComplete);
+
+// Hostel Desk (Hostel Warden)
+router.use('/hostel', requireModule('hostel'));
+router.get('/hostel/hostels', shadowPermission(PERMISSIONS.HOSTEL_MANAGE), hostelController.getHostels);
+router.post('/hostel/hostels', shadowPermission(PERMISSIONS.HOSTEL_MANAGE), hostelController.createHostel);
+router.get('/hostel/beds', shadowPermission(PERMISSIONS.HOSTEL_MANAGE), hostelController.getBeds);
+router.post('/hostel/beds', shadowPermission(PERMISSIONS.HOSTEL_MANAGE), hostelController.createBed);
+router.post('/hostel/beds/allocate', shadowPermission(PERMISSIONS.HOSTEL_MANAGE), hostelController.allocateBed);
+router.patch('/hostel/beds/:id/vacate', shadowPermission(PERMISSIONS.HOSTEL_MANAGE), hostelController.vacateBed);
+router.get('/hostel/attendance', shadowPermission(PERMISSIONS.HOSTEL_MANAGE), hostelController.getAttendance);
+router.post('/hostel/attendance', shadowPermission(PERMISSIONS.HOSTEL_MANAGE), hostelController.markAttendance);
+router.get('/hostel/mess-fees', shadowPermission(PERMISSIONS.HOSTEL_MANAGE), hostelController.getMessFees);
+router.get('/hostel/visitors', shadowPermission(PERMISSIONS.HOSTEL_MANAGE), hostelController.getVisitors);
+router.post('/hostel/visitors/checkin', shadowPermission(PERMISSIONS.HOSTEL_MANAGE), hostelController.checkInVisitor);
+router.patch('/hostel/visitors/:id/checkout', shadowPermission(PERMISSIONS.HOSTEL_MANAGE), hostelController.checkOutVisitor);
+
+// Placement Cell (Placement Officer)
+router.use('/postings', requireModule('placement'));
+router.get('/postings', shadowPermission(PERMISSIONS.PLACEMENT_MANAGE), placementController.getPostings);
+router.post('/postings', shadowPermission(PERMISSIONS.PLACEMENT_MANAGE), placementController.createPosting);
+router.patch('/postings/:id/close', shadowPermission(PERMISSIONS.PLACEMENT_MANAGE), placementController.closePosting);
+router.get('/postings/:id/applications', shadowPermission(PERMISSIONS.PLACEMENT_MANAGE), placementController.getApplications);
+router.patch('/postings/applications/:id', shadowPermission(PERMISSIONS.PLACEMENT_MANAGE), placementController.updateApplicationStatus);
 
 module.exports = router;
