@@ -1,32 +1,23 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import DataTable from '../../components/common/DataTable';
 import StatusBadge from '../../components/common/StatusBadge';
 import EmptyState from '../../components/common/EmptyState';
-import FormModal from '../../components/common/FormModal';
 import { useNotification } from '../../context/NotificationContext';
-import { UserPlus } from 'lucide-react';
+import { AlertTriangle } from 'lucide-react';
 import feeService from '../../services/feeService';
-import studentService from '../../services/studentService';
-
-const emptyForm = { feeStructureId: '', studentId: '', discountAmount: '0', scholarshipName: '', scholarshipRef: '' };
 
 export const StudentFeeAssignmentPage = () => {
-  const { notifySuccess, notifyError } = useNotification();
+  const navigate = useNavigate();
+  const { notifyError } = useNotification();
   const [assignments, setAssignments] = useState([]);
-  const [structures, setStructures] = useState([]);
-  const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [modalOpen, setModalOpen] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-  const [form, setForm] = useState(emptyForm);
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
     try {
-      const [assignRes, structRes, studentRes] = await Promise.all([feeService.getAssignments(), feeService.getStructures(), studentService.getAll()]);
+      const assignRes = await feeService.getAssignments();
       setAssignments(assignRes.data || []);
-      setStructures(structRes.data || []);
-      setStudents(studentRes.data || []);
     } catch (error) {
       notifyError(`Failed to load fee assignments: ${error.message}`);
     } finally {
@@ -37,22 +28,6 @@ export const StudentFeeAssignmentPage = () => {
   useEffect(() => {
     fetchAll();
   }, [fetchAll]);
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setSubmitting(true);
-    try {
-      await feeService.assignFee(form);
-      notifySuccess('Fee structure assigned to student successfully!');
-      setModalOpen(false);
-      setForm(emptyForm);
-      fetchAll();
-    } catch (error) {
-      notifyError(`Failed to assign fee: ${error.message}`);
-    } finally {
-      setSubmitting(false);
-    }
-  };
 
   const columns = [
     { header: 'Roll No', key: 'student', sortable: false, render: (val) => <span className="font-mono font-bold text-indigo-600">{val?.rollNumber}</span> },
@@ -67,40 +42,25 @@ export const StudentFeeAssignmentPage = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-bold text-slate-900 dark:text-white">Individual Student Fee Assignment</h1>
-          <p className="text-xs text-slate-500 dark:text-slate-400">Custom fee structure assignment with scholarship / concession waivers per student</p>
-        </div>
-        <button onClick={() => setModalOpen(true)} className="flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold">
-          <UserPlus className="w-4 h-4" /> Assign Fee to Student
-        </button>
+      <div>
+        <h1 className="text-xl font-bold text-slate-900 dark:text-white">Student Fee Assignment (Legacy)</h1>
+        <p className="text-xs text-slate-500 dark:text-slate-400">Existing individual fee assignments — view only</p>
+      </div>
+
+      <div className="flex items-start gap-3 p-4 rounded-2xl border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30">
+        <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+        <p className="text-xs text-amber-800 dark:text-amber-300">
+          This legacy fee system no longer accepts new assignments. Existing assignments below remain viewable and collectible.
+          To assign a fee to a student, publish a structure in{' '}
+          <button onClick={() => navigate('/admin/fee/structure-builder')} className="font-bold underline">Fee Structure Builder</button> and assign it from there.
+        </p>
       </div>
 
       {!loading && assignments.length === 0 ? (
-        <EmptyState title="No Fee Assignments Yet" description="Assign a fee structure to an individual student to get started." actionLabel="Assign Fee to Student" onAction={() => setModalOpen(true)} />
+        <EmptyState title="No Legacy Fee Assignments" description="No individual fee assignments were ever created with the classic fee system for this institution." />
       ) : (
         <DataTable columns={columns} data={assignments} loading={loading} />
       )}
-
-      <FormModal
-        isOpen={modalOpen}
-        title="Assign Fee Structure to Student"
-        icon={UserPlus}
-        submitLabel="Assign Fee"
-        isSubmitting={submitting}
-        onClose={() => setModalOpen(false)}
-        onSubmit={handleSubmit}
-        values={form}
-        onChange={(name, value) => setForm((prev) => ({ ...prev, [name]: value }))}
-        fields={[
-          { name: 'studentId', label: 'Student', type: 'select', required: true, span: 'full', options: students.map((s) => ({ value: s.id, label: `${s.rollNumber} — ${s.firstName} ${s.lastName}` })) },
-          { name: 'feeStructureId', label: 'Fee Structure', type: 'select', required: true, span: 'full', options: structures.map((s) => ({ value: s.id, label: `${s.name} (₹${s.totalAmount.toLocaleString()})` })) },
-          { name: 'discountAmount', label: 'Scholarship / Discount Amount (₹)', type: 'number' },
-          { name: 'scholarshipName', label: 'Scholarship Scheme Name (optional)' },
-          { name: 'scholarshipRef', label: 'Govt Sanction / Reference No (optional)' },
-        ]}
-      />
     </div>
   );
 };
