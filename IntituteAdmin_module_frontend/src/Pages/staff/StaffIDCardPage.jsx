@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Printer, Loader2 } from 'lucide-react';
+import ErrorState from '../../components/common/ErrorState';
 import { useNotification } from '../../context/NotificationContext';
 import { useInstitution } from '../../context/InstitutionContext';
 import staffService from '../../services/staffService';
@@ -10,21 +11,30 @@ export const StaffIDCardPage = () => {
   const [staffList, setStaffList] = useState([]);
   const [staffId, setStaffId] = useState('');
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
-  useEffect(() => {
+  const fetchStaff = useCallback(() => {
+    setLoading(true);
+    setError(false);
     staffService.getAll()
       .then((res) => {
         setStaffList(res.data || []);
         if ((res.data || []).length > 0) setStaffId(res.data[0].id);
       })
-      .catch((err) => notifyError(`Failed to load staff: ${err.message}`))
+      .catch((err) => { notifyError(`Failed to load staff: ${err.message}`); setError(true); })
       .finally(() => setLoading(false));
   }, [notifyError]);
+
+  useEffect(() => { fetchStaff(); }, [fetchStaff]);
 
   const staff = staffList.find((s) => s.id === staffId);
 
   if (loading) {
     return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-indigo-600" /></div>;
+  }
+
+  if (error) {
+    return <ErrorState onRetry={fetchStaff} />;
   }
 
   return (

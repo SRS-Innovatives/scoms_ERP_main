@@ -10,5 +10,7 @@ const publicPreAdmissionController = require('../controllers/publicPreAdmissionC
 
 router.get('/pre-admission/form-schema', publicSubmissionLimiter, publicPreAdmissionController.getFormSchema);
 router.post('/pre-admission/submit', publicSubmissionLimiter, publicPreAdmissionController.submitApplication);
+router.post('/pre-admission/:id/fee/initiate', publicSubmissionLimiter, publicPreAdmissionController.initiateApplicationFeePayment);
+router.post('/pre-admission/:id/fee/verify', publicSubmissionLimiter, publicPreAdmissionController.verifyApplicationFeePayment);
 
 module.exports = router;

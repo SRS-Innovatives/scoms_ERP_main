@@ -27,10 +27,14 @@ const feedbackController = require('../controllers/feedbackController');
 const appointmentController = require('../controllers/appointmentController');
 const jobPostingController = require('../controllers/jobPostingController');
 const galleryController = require('../controllers/galleryController');
+const academicCalendarController = require('../controllers/academicCalendarController');
+const parentController = require('../controllers/parentController');
 const {
   requireAuth, requireTenant, requireModule, handleForgotPassword, handleVerifyOtp, handleResetPassword,
   loginLimiter, otpLimiter,
   handleGetNotifications, handleGetUnreadCount, handleMarkNotificationRead, handleMarkAllNotificationsRead,
+  resolveActiveChild, blockParentWrite,
+  shadowPermission, PERMISSIONS,
 } = require('../../../shared');
 
 // Standalone Auth Routes
@@ -44,10 +48,16 @@ router.post('/auth/logout', authController.logout);
 // Guarded Tenant Routes
 router.use(requireAuth);
 router.use(requireTenant);
+router.use(resolveActiveChild); // Parent JWTs carry no studentId (a parent can have >1 child) — this
+// resolves & validates which real child is active for this request, then every existing
+// studentId-scoped route below works for a Parent exactly as it already does for a Student.
 
 router.get('/auth/me', authController.getMe);
 router.post('/auth/change-password', authController.changePassword);
 router.patch('/auth/profile', authController.updateProfile);
+
+// Parent — which real children are linked to this account (for the child-switcher)
+router.get('/parent/children', parentController.getMyChildren);
 
 // Notification Center
 router.get('/notifications', handleGetNotifications);
@@ -63,29 +73,29 @@ router.get('/degrees', requireModule('convocation'), studentProfileController.ge
 router.get('/subjects', studentProfileController.getMySubjects);
 
 // Attendance
-router.get('/attendance', requireModule('attendance'), studentProfileController.getAttendanceSummary);
+router.get('/attendance', requireModule('attendance'), shadowPermission(PERMISSIONS.ATTENDANCE_VIEW), studentProfileController.getAttendanceSummary);
 
 // Fee & Payment Routes
 router.use('/fees', requireModule('fee'));
-router.get('/fees', feePaymentController.getFeesOverview);
-router.post('/fees/pay/initiate', feePaymentController.initiateOnlinePayment);
-router.post('/fees/pay/verify', feePaymentController.verifyOnlinePayment);
+router.get('/fees', shadowPermission(PERMISSIONS.FEES_VIEW), feePaymentController.getFeesOverview);
+router.post('/fees/pay/initiate', shadowPermission(PERMISSIONS.PAYMENTS_ONLINE), feePaymentController.initiateOnlinePayment);
+router.post('/fees/pay/verify', shadowPermission(PERMISSIONS.PAYMENTS_ONLINE), feePaymentController.verifyOnlinePayment);
 
 // AI Assistant Routes
 router.use('/ai', requireModule('ai_tutor'));
-router.post('/ai/ask', aiAssistantController.askAiAssistant);
-router.get('/ai/topics', aiAssistantController.getAvailableTopics);
+router.post('/ai/ask', shadowPermission(PERMISSIONS.AI_ACCESS), aiAssistantController.askAiAssistant);
+router.get('/ai/topics', shadowPermission(PERMISSIONS.AI_ACCESS), aiAssistantController.getAvailableTopics);
 
 // Announcements
 router.get('/announcements', requireModule('communication'), announcementController.getAnnouncements);
 
 // Timetable
-router.get('/timetable', requireModule('timetable'), timetableController.getTimetable);
+router.get('/timetable', requireModule('timetable'), shadowPermission(PERMISSIONS.TIMETABLE_VIEW), timetableController.getTimetable);
 
 // Examination
 router.use('/exams', requireModule('examination'));
-router.get('/exams/schedule', examController.getExamSchedule);
-router.get('/exams/results', examController.getResults);
+router.get('/exams/schedule', shadowPermission(PERMISSIONS.EXAMS_VIEW), examController.getExamSchedule);
+router.get('/exams/results', shadowPermission(PERMISSIONS.RESULTS_VIEW), examController.getResults);
 
 // Campus Services — Library, Transport, Hostel
 router.get('/library', requireModule('library'), campusController.getMyLibrary);
@@ -95,8 +105,8 @@ router.get('/hostel', requireModule('hostel'), campusController.getMyHostel);
 
 // Assignments / Homework
 router.use('/assignments', requireModule('homework'));
-router.get('/assignments', assignmentController.getMyAssignments);
-router.post('/assignments/submit', assignmentController.submitAssignment);
+router.get('/assignments', shadowPermission(PERMISSIONS.ASSIGNMENTS_VIEW), assignmentController.getMyAssignments);
+router.post('/assignments/submit', blockParentWrite('Submitting homework'), shadowPermission(PERMISSIONS.ASSIGNMENTS_SUBMIT), assignmentController.submitAssignment);
 
 // Campus Events & Clubs
 router.use('/events', requireModule('events_clubs'));
@@ -110,15 +120,15 @@ router.post('/clubs/join', clubController.joinClub);
 // Grievances
 router.use('/grievances', requireModule('grievance_feedback'));
 router.get('/grievances', grievanceController.getMyGrievances);
-router.post('/grievances', grievanceController.submitGrievance);
+router.post('/grievances', shadowPermission(PERMISSIONS.GRIEVANCES_SUBMIT), grievanceController.submitGrievance);
 
 // Study Materials
-router.get('/materials', materialController.getMaterials);
+router.get('/materials', shadowPermission(PERMISSIONS.MATERIALS_VIEW), materialController.getMaterials);
 
 // Leave / Absence Requests
 router.get('/leave/types', leaveController.getLeaveTypes);
 router.get('/leave', leaveController.getMyLeaves);
-router.post('/leave', leaveController.applyLeave);
+router.post('/leave', shadowPermission(PERMISSIONS.LEAVE_APPLY), leaveController.applyLeave);
 
 // Issued Certificates & Documents
 router.get('/certificates', requireModule('certificates'), certificateController.getMyCertificates);
@@ -145,7 +155,7 @@ router.post('/achievements', achievementController.addAchievement);
 
 // Anonymous Course Feedback
 router.get('/feedback/subjects', requireModule('grievance_feedback'), feedbackController.getFeedbackSubjects);
-router.post('/feedback', requireModule('grievance_feedback'), feedbackController.submitFeedback);
+router.post('/feedback', requireModule('grievance_feedback'), blockParentWrite('Anonymous course feedback'), feedbackController.submitFeedback);
 
 // Appointments / Counselling
 router.use('/appointments', requireModule('counselling'));
@@ -156,12 +166,15 @@ router.post('/appointments', appointmentController.bookAppointment);
 // Internships & Placements
 router.use('/postings', requireModule('placement'));
 router.get('/postings', jobPostingController.getPostings);
-router.post('/postings/apply', jobPostingController.applyToPosting);
+router.post('/postings/apply', blockParentWrite('Applying to a job/internship posting'), jobPostingController.applyToPosting);
 router.get('/postings/my-applications', jobPostingController.getMyApplications);
 
 // Photo Gallery (view-only)
 router.use('/gallery', requireModule('gallery'));
 router.get('/gallery/albums', galleryController.getAlbums);
 router.get('/gallery/albums/:id/photos', galleryController.getAlbumPhotos);
+
+// Academic Calendar (read-only)
+router.get('/academic-calendar', requireModule('academic_calendar'), academicCalendarController.getEvents);
 
 module.exports = router;

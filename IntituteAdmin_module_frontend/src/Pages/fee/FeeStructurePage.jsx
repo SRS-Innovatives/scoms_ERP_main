@@ -2,45 +2,23 @@ import React, { useState, useEffect, useCallback } from 'react';
 import DataTable from '../../components/common/DataTable';
 import SearchFilterBar from '../../components/common/SearchFilterBar';
 import EmptyState from '../../components/common/EmptyState';
-import FormModal from '../../components/common/FormModal';
 import { useNotification } from '../../context/NotificationContext';
-import { Wallet, Trash2 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Trash2, AlertTriangle } from 'lucide-react';
 import feeService from '../../services/feeService';
-import academicYearService from '../../services/academicYearService';
-import courseService from '../../services/courseService';
-
-const CATEGORY_OPTIONS = [
-  { value: 'TUITION_FEE', label: 'Tuition Fee' },
-  { value: 'EXAM_FEE', label: 'Examination Fee' },
-  { value: 'LIBRARY_FEE', label: 'Library Fee' },
-  { value: 'TRANSPORT_FEE', label: 'Transport Fee' },
-  { value: 'HOSTEL_FEE', label: 'Hostel Fee' },
-  { value: 'LAB_FEE', label: 'Laboratory Fee' },
-  { value: 'ADMISSION_FEE', label: 'Admission Fee' },
-  { value: 'DEVELOPMENT_FEE', label: 'Development Fee' },
-  { value: 'OTHER_FEE', label: 'Other Fee' },
-];
-
-const emptyForm = { name: '', category: 'TUITION_FEE', academicYearId: '', courseId: '', totalAmount: '', dueDate: '', lateFeePerDay: '0' };
 
 export const FeeStructurePage = () => {
-  const { notifySuccess, notifyError } = useNotification();
+  const navigate = useNavigate();
+  const { notifyError } = useNotification();
   const [search, setSearch] = useState('');
   const [structures, setStructures] = useState([]);
-  const [academicYears, setAcademicYears] = useState([]);
-  const [courses, setCourses] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [modalOpen, setModalOpen] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-  const [form, setForm] = useState(emptyForm);
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
     try {
-      const [structRes, yearRes, courseRes] = await Promise.all([feeService.getStructures(), academicYearService.getAll(), courseService.getAll()]);
+      const structRes = await feeService.getStructures();
       setStructures(structRes.data || []);
-      setAcademicYears(yearRes.data || []);
-      setCourses(courseRes.data || []);
     } catch (error) {
       notifyError(`Failed to load fee structures: ${error.message}`);
     } finally {
@@ -51,22 +29,6 @@ export const FeeStructurePage = () => {
   useEffect(() => {
     fetchAll();
   }, [fetchAll]);
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setSubmitting(true);
-    try {
-      await feeService.createStructure(form);
-      notifySuccess(`Fee structure "${form.name}" created successfully!`);
-      setModalOpen(false);
-      setForm(emptyForm);
-      fetchAll();
-    } catch (error) {
-      notifyError(`Failed to create fee structure: ${error.message}`);
-    } finally {
-      setSubmitting(false);
-    }
-  };
 
   const handleDelete = async (id) => {
     try {
@@ -104,38 +66,26 @@ export const FeeStructurePage = () => {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-bold text-slate-900 dark:text-white">Fee Structure Master Configuration</h1>
-        <p className="text-xs text-slate-500 dark:text-slate-400">Map fee amounts, due dates, and late payment fines per course & category</p>
+        <h1 className="text-xl font-bold text-slate-900 dark:text-white">Fee Structure (Legacy)</h1>
+        <p className="text-xs text-slate-500 dark:text-slate-400">Existing single-amount fee structures — view and manage only</p>
       </div>
 
-      <SearchFilterBar searchQuery={search} onSearchChange={setSearch} addLabel="Create Fee Structure" onAddClick={() => setModalOpen(true)} />
+      <div className="flex items-start gap-3 p-4 rounded-2xl border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30">
+        <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+        <p className="text-xs text-amber-800 dark:text-amber-300">
+          This legacy fee system no longer accepts new structures — two fee systems running side by side risked double-billing students.
+          Existing structures below remain viewable and their assignments stay collectible. For any new fee, use{' '}
+          <button onClick={() => navigate('/admin/fee/structure-builder')} className="font-bold underline">Fee Structure Builder</button>.
+        </p>
+      </div>
+
+      <SearchFilterBar searchQuery={search} onSearchChange={setSearch} />
 
       {!loading && filtered.length === 0 ? (
-        <EmptyState title="No Fee Structures Yet" description="Create your institution's first fee structure to get started." actionLabel="Create Fee Structure" onAction={() => setModalOpen(true)} />
+        <EmptyState title="No Legacy Fee Structures" description="No structures were ever created with the classic fee system for this institution." />
       ) : (
         <DataTable columns={columns} data={filtered} loading={loading} />
       )}
-
-      <FormModal
-        isOpen={modalOpen}
-        title="Create Fee Structure"
-        icon={Wallet}
-        submitLabel="Create Structure"
-        isSubmitting={submitting}
-        onClose={() => setModalOpen(false)}
-        onSubmit={handleSubmit}
-        values={form}
-        onChange={(name, value) => setForm((prev) => ({ ...prev, [name]: value }))}
-        fields={[
-          { name: 'name', label: 'Structure Name (e.g. Annual Fee Class 10)', required: true, span: 'full' },
-          { name: 'category', label: 'Fee Category', type: 'select', required: true, options: CATEGORY_OPTIONS },
-          { name: 'academicYearId', label: 'Academic Year', type: 'select', required: true, options: academicYears.map((y) => ({ value: y.id, label: y.yearName })) },
-          { name: 'courseId', label: 'Course (optional — leave blank for all)', type: 'select', options: courses.map((c) => ({ value: c.id, label: c.name })) },
-          { name: 'totalAmount', label: 'Total Amount (₹)', type: 'number', required: true },
-          { name: 'dueDate', label: 'Due Date', type: 'date', required: true },
-          { name: 'lateFeePerDay', label: 'Late Fine / Day (₹)', type: 'number' },
-        ]}
-      />
     </div>
   );
 };

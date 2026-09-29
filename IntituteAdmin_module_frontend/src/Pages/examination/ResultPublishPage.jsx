@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import FormSection from '../../components/common/FormSection';
 import EmptyState from '../../components/common/EmptyState';
+import ErrorState from '../../components/common/ErrorState';
 import { useNotification } from '../../context/NotificationContext';
 import { Globe, Loader2 } from 'lucide-react';
 import examService from '../../services/examService';
@@ -12,25 +13,29 @@ export const ResultPublishPage = () => {
   const [schedules, setSchedules] = useState([]);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState(null);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
+    setError(false);
     examService.getExams()
       .then((res) => {
         setExams(res.data || []);
         if ((res.data || []).length > 0) setExamId(res.data[0].id);
       })
-      .catch((err) => notifyError(`Failed to load exams: ${err.message}`))
+      .catch((err) => { notifyError(`Failed to load exams: ${err.message}`); setError(true); })
       .finally(() => setLoading(false));
   }, [notifyError]);
 
   const fetchSchedules = useCallback(async () => {
     if (!examId) return;
     setLoading(true);
+    setError(false);
     try {
       const res = await examService.getSchedules(examId);
       setSchedules(res.data || []);
     } catch (error) {
       notifyError(`Failed to load schedules: ${error.message}`);
+      setError(true);
     } finally {
       setLoading(false);
     }
@@ -68,6 +73,8 @@ export const ResultPublishPage = () => {
 
       {loading ? (
         <div className="flex justify-center py-16"><Loader2 className="w-7 h-7 animate-spin text-indigo-600" /></div>
+      ) : error ? (
+        <ErrorState onRetry={fetchSchedules} />
       ) : schedules.length === 0 ? (
         <EmptyState title="No Subject Schedules" message="Add subject schedules under Exam Schedule first." />
       ) : (

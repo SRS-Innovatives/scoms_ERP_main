@@ -4,6 +4,7 @@ import FormModal from '../../components/common/FormModal';
 import { useNotification } from '../../context/NotificationContext';
 import { CreditCard, Edit3, Loader2 } from 'lucide-react';
 import staffService from '../../services/staffService';
+import ErrorState from '../../components/common/ErrorState';
 
 const emptyForm = { basicPay: '', hra: '', da: '', otherAllowances: '', deductions: '' };
 
@@ -11,6 +12,7 @@ export const SalaryStructurePage = () => {
   const { notifySuccess, notifyError } = useNotification();
   const [staff, setStaff] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [targetId, setTargetId] = useState('');
@@ -18,9 +20,10 @@ export const SalaryStructurePage = () => {
 
   const fetchAll = useCallback(() => {
     setLoading(true);
+    setError(false);
     staffService.getSalaries()
       .then((res) => setStaff(res.data || []))
-      .catch((err) => notifyError(`Failed to load salary structures: ${err.message}`))
+      .catch((err) => { notifyError(`Failed to load salary structures: ${err.message}`); setError(true); })
       .finally(() => setLoading(false));
   }, [notifyError]);
 
@@ -74,6 +77,10 @@ export const SalaryStructurePage = () => {
 
   if (loading) {
     return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-indigo-600" /></div>;
+  }
+
+  if (error) {
+    return <ErrorState onRetry={fetchAll} />;
   }
 
   return (

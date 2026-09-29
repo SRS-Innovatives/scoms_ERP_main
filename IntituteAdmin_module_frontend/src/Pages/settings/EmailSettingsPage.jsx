@@ -1,25 +1,31 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import FormSection from '../../components/common/FormSection';
 import { Mail, Save, Loader2 } from 'lucide-react';
 import { useNotification } from '../../context/NotificationContext';
 import settingsService from '../../services/settingsService';
+import ErrorState from '../../components/common/ErrorState';
 
 export const EmailSettingsPage = () => {
   const { notifySuccess, notifyError } = useNotification();
   const [form, setForm] = useState({ smtpHost: '', smtpPort: '', smtpFromEmail: '' });
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
+  const load = useCallback(() => {
+    setLoading(true);
+    setError(false);
     settingsService.getSettings()
       .then((res) => setForm({
         smtpHost: res.data.smtpHost || '',
         smtpPort: res.data.smtpPort || '',
         smtpFromEmail: res.data.smtpFromEmail || '',
       }))
-      .catch((err) => notifyError(`Failed to load email settings: ${err.message}`))
+      .catch((err) => { notifyError(`Failed to load email settings: ${err.message}`); setError(true); })
       .finally(() => setLoading(false));
   }, [notifyError]);
+
+  useEffect(() => { load(); }, [load]);
 
   const handleSave = async () => {
     setSaving(true);
@@ -35,6 +41,10 @@ export const EmailSettingsPage = () => {
 
   if (loading) {
     return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-indigo-600" /></div>;
+  }
+
+  if (error) {
+    return <ErrorState onRetry={load} />;
   }
 
   return (

@@ -66,20 +66,22 @@ const updatePlan = async (req, res, next) => {
 
 const getSubscriptions = async (req, res, next) => {
   try {
-    const { page = 1, limit = 10 } = req.query;
+    const { page = 1, limit = 10, institutionId = '' } = req.query;
     const skip = (page - 1) * limit;
+    const where = { ...(institutionId && { institutionId }) };
 
     const [subscriptions, total] = await Promise.all([
       prisma.subscription.findMany({
+        where,
         skip: Number(skip),
         take: Number(limit),
         orderBy: { createdAt: 'desc' },
-        include: { 
+        include: {
           institution: { select: { name: true, code: true } },
           plan: { select: { name: true, priceMonthly: true } }
         }
       }),
-      prisma.subscription.count(),
+      prisma.subscription.count({ where }),
     ]);
 
     return sendPaginated(res, subscriptions, page, limit, total, 'Subscriptions retrieved successfully');

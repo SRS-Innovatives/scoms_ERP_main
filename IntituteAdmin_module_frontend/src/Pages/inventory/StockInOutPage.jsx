@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import DataTable from '../../components/common/DataTable';
 import EmptyState from '../../components/common/EmptyState';
+import ErrorState from '../../components/common/ErrorState';
 import FormModal from '../../components/common/FormModal';
 import { useNotification } from '../../context/NotificationContext';
 import { Boxes, Plus, ArrowDownCircle, ArrowUpCircle } from 'lucide-react';
@@ -14,6 +15,7 @@ export const StockInOutPage = () => {
   const [items, setItems] = useState([]);
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [itemModalOpen, setItemModalOpen] = useState(false);
   const [txnModalOpen, setTxnModalOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -22,12 +24,13 @@ export const StockInOutPage = () => {
 
   const fetchAll = useCallback(() => {
     setLoading(true);
+    setError(false);
     Promise.all([inventoryService.getStockItems(), inventoryService.getStockTransactions()])
       .then(([itemRes, txnRes]) => {
         setItems(itemRes.data || []);
         setTransactions(txnRes.data || []);
       })
-      .catch((err) => notifyError(`Failed to load stock register: ${err.message}`))
+      .catch((err) => { notifyError(`Failed to load stock register: ${err.message}`); setError(true); })
       .finally(() => setLoading(false));
   }, [notifyError]);
 
@@ -99,13 +102,15 @@ export const StockInOutPage = () => {
         </div>
       </div>
 
-      {!loading && items.length === 0 ? (
+      {!loading && error ? (
+        <ErrorState onRetry={fetchAll} />
+      ) : !loading && items.length === 0 ? (
         <EmptyState title="No Stock Items Yet" description="Add the first consumable item to the stock register." actionLabel="Add Item" onAction={() => setItemModalOpen(true)} icon={Boxes} />
       ) : (
         <DataTable columns={itemColumns} data={items} loading={loading} />
       )}
 
-      {transactions.length > 0 && (
+      {!error && transactions.length > 0 && (
         <div className="space-y-3">
           <h3 className="text-base font-bold text-slate-900 dark:text-white">Recent Stock Movements</h3>
           <DataTable columns={txnColumns} data={transactions} />

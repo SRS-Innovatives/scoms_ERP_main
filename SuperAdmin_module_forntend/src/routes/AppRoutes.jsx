@@ -27,6 +27,7 @@ import ActiveSubscriptionsPage from '../pages/subscriptions/ActiveSubscriptionsP
 import RenewalManagementPage from '../pages/subscriptions/RenewalManagementPage';
 
 // Billing
+import BillingDashboardPage from '../pages/billing/BillingDashboardPage';
 import InvoicesPage from '../pages/billing/InvoicesPage';
 import InvoicePrintPage from '../pages/billing/InvoicePrintPage';
 import PaymentsPage from '../pages/billing/PaymentsPage';
@@ -39,6 +40,7 @@ import PermissionMatrixPage from '../pages/users/PermissionMatrixPage';
 
 // Modules
 import ModuleManagerPage from '../pages/modules/ModuleManagerPage';
+import ModuleRegistryDetailPage from '../pages/modules/ModuleRegistryDetailPage';
 import FeatureFlagsPage from '../pages/modules/FeatureFlagsPage';
 
 // Communication
@@ -117,6 +119,7 @@ export const AppRoutes = () => {
               <Route path="subscriptions/renewals" element={<RenewalManagementPage />} />
 
               {/* Billing */}
+              <Route path="billing/dashboard" element={<BillingDashboardPage />} />
               <Route path="invoices" element={<InvoicesPage />} />
               <Route path="invoices/:id" element={<InvoicePrintPage />} />
               <Route path="payments" element={<PaymentsPage />} />
@@ -131,6 +134,7 @@ export const AppRoutes = () => {
 
               {/* Modules */}
               <Route path="modules" element={<ModuleManagerPage />} />
+              <Route path="modules/:id" element={<ModuleRegistryDetailPage />} />
               <Route path="feature-flags" element={<FeatureFlagsPage />} />
 
               {/* Communication */}

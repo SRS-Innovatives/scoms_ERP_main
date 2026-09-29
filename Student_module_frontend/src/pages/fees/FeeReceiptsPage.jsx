@@ -1,18 +1,22 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import PageHeader from '../../components/common/PageHeader';
 import StatusBadge from '../../components/common/StatusBadge';
 import { useStudentAuth } from '../../context/StudentAuthContext';
 import { useNotification } from '../../context/NotificationContext';
 import { Printer, QrCode, Loader2 } from 'lucide-react';
 import feeService from '../../services/feeService';
+import ErrorState from '../../components/common/ErrorState';
 
 export const FeeReceiptsPage = () => {
   const { student } = useStudentAuth();
   const { error: showError } = useNotification();
   const [receipts, setReceipts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
-  useEffect(() => {
+  const load = useCallback(() => {
+    setLoading(true);
+    setError(false);
     feeService.getFees()
       .then((res) => {
         const flattened = (res.data || [])
@@ -21,12 +25,18 @@ export const FeeReceiptsPage = () => {
           .sort((a, b) => new Date(b.paidAt) - new Date(a.paidAt));
         setReceipts(flattened);
       })
-      .catch((err) => showError(err.message || 'Failed to load fee receipts', 'Load Failed'))
+      .catch((err) => { showError(err.message || 'Failed to load fee receipts', 'Load Failed'); setError(true); })
       .finally(() => setLoading(false));
   }, [showError]);
 
+  useEffect(() => { load(); }, [load]);
+
   if (loading) {
     return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-indigo-600" /></div>;
+  }
+
+  if (error) {
+    return <ErrorState onRetry={load} />;
   }
 
   return (

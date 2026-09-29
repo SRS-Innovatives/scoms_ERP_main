@@ -1,10 +1,26 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { navigationConfig } from '../../routes/navigationConfig';
 import { ChevronDown, ChevronRight, Search, ShieldCheck, X } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
+import { can } from '../../utils/permissions';
 
 export const Sidebar = ({ isOpen, setIsOpen }) => {
   const location = useLocation();
+  const { user } = useAuth();
+
+  // A child with no requiredPermission is always visible (most pages still have real
+  // view-only value even for a role that can't mutate there); a parent group with no
+  // `path` of its own disappears once every one of its children is filtered out.
+  const roleFilteredNav = useMemo(() => {
+    return navigationConfig
+      .map((item) => {
+        if (!item.children) return item;
+        const children = item.children.filter((c) => !c.requiredPermission || can(user?.role, c.requiredPermission));
+        return { ...item, children };
+      })
+      .filter((item) => !item.children || item.children.length > 0);
+  }, [user?.role]);
   const [openMenus, setOpenMenus] = useState(() => {
     const initial = {};
     navigationConfig.forEach(item => {
@@ -23,7 +39,7 @@ export const Sidebar = ({ isOpen, setIsOpen }) => {
     setOpenMenus(prev => ({ ...prev, [key]: !prev[key] }));
   };
 
-  const filteredNav = navigationConfig.filter(item => {
+  const filteredNav = roleFilteredNav.filter(item => {
     if (!navSearch) return true;
     const titleMatch = item.title.toLowerCase().includes(navSearch.toLowerCase());
     const childMatch = item.children?.some(c => c.title.toLowerCase().includes(navSearch.toLowerCase()));

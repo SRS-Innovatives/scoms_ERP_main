@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Printer, ArrowLeft, CheckCircle2, Loader2 } from 'lucide-react';
 import { useParams, useNavigate } from 'react-router-dom';
 import billingService from '../../services/billingService';
 import { useNotification } from '../../context/NotificationContext';
+import ErrorState from '../../components/common/ErrorState';
 
 export const InvoicePrintPage = () => {
   const { id } = useParams();
@@ -10,16 +11,22 @@ export const InvoicePrintPage = () => {
   const { error: showError } = useNotification();
   const [invoice, setInvoice] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
-  useEffect(() => {
+  const load = useCallback(() => {
+    setLoading(true);
+    setError(false);
     billingService.getInvoiceById(id)
       .then((res) => setInvoice(res.data))
       .catch((err) => {
         console.error('Failed to load invoice', err);
         showError(err.message || 'Invoice not found', 'Load Failed');
+        setError(true);
       })
       .finally(() => setLoading(false));
-  }, [id]);
+  }, [id, showError]);
+
+  useEffect(() => { load(); }, [load]);
 
   const handlePrint = () => {
     window.print();
@@ -31,6 +38,10 @@ export const InvoicePrintPage = () => {
         <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
       </div>
     );
+  }
+
+  if (error) {
+    return <ErrorState onRetry={load} />;
   }
 
   if (!invoice) {

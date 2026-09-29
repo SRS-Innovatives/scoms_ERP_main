@@ -45,13 +45,26 @@ const TOKEN_KEYS = [
   'scoms_refresh_token',
   'scoms_user',
   'scoms_current_role',
+  'scoms_active_child_id',
 ];
+
+/** Which real child a Parent is currently viewing — read by api.js on every request (as
+ * the X-Active-Student-Id header) so the backend's resolveActiveChild middleware knows
+ * which of the parent's real, verified children to scope the request to. A Student
+ * caller never sets this; their own studentId already comes from their own JWT. */
+const getStoredAuthUser = () => {
+  try { return JSON.parse(localStorage.getItem('scoms_student_user') || 'null'); } catch { return null; }
+};
 
 export const StudentAuthProvider = ({ children }) => {
   const [student, setStudent] = useState(null);
+  const [authUser, setAuthUser] = useState(getStoredAuthUser);
+  const [activeChildId, setActiveChildId] = useState(() => localStorage.getItem('scoms_active_child_id') || null);
   const [loading, setLoading] = useState(true);
 
   const hasToken = () => !!localStorage.getItem('scoms_student_token');
+  const isParent = authUser?.role === 'PARENT';
+  const parentChildren = authUser?.children || [];
 
   const loadProfile = useCallback(() => {
     if (!hasToken()) {
@@ -75,12 +88,31 @@ export const StudentAuthProvider = ({ children }) => {
    * partial shape the login response happened to include. */
   const login = useCallback((userData, token) => {
     if (token) localStorage.setItem('scoms_student_token', token);
+    setAuthUser(userData || getStoredAuthUser());
+    // A Parent with one real child (the common case) gets that child selected
+    // automatically — the switcher only matters once there's more than one.
+    const firstChildId = userData?.children?.[0]?.id;
+    if (userData?.role === 'PARENT' && firstChildId) {
+      localStorage.setItem('scoms_active_child_id', firstChildId);
+      setActiveChildId(firstChildId);
+    }
+    loadProfile();
+  }, [loadProfile]);
+
+  /** Switches which real child a Parent is viewing — every subsequent request is scoped
+   * to this child (see api.js), re-validated server-side on every single call, never
+   * just trusted because the frontend says so. */
+  const switchChild = useCallback((studentId) => {
+    localStorage.setItem('scoms_active_child_id', studentId);
+    setActiveChildId(studentId);
     loadProfile();
   }, [loadProfile]);
 
   const logout = useCallback(() => {
     TOKEN_KEYS.forEach((key) => localStorage.removeItem(key));
     setStudent(null);
+    setAuthUser(null);
+    setActiveChildId(null);
   }, []);
 
   const value = {
@@ -91,6 +123,10 @@ export const StudentAuthProvider = ({ children }) => {
     loading,
     isAuthenticated: hasToken(),
     refetchProfile: loadProfile,
+    isParent,
+    parentChildren,
+    activeChildId,
+    switchChild,
   };
 
   return (

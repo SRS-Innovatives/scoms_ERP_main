@@ -12,6 +12,7 @@
   ],
   "scripts": {
     "dev": "concurrently \"npm run start:super-admin\" \"npm run start:institute-admin\" \"npm run start:staff\" \"npm run start:student\"",
+    "test": "node test/tenantIsolation.test.js && node test/rbacMatrix.test.js",
     "prisma:generate": "prisma generate",
     "prisma:validate": "prisma validate",
     "prisma:migrate": "prisma migrate dev",

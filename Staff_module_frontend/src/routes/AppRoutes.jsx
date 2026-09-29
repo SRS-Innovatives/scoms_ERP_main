@@ -94,6 +94,7 @@ import StudentLeaveApprovalPage from '../pages/leave/StudentLeaveApprovalPage';
 
 // Events
 import EventDutiesPage from '../pages/events/EventDutiesPage';
+import AcademicCalendarPage from '../pages/calendar/AcademicCalendarPage';
 import ClubActivitiesPage from '../pages/events/ClubActivitiesPage';
 import CompetitionManagementPage from '../pages/events/CompetitionManagementPage';
 import EventAttendancePage from '../pages/events/EventAttendancePage';
@@ -135,6 +136,14 @@ import PrintParentMeetingRecord from '../pages/print/PrintParentMeetingRecord';
 import PrintDutyAllotmentLetter from '../pages/print/PrintDutyAllotmentLetter';
 import LoginPage from '../pages/auth/LoginPage';
 import ForgotPasswordPage from '../pages/auth/ForgotPasswordPage';
+
+// Role Desks (Accountant / Transport Manager / Hostel Warden / Placement Officer / Exam Admin)
+import FeeCollectionDeskPage from '../pages/finance/FeeCollectionDeskPage';
+import ExpenseLogPage from '../pages/finance/ExpenseLogPage';
+import TransportDeskPage from '../pages/transport/TransportDeskPage';
+import HostelDeskPage from '../pages/hostel/HostelDeskPage';
+import PlacementDeskPage from '../pages/placement/PlacementDeskPage';
+import ExamSetupPage from '../pages/exams/ExamSetupPage';
 
 export const AppRoutes = () => {
   return (
@@ -239,6 +248,7 @@ export const AppRoutes = () => {
 
             {/* Events */}
             <Route path="events/duties" element={<EventDutiesPage />} />
+            <Route path="academic-calendar" element={<AcademicCalendarPage />} />
             <Route path="events/clubs" element={<ClubActivitiesPage />} />
             <Route path="events/competitions" element={<CompetitionManagementPage />} />
             <Route path="events/attendance" element={<EventAttendancePage />} />
@@ -278,6 +288,14 @@ export const AppRoutes = () => {
             <Route path="print/progress" element={<PrintStudentProgressReport />} />
             <Route path="print/parent-record" element={<PrintParentMeetingRecord />} />
             <Route path="print/duty-letter" element={<PrintDutyAllotmentLetter />} />
+
+            {/* Role Desks */}
+            <Route path="finance/fee-desk" element={<FeeCollectionDeskPage />} />
+            <Route path="finance/expenses" element={<ExpenseLogPage />} />
+            <Route path="transport/desk" element={<TransportDeskPage />} />
+            <Route path="hostel/desk" element={<HostelDeskPage />} />
+            <Route path="placement/desk" element={<PlacementDeskPage />} />
+            <Route path="exams/setup" element={<ExamSetupPage />} />
 
             <Route path="*" element={<Navigate to="/staff/dashboard" replace />} />
           </Routes>

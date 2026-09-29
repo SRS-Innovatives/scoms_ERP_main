@@ -3,6 +3,7 @@ import { Loader2, MessageSquarePlus } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import reportManagementService from '../../services/reportManagementService';
 import { useNotification } from '../../context/NotificationContext';
+import ErrorState from '../../components/common/ErrorState';
 
 const STATUSES = ['REQUESTED', 'UNDER_REVIEW', 'APPROVED', 'IN_DEVELOPMENT', 'READY', 'REJECTED'];
 const STATUS_STYLE = {
@@ -22,12 +23,15 @@ export const ReportRequestReviewPage = () => {
   const { error: showError, success } = useNotification();
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [remarksDraft, setRemarksDraft] = useState({});
 
   const load = () => {
+    setLoading(true);
+    setError(false);
     reportManagementService.getReportRequests()
       .then((res) => setRequests(res.data || []))
-      .catch((err) => showError(`Failed to load report requests: ${err.message}`))
+      .catch((err) => { showError(`Failed to load report requests: ${err.message}`); setError(true); })
       .finally(() => setLoading(false));
   };
 
@@ -45,6 +49,10 @@ export const ReportRequestReviewPage = () => {
 
   if (loading) {
     return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-amber-600" /></div>;
+  }
+
+  if (error) {
+    return <ErrorState onRetry={load} />;
   }
 
   return (

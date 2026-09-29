@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import FormInput from '../../components/common/FormInput';
+import ErrorState from '../../components/common/ErrorState';
 import { useNotification } from '../../context/NotificationContext';
 import { User, Save, Loader2, Camera } from 'lucide-react';
 import studentService from '../../services/studentService';
@@ -12,6 +13,7 @@ export const MyProfilePage = () => {
   const [activeTab, setActiveTab] = useState('Personal');
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [saving, setSaving] = useState(false);
   const [formData, setFormData] = useState(EMPTY_FORM);
   const [uploading, setUploading] = useState(false);
@@ -19,6 +21,7 @@ export const MyProfilePage = () => {
 
   const load = useCallback(() => {
     setLoading(true);
+    setError(false);
     studentService.getProfile()
       .then((res) => {
         const p = res.data;
@@ -32,7 +35,7 @@ export const MyProfilePage = () => {
           pincode: p.pincode || '',
         });
       })
-      .catch((err) => showError(err.message || 'Failed to load profile', 'Load Failed'))
+      .catch((err) => { showError(err.message || 'Failed to load profile', 'Load Failed'); setError(true); })
       .finally(() => setLoading(false));
   }, [showError]);
 
@@ -84,6 +87,10 @@ export const MyProfilePage = () => {
 
   if (loading) {
     return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-indigo-600" /></div>;
+  }
+
+  if (error) {
+    return <ErrorState onRetry={load} />;
   }
 
   if (!profile) return null;

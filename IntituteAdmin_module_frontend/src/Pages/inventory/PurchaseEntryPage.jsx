@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import DataTable from '../../components/common/DataTable';
 import StatusBadge from '../../components/common/StatusBadge';
 import EmptyState from '../../components/common/EmptyState';
+import ErrorState from '../../components/common/ErrorState';
 import FormModal from '../../components/common/FormModal';
 import { useNotification } from '../../context/NotificationContext';
 import { ShoppingCart } from 'lucide-react';
@@ -15,18 +16,20 @@ export const PurchaseEntryPage = () => {
   const [orders, setOrders] = useState([]);
   const [vendors, setVendors] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState(emptyForm);
 
   const fetchAll = useCallback(() => {
     setLoading(true);
+    setError(false);
     Promise.all([inventoryService.getPurchaseOrders(), inventoryService.getVendors()])
       .then(([orderRes, vendorRes]) => {
         setOrders(orderRes.data || []);
         setVendors(vendorRes.data || []);
       })
-      .catch((err) => notifyError(`Failed to load purchase orders: ${err.message}`))
+      .catch((err) => { notifyError(`Failed to load purchase orders: ${err.message}`); setError(true); })
       .finally(() => setLoading(false));
   }, [notifyError]);
 
@@ -86,7 +89,9 @@ export const PurchaseEntryPage = () => {
         </button>
       </div>
 
-      {!loading && orders.length === 0 ? (
+      {!loading && error ? (
+        <ErrorState onRetry={fetchAll} />
+      ) : !loading && orders.length === 0 ? (
         <EmptyState
           title="No Purchase Orders Yet"
           description={vendors.length === 0 ? 'Add a vendor first under Vendor Management.' : 'Create the first purchase order.'}

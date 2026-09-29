@@ -1,20 +1,26 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import DataTable from '../../components/common/DataTable';
 import { useNotification } from '../../context/NotificationContext';
 import { Loader2 } from 'lucide-react';
 import transportService from '../../services/transportService';
+import ErrorState from '../../components/common/ErrorState';
 
 export const TransportFeePage = () => {
   const { notifyError } = useNotification();
   const [routes, setRoutes] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
-  useEffect(() => {
+  const load = useCallback(() => {
+    setLoading(true);
+    setError(false);
     transportService.getRoutes()
       .then((res) => setRoutes(res.data || []))
-      .catch((err) => notifyError(`Failed to load transport fee structure: ${err.message}`))
+      .catch((err) => { notifyError(`Failed to load transport fee structure: ${err.message}`); setError(true); })
       .finally(() => setLoading(false));
   }, [notifyError]);
+
+  useEffect(() => { load(); }, [load]);
 
   const columns = [
     { header: 'Corridor Name', key: 'routeName', render: (val) => <span className="font-bold text-slate-900 dark:text-white">{val}</span> },
@@ -26,6 +32,10 @@ export const TransportFeePage = () => {
 
   if (loading) {
     return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-indigo-600" /></div>;
+  }
+
+  if (error) {
+    return <ErrorState onRetry={load} />;
   }
 
   return (

@@ -2,6 +2,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNotification } from '../../context/NotificationContext';
 import { FlaskConical, Plus, Loader2, ExternalLink, Edit, Trash2, X, Save } from 'lucide-react';
 import researchService from '../../services/researchService';
+import ConfirmDialog from '../../components/modals/ConfirmDialog';
+import ErrorState from '../../components/common/ErrorState';
 
 const TYPE_OPTIONS = [
   { value: 'JOURNAL', label: 'Journal Article' },
@@ -16,16 +18,19 @@ export const MyPublicationsPage = () => {
   const { success, error: showError } = useNotification();
   const [publications, setPublications] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState(emptyForm);
   const [submitting, setSubmitting] = useState(false);
+  const [confirming, setConfirming] = useState(null);
 
   const fetchAll = useCallback(() => {
     setLoading(true);
+    setError(false);
     researchService.getAll()
       .then((res) => setPublications(res.data || []))
-      .catch((err) => showError(err.message || 'Failed to load publications', 'Load Failed'))
+      .catch((err) => { showError(err.message || 'Failed to load publications', 'Load Failed'); setError(true); })
       .finally(() => setLoading(false));
   }, [showError]);
 
@@ -71,7 +76,8 @@ export const MyPublicationsPage = () => {
     }
   };
 
-  const handleDelete = async (pub) => {
+  const handleDelete = async () => {
+    const pub = confirming;
     try {
       await researchService.remove(pub.id);
       success('Publication removed.');
@@ -83,6 +89,10 @@ export const MyPublicationsPage = () => {
 
   if (loading) {
     return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-sky-600" /></div>;
+  }
+
+  if (error) {
+    return <ErrorState onRetry={fetchAll} />;
   }
 
   return (
@@ -168,7 +178,7 @@ export const MyPublicationsPage = () => {
                 </span>
                 <div className="flex items-center gap-1">
                   <button onClick={() => openEdit(pub)} className="p-1.5 text-slate-400 hover:text-sky-600 rounded-lg hover:bg-sky-50 dark:hover:bg-sky-950"><Edit className="w-3.5 h-3.5" /></button>
-                  <button onClick={() => handleDelete(pub)} className="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950"><Trash2 className="w-3.5 h-3.5" /></button>
+                  <button onClick={() => setConfirming(pub)} className="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950"><Trash2 className="w-3.5 h-3.5" /></button>
                 </div>
               </div>
               <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100 leading-tight">{pub.title}</h3>
@@ -183,6 +193,14 @@ export const MyPublicationsPage = () => {
           ))}
         </div>
       )}
+
+      <ConfirmDialog
+        isOpen={Boolean(confirming)}
+        onClose={() => setConfirming(null)}
+        onConfirm={handleDelete}
+        title="Remove Publication?"
+        message={confirming ? `"${confirming.title}" will be permanently removed from your research portfolio.` : ''}
+      />
     </div>
   );
 };

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import StatusBadge from '../../components/common/StatusBadge';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useNotification } from '../../context/NotificationContext';
@@ -7,6 +7,7 @@ import materialService from '../../services/materialService';
 import assignmentService from '../../services/assignmentService';
 import examService from '../../services/examService';
 import { ArrowLeft, User, Download, FileText, Loader2 } from 'lucide-react';
+import ErrorState from '../../components/common/ErrorState';
 
 export const SubjectDetailPage = () => {
   const { id } = useParams();
@@ -18,9 +19,12 @@ export const SubjectDetailPage = () => {
   const [assignments, setAssignments] = useState([]);
   const [examSchedule, setExamSchedule] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [activeTab, setActiveTab] = useState('Overview');
 
-  useEffect(() => {
+  const load = useCallback(() => {
+    setLoading(true);
+    setError(false);
     Promise.all([
       studentService.getMySubjects(),
       materialService.getMaterials(),
@@ -36,12 +40,18 @@ export const SubjectDetailPage = () => {
           setExamSchedule((scheduleRes.data || []).filter((e) => e.subject?.name === sub.name));
         }
       })
-      .catch((err) => showError(err.message || 'Failed to load subject', 'Load Failed'))
+      .catch((err) => { showError(err.message || 'Failed to load subject', 'Load Failed'); setError(true); })
       .finally(() => setLoading(false));
   }, [id, showError]);
 
+  useEffect(() => { load(); }, [load]);
+
   if (loading) {
     return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-indigo-600" /></div>;
+  }
+
+  if (error) {
+    return <ErrorState onRetry={load} />;
   }
 
   if (!subject) {

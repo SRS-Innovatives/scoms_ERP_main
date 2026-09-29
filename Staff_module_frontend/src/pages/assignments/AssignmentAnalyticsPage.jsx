@@ -1,23 +1,33 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import PerformanceChart from '../../components/common/PerformanceChart';
 import { Loader2 } from 'lucide-react';
 import { useNotification } from '../../context/NotificationContext';
 import assignmentService from '../../services/assignmentService';
+import ErrorState from '../../components/common/ErrorState';
 
 export const AssignmentAnalyticsPage = () => {
   const { error: showError } = useNotification();
   const [assignments, setAssignments] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
-  useEffect(() => {
+  const load = useCallback(() => {
+    setLoading(true);
+    setError(false);
     assignmentService.getAssignments()
       .then((res) => setAssignments(res.data || []))
-      .catch((err) => showError(err.message || 'Failed to load analytics', 'Load Failed'))
+      .catch((err) => { showError(err.message || 'Failed to load analytics', 'Load Failed'); setError(true); })
       .finally(() => setLoading(false));
   }, [showError]);
 
+  useEffect(() => { load(); }, [load]);
+
   if (loading) {
     return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-sky-600" /></div>;
+  }
+
+  if (error) {
+    return <ErrorState onRetry={load} />;
   }
 
   const shortLabel = (title) => (title.length > 14 ? `${title.slice(0, 14)}…` : title);

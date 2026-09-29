@@ -3,6 +3,7 @@ import DataTable from '../../components/common/DataTable';
 import PageHeader from '../../components/common/PageHeader';
 import StatusBadge from '../../components/common/StatusBadge';
 import ApplyLeaveModal from '../../components/modals/ApplyLeaveModal';
+import ErrorState from '../../components/common/ErrorState';
 import { useNotification } from '../../context/NotificationContext';
 import leaveService from '../../services/leaveService';
 
@@ -16,12 +17,14 @@ export const LeaveRequestPage = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [leaves, setLeaves] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   const load = useCallback(() => {
     setLoading(true);
+    setError(false);
     leaveService.getMyLeaves()
       .then((res) => setLeaves(res.data || []))
-      .catch((err) => showError(err.message || 'Failed to load leave requests', 'Load Failed'))
+      .catch((err) => { showError(err.message || 'Failed to load leave requests', 'Load Failed'); setError(true); })
       .finally(() => setLoading(false));
   }, [showError]);
 
@@ -36,6 +39,10 @@ export const LeaveRequestPage = () => {
     { header: 'Approved By', key: 'approvedBy', render: (v) => v || '—' },
     { header: 'Status', key: 'status', render: (v) => <StatusBadge status={STATUS_LABELS[v] || v} size="sm" /> },
   ];
+
+  if (error) {
+    return <ErrorState onRetry={load} />;
+  }
 
   return (
     <div className="space-y-6">

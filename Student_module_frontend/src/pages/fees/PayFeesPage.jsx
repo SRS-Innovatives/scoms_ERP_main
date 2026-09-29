@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import PageHeader from '../../components/common/PageHeader';
 import { useNotification } from '../../context/NotificationContext';
 import { CreditCard, QrCode, Building, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import feeService from '../../services/feeService';
 import { useStudentAuth } from '../../context/StudentAuthContext';
+import ErrorState from '../../components/common/ErrorState';
 
 const PAYMENT_MODES = [
   { mode: 'UPI', label: 'UPI / GPay / PhonePe', icon: QrCode },
@@ -39,9 +40,12 @@ export const PayFeesPage = () => {
   const [amount, setAmount] = useState('');
   const [paymentMode, setPaymentMode] = useState('UPI');
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
 
-  useEffect(() => {
+  const load = useCallback(() => {
+    setLoading(true);
+    setError(false);
     feeService.getFees()
       .then((res) => {
         const due = (res.data || []).filter((a) => a.dueAmount > 0);
@@ -51,9 +55,11 @@ export const PayFeesPage = () => {
           setAmount(String(due[0].dueAmount));
         }
       })
-      .catch((err) => showError(err.message || 'Failed to load fee dues', 'Load Failed'))
+      .catch((err) => { showError(err.message || 'Failed to load fee dues', 'Load Failed'); setError(true); })
       .finally(() => setLoading(false));
   }, [showError]);
+
+  useEffect(() => { load(); }, [load]);
 
   const selected = assignments.find((a) => a.id === assignmentId);
 
@@ -145,6 +151,10 @@ export const PayFeesPage = () => {
 
   if (loading) {
     return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-indigo-600" /></div>;
+  }
+
+  if (error) {
+    return <ErrorState onRetry={load} />;
   }
 
   return (

@@ -1,25 +1,39 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import PageHeader from '../../components/common/PageHeader';
-import { Calendar as CalendarIcon, PartyPopper, FileSpreadsheet, Wallet, Loader2 } from 'lucide-react';
+import { Calendar as CalendarIcon, PartyPopper, FileSpreadsheet, Wallet, Loader2, Palmtree, AlarmClock } from 'lucide-react';
 import { useNotification } from '../../context/NotificationContext';
 import eventService from '../../services/eventService';
 import examService from '../../services/examService';
 import feeService from '../../services/feeService';
+import academicCalendarService from '../../services/academicCalendarService';
+import ErrorState from '../../components/common/ErrorState';
 
 const KIND_META = {
   event: { icon: PartyPopper, color: 'text-indigo-500' },
   exam: { icon: FileSpreadsheet, color: 'text-rose-500' },
   fee: { icon: Wallet, color: 'text-amber-500' },
+  holiday: { icon: Palmtree, color: 'text-emerald-500' },
+  deadline: { icon: AlarmClock, color: 'text-violet-500' },
 };
 
 export const AcademicCalendarPage = () => {
   const { error: showError } = useNotification();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
-  useEffect(() => {
-    Promise.all([eventService.getEvents(), examService.getExamSchedule(), feeService.getFees()])
-      .then(([eventsRes, examRes, feesRes]) => {
+  const CALENDAR_KIND_MAP = { HOLIDAY: 'holiday', EXAM: 'exam', EVENT: 'event', DEADLINE: 'deadline', OTHER: 'event' };
+
+  const load = useCallback(() => {
+    setLoading(true);
+    setError(false);
+    Promise.all([
+      eventService.getEvents(),
+      examService.getExamSchedule(),
+      feeService.getFees(),
+      academicCalendarService.getEvents().catch(() => ({ data: [] })), // module may not be enabled for every institution
+    ])
+      .then(([eventsRes, examRes, feesRes, calendarRes]) => {
         const events = (eventsRes.data || []).map((e) => ({
           date: e.eventDate,
           title: e.title,
@@ -40,16 +54,28 @@ export const AcademicCalendarPage = () => {
             subtitle: `₹${a.dueAmount.toLocaleString()} outstanding`,
             kind: 'fee',
           }));
+        const calendar = (calendarRes.data || []).map((c) => ({
+          date: c.startDate,
+          title: c.title,
+          subtitle: c.description,
+          kind: CALENDAR_KIND_MAP[c.eventType] || 'event',
+        }));
 
-        const merged = [...events, ...exams, ...fees].sort((a, b) => new Date(a.date) - new Date(b.date));
+        const merged = [...events, ...exams, ...fees, ...calendar].sort((a, b) => new Date(a.date) - new Date(b.date));
         setItems(merged);
       })
-      .catch((err) => showError(err.message || 'Failed to load calendar', 'Load Failed'))
+      .catch((err) => { showError(err.message || 'Failed to load calendar', 'Load Failed'); setError(true); })
       .finally(() => setLoading(false));
   }, [showError]);
 
+  useEffect(() => { load(); }, [load]);
+
   if (loading) {
     return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-indigo-600" /></div>;
+  }
+
+  if (error) {
+    return <ErrorState onRetry={load} />;
   }
 
   return (

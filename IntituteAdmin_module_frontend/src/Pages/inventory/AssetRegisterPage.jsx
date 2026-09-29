@@ -3,6 +3,7 @@ import DataTable from '../../components/common/DataTable';
 import SearchFilterBar from '../../components/common/SearchFilterBar';
 import StatusBadge from '../../components/common/StatusBadge';
 import EmptyState from '../../components/common/EmptyState';
+import ErrorState from '../../components/common/ErrorState';
 import FormModal from '../../components/common/FormModal';
 import { useNotification } from '../../context/NotificationContext';
 import { Package } from 'lucide-react';
@@ -23,18 +24,20 @@ export const AssetRegisterPage = () => {
   const [assets, setAssets] = useState([]);
   const [vendors, setVendors] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState(emptyForm);
 
   const fetchAll = useCallback(() => {
     setLoading(true);
+    setError(false);
     Promise.all([inventoryService.getAssets(), inventoryService.getVendors()])
       .then(([assetRes, vendorRes]) => {
         setAssets(assetRes.data || []);
         setVendors(vendorRes.data || []);
       })
-      .catch((err) => notifyError(`Failed to load assets: ${err.message}`))
+      .catch((err) => { notifyError(`Failed to load assets: ${err.message}`); setError(true); })
       .finally(() => setLoading(false));
   }, [notifyError]);
 
@@ -79,7 +82,9 @@ export const AssetRegisterPage = () => {
 
       <SearchFilterBar searchQuery={search} onSearchChange={setSearch} placeholder="Search asset tag or name..." addLabel="Add Asset Item" onAddClick={() => setModalOpen(true)} />
 
-      {!loading && filtered.length === 0 ? (
+      {!loading && error ? (
+        <ErrorState onRetry={fetchAll} />
+      ) : !loading && filtered.length === 0 ? (
         <EmptyState title="No Assets Registered Yet" description="Add the first fixed asset to the register." actionLabel="Add Asset Item" onAction={() => setModalOpen(true)} icon={Package} />
       ) : (
         <DataTable columns={columns} data={filtered} loading={loading} />

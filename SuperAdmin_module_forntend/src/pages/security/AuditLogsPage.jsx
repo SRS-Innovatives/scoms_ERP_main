@@ -5,18 +5,21 @@ import SearchBar from '../../components/common/SearchBar';
 import { Loader2 } from 'lucide-react';
 import auditLogService from '../../services/auditLogService';
 import { useNotification } from '../../context/NotificationContext';
+import ErrorState from '../../components/common/ErrorState';
 
 export const AuditLogsPage = () => {
   const { error: showError } = useNotification();
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [search, setSearch] = useState('');
 
   const fetchLogs = useCallback((query = '') => {
     setLoading(true);
+    setError(false);
     auditLogService.getAuditLogs({ limit: 100, ...(query && { search: query }) })
       .then((res) => setLogs(res.data || []))
-      .catch((err) => showError(err.message || 'Failed to load audit logs', 'Load Failed'))
+      .catch((err) => { showError(err.message || 'Failed to load audit logs', 'Load Failed'); setError(true); })
       .finally(() => setLoading(false));
   }, [showError]);
 
@@ -45,6 +48,8 @@ export const AuditLogsPage = () => {
 
       {loading ? (
         <div className="flex justify-center py-16"><Loader2 className="w-7 h-7 animate-spin text-indigo-600" /></div>
+      ) : error ? (
+        <ErrorState onRetry={() => fetchLogs(search)} />
       ) : (
         <DataTable columns={columns} data={logs} />
       )}

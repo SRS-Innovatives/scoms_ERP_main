@@ -4,6 +4,7 @@ import StatCard from '../../components/common/StatCard';
 import { Settings, Cpu, ShieldCheck, ShieldAlert, Key, Loader2, Save } from 'lucide-react';
 import { useNotification } from '../../context/NotificationContext';
 import aiService from '../../services/aiService';
+import ErrorState from '../../components/common/ErrorState';
 
 const MODEL_OPTIONS = [
   { value: 'gpt-4o-mini', label: 'GPT-4o mini — fast & cheap, recommended for a student tutor' },
@@ -14,6 +15,7 @@ const MODEL_OPTIONS = [
 export const AiConfigPage = () => {
   const { success, error: showError } = useNotification();
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [saving, setSaving] = useState(false);
   const [config, setConfig] = useState(null);
   const [model, setModel] = useState('gpt-4o-mini');
@@ -22,13 +24,14 @@ export const AiConfigPage = () => {
 
   const load = () => {
     setLoading(true);
+    setError(false);
     aiService.getAiConfig()
       .then((res) => {
         setConfig(res.data);
         setModel(res.data.model);
         setTemperature(res.data.temperature);
       })
-      .catch((err) => showError(`Failed to load AI configuration: ${err.message}`))
+      .catch((err) => { showError(`Failed to load AI configuration: ${err.message}`); setError(true); })
       .finally(() => setLoading(false));
   };
 
@@ -53,6 +56,10 @@ export const AiConfigPage = () => {
 
   if (loading) {
     return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-indigo-600" /></div>;
+  }
+
+  if (error) {
+    return <ErrorState onRetry={load} />;
   }
 
   return (

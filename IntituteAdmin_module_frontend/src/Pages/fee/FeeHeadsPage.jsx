@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Loader2, Plus, Tag, Layers } from 'lucide-react';
 import feeEngineService from '../../services/feeEngineService';
 import { useNotification } from '../../context/NotificationContext';
+import ErrorState from '../../components/common/ErrorState';
 
 /**
  * Fee Head Master — the metadata layer. Institute Admin creates unlimited, fully custom
@@ -15,6 +16,7 @@ export const FeeHeadsPage = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [showCategoryForm, setShowCategoryForm] = useState(false);
+  const [error, setError] = useState(false);
 
   const [name, setName] = useState('');
   const [code, setCode] = useState('');
@@ -27,12 +29,13 @@ export const FeeHeadsPage = () => {
   const [categoryCode, setCategoryCode] = useState('');
 
   const load = () => {
+    setError(false);
     Promise.all([feeEngineService.getFeeHeads(), feeEngineService.getCategories()])
       .then(([headsRes, catRes]) => {
         setHeads(headsRes.data || []);
         setCategories(catRes.data || []);
       })
-      .catch((err) => showError(`Failed to load fee heads: ${err.message}`))
+      .catch((err) => { showError(`Failed to load fee heads: ${err.message}`); setError(true); })
       .finally(() => setLoading(false));
   };
 
@@ -82,6 +85,10 @@ export const FeeHeadsPage = () => {
 
   if (loading) {
     return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-indigo-600" /></div>;
+  }
+
+  if (error) {
+    return <ErrorState onRetry={load} />;
   }
 
   return (

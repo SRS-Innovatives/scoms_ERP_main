@@ -5,6 +5,7 @@ import EmptyState from '../../components/common/EmptyState';
 import { useNotification } from '../../context/NotificationContext';
 import researchService from '../../services/researchService';
 import { FlaskConical, ExternalLink } from 'lucide-react';
+import ErrorState from '../../components/common/ErrorState';
 
 const TYPE_LABELS = { JOURNAL: 'Journal', CONFERENCE: 'Conference', PATENT: 'Patent', BOOK_CHAPTER: 'Book Chapter' };
 
@@ -14,13 +15,15 @@ export const ResearchOversightPage = () => {
   const { notifyError } = useNotification();
   const [publications, setPublications] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [search, setSearch] = useState('');
 
   const fetchAll = useCallback(() => {
     setLoading(true);
+    setError(false);
     researchService.getAll()
       .then((res) => setPublications(res.data || []))
-      .catch((err) => notifyError(`Failed to load research records: ${err.message}`))
+      .catch((err) => { notifyError(`Failed to load research records: ${err.message}`); setError(true); })
       .finally(() => setLoading(false));
   }, [notifyError]);
 
@@ -69,7 +72,9 @@ export const ResearchOversightPage = () => {
 
       <SearchFilterBar searchQuery={search} onSearchChange={setSearch} placeholder="Search by title or author..." onRefreshClick={fetchAll} />
 
-      {!loading && filtered.length === 0 ? (
+      {!loading && error ? (
+        <ErrorState onRetry={fetchAll} />
+      ) : !loading && filtered.length === 0 ? (
         <EmptyState icon={FlaskConical} title="No Research Records Yet" description="Faculty publications will show up here automatically once staff add them from their own portal." />
       ) : (
         <DataTable columns={columns} data={filtered} loading={loading} />

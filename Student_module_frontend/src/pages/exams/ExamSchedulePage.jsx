@@ -1,22 +1,28 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import DataTable from '../../components/common/DataTable';
 import PageHeader from '../../components/common/PageHeader';
 import StatusBadge from '../../components/common/StatusBadge';
 import examService from '../../services/examService';
 import { Calendar, Loader2 } from 'lucide-react';
 import { useNotification } from '../../context/NotificationContext';
+import ErrorState from '../../components/common/ErrorState';
 
 export const ExamSchedulePage = () => {
   const { error: showError } = useNotification();
   const [schedules, setSchedules] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
-  useEffect(() => {
+  const load = useCallback(() => {
+    setLoading(true);
+    setError(false);
     examService.getExamSchedule()
       .then((res) => setSchedules(res.data || []))
-      .catch((err) => showError(err.message || 'Failed to load exam schedule', 'Load Failed'))
+      .catch((err) => { showError(err.message || 'Failed to load exam schedule', 'Load Failed'); setError(true); })
       .finally(() => setLoading(false));
   }, [showError]);
+
+  useEffect(() => { load(); }, [load]);
 
   const columns = [
     { header: 'Subject Code', key: 'subject', sortable: false, render: (v) => <span className="font-mono font-bold text-indigo-600">{v?.code}</span> },
@@ -37,6 +43,8 @@ export const ExamSchedulePage = () => {
 
       {loading ? (
         <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-indigo-600" /></div>
+      ) : error ? (
+        <ErrorState onRetry={load} />
       ) : schedules.length === 0 ? (
         <div className="glass-card p-10 rounded-2xl border border-slate-200 dark:border-slate-800 text-center">
           <Calendar className="w-8 h-8 text-slate-300 mx-auto mb-2" />

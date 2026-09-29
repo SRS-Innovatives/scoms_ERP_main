@@ -11,6 +11,7 @@ import HomeworkDetailPage from '../pages/homework/HomeworkDetailPage';
 
 // Setup
 import InstituteProfilePage from '../pages/setup/InstituteProfilePage';
+import ModuleSettingsPage from '../pages/setup/ModuleSettingsPage';
 import AcademicYearSetupPage from '../pages/setup/AcademicYearSetupPage';
 import CampusSetupPage from '../pages/setup/CampusSetupPage';
 import DepartmentSetupPage from '../pages/setup/DepartmentSetupPage';
@@ -36,6 +37,7 @@ import TransferCertificatePage from '../pages/student/TransferCertificatePage';
 import BonafideCertificatePage from '../pages/student/BonafideCertificatePage';
 import IDCardPreviewPage from '../pages/student/IDCardPreviewPage';
 import StudentDocumentsPage from '../pages/student/StudentDocumentsPage';
+import StudentExitPage from '../pages/student/StudentExitPage';
 import PromoteStudentsPage from '../pages/student/PromoteStudentsPage';
 import AlumniManagementPage from '../pages/student/AlumniManagementPage';
 import DegreeIssuancePage from '../pages/student/DegreeIssuancePage';
@@ -94,6 +96,7 @@ import FeeStructurePage from '../pages/fee/FeeStructurePage';
 import StudentFeeAssignmentPage from '../pages/fee/StudentFeeAssignmentPage';
 import BulkFeeAssignmentPage from '../pages/fee/BulkFeeAssignmentPage';
 import CollectFeePage from '../pages/fee/CollectFeePage';
+import FeeCollectionV2Page from '../pages/fee/FeeCollectionV2Page';
 import PendingFeesPage from '../pages/fee/PendingFeesPage';
 import InstallmentManagementPage from '../pages/fee/InstallmentManagementPage';
 import ScholarshipManagementPage from '../pages/fee/ScholarshipManagementPage';
@@ -103,11 +106,15 @@ import CashBookPage from '../pages/fee/CashBookPage';
 import DayBookPage from '../pages/fee/DayBookPage';
 import ChallanGenerationPage from '../pages/fee/ChallanGenerationPage';
 import PrintableReceiptPage from '../pages/fee/PrintableReceiptPage';
+import FeeAssignmentFieldsPage from '../pages/fee/FeeAssignmentFieldsPage';
 
 // Communication
 import AnnouncementsPage from '../pages/communication/AnnouncementsPage';
 import CircularsPage from '../pages/communication/CircularsPage';
 import SMSCenterPage from '../pages/communication/SMSCenterPage';
+import ScheduledNotificationsPage from '../pages/communication/ScheduledNotificationsPage';
+import AutomationEnginePage from '../pages/communication/AutomationEnginePage';
+import WorkflowEnginePage from '../pages/staff/WorkflowEnginePage';
 import EmailCenterPage from '../pages/communication/EmailCenterPage';
 import WhatsAppNoticePage from '../pages/communication/WhatsAppNoticePage';
 import TemplateLibraryPage from '../pages/communication/TemplateLibraryPage';
@@ -123,6 +130,7 @@ import ReturnBookPage from '../pages/library/ReturnBookPage';
 import FineCollectionPage from '../pages/library/FineCollectionPage';
 import StudentLibraryCardPage from '../pages/library/StudentLibraryCardPage';
 import LibraryReportsPage from '../pages/library/LibraryReportsPage';
+import LibraryMembershipFieldsPage from '../pages/library/LibraryMembershipFieldsPage';
 
 // Transport
 import RouteManagementPage from '../pages/transport/RouteManagementPage';
@@ -131,6 +139,7 @@ import DriverManagementPage from '../pages/transport/DriverManagementPage';
 import StudentRouteMappingPage from '../pages/transport/StudentRouteMappingPage';
 import TransportFeePage from '../pages/transport/TransportFeePage';
 import VehicleAttendancePage from '../pages/transport/VehicleAttendancePage';
+import TransportEnrollmentFieldsPage from '../pages/transport/TransportEnrollmentFieldsPage';
 
 // Hostel
 import HostelSetupPage from '../pages/hostel/HostelSetupPage';
@@ -139,6 +148,7 @@ import BedAllocationPage from '../pages/hostel/BedAllocationPage';
 import HostelAttendancePage from '../pages/hostel/HostelAttendancePage';
 import MessFeePage from '../pages/hostel/MessFeePage';
 import VisitorRegisterPage from '../pages/hostel/VisitorRegisterPage';
+import HostelAllocationFieldsPage from '../pages/hostel/HostelAllocationFieldsPage';
 
 // Inventory
 import AssetRegisterPage from '../pages/inventory/AssetRegisterPage';
@@ -147,6 +157,10 @@ import ComputerLabPage from '../pages/inventory/ComputerLabPage';
 import PurchaseEntryPage from '../pages/inventory/PurchaseEntryPage';
 import StockInOutPage from '../pages/inventory/StockInOutPage';
 import VendorManagementPage from '../pages/inventory/VendorManagementPage';
+import AssetMaintenancePage from '../pages/inventory/AssetMaintenancePage';
+import AcademicCalendarPage from '../pages/academic/AcademicCalendarPage';
+import ExpenseManagementPage from '../pages/finance/ExpenseManagementPage';
+import RecruitmentPage from '../pages/staff/RecruitmentPage';
 
 // Certificates
 import TransferCertificatesPage from '../pages/certificates/TransferCertificatesPage';
@@ -162,6 +176,7 @@ import ExperienceCertificatesPage from '../pages/certificates/ExperienceCertific
 // Reports
 import AdmissionReportPage from '../pages/reports/AdmissionReportPage';
 import ReportCenterPage from '../pages/reports/ReportCenterPage';
+import ReportBuilderPage from '../pages/reports/ReportBuilderPage';
 import ReportHistoryPage from '../pages/reports/ReportHistoryPage';
 import SavedReportsPage from '../pages/reports/SavedReportsPage';
 import ReportRequestPage from '../pages/reports/ReportRequestPage';
@@ -210,6 +225,7 @@ export const AppRoutes = () => {
 
         {/* Institution Setup */}
         <Route path="setup/profile" element={<InstituteProfilePage />} />
+        <Route path="setup/module-settings" element={<ModuleSettingsPage />} />
         <Route path="setup/academic-year" element={<AcademicYearSetupPage />} />
         <Route path="setup/campus" element={<CampusSetupPage />} />
         <Route path="setup/department" element={<DepartmentSetupPage />} />
@@ -239,6 +255,7 @@ export const AppRoutes = () => {
         <Route path="student/bonafide" element={<BonafideCertificatePage />} />
         <Route path="student/id-card" element={<IDCardPreviewPage />} />
         <Route path="student/documents" element={<StudentDocumentsPage />} />
+        <Route path="student/exit" element={<StudentExitPage />} />
         <Route path="student/promote" element={<PromoteStudentsPage />} />
         <Route path="student/alumni" element={<AlumniManagementPage />} />
         <Route path="student/degrees" element={<DegreeIssuancePage />} />
@@ -296,6 +313,7 @@ export const AppRoutes = () => {
         <Route path="fee/assignment" element={<StudentFeeAssignmentPage />} />
         <Route path="fee/bulk-assignment" element={<BulkFeeAssignmentPage />} />
         <Route path="fee/collect" element={<CollectFeePage />} />
+        <Route path="fee/collect-v2" element={<FeeCollectionV2Page />} />
         <Route path="fee/pending" element={<PendingFeesPage />} />
         <Route path="fee/challan" element={<ChallanGenerationPage />} />
         <Route path="fee/receipt" element={<PrintableReceiptPage />} />
@@ -305,11 +323,15 @@ export const AppRoutes = () => {
         <Route path="fee/reports" element={<FeeReportsPage />} />
         <Route path="fee/cash-book" element={<CashBookPage />} />
         <Route path="fee/day-book" element={<DayBookPage />} />
+        <Route path="fee/form-builder" element={<FeeAssignmentFieldsPage />} />
 
         {/* Communication */}
         <Route path="communication/announcements" element={<AnnouncementsPage />} />
         <Route path="communication/circulars" element={<CircularsPage />} />
         <Route path="communication/sms-center" element={<SMSCenterPage />} />
+        <Route path="communication/scheduled" element={<ScheduledNotificationsPage />} />
+        <Route path="automation" element={<AutomationEnginePage />} />
+        <Route path="workflows" element={<WorkflowEnginePage />} />
         <Route path="communication/email-center" element={<EmailCenterPage />} />
         <Route path="communication/whatsapp" element={<WhatsAppNoticePage />} />
         <Route path="communication/templates" element={<TemplateLibraryPage />} />
@@ -325,6 +347,7 @@ export const AppRoutes = () => {
         <Route path="library/fines" element={<FineCollectionPage />} />
         <Route path="library/card" element={<StudentLibraryCardPage />} />
         <Route path="library/reports" element={<LibraryReportsPage />} />
+        <Route path="library/form-builder" element={<LibraryMembershipFieldsPage />} />
 
         {/* Transport */}
         <Route path="transport/routes" element={<RouteManagementPage />} />
@@ -333,6 +356,7 @@ export const AppRoutes = () => {
         <Route path="transport/mapping" element={<StudentRouteMappingPage />} />
         <Route path="transport/fee" element={<TransportFeePage />} />
         <Route path="transport/attendance" element={<VehicleAttendancePage />} />
+        <Route path="transport/form-builder" element={<TransportEnrollmentFieldsPage />} />
 
         {/* Hostel */}
         <Route path="hostel/setup" element={<HostelSetupPage />} />
@@ -341,6 +365,7 @@ export const AppRoutes = () => {
         <Route path="hostel/attendance" element={<HostelAttendancePage />} />
         <Route path="hostel/mess-fee" element={<MessFeePage />} />
         <Route path="hostel/visitors" element={<VisitorRegisterPage />} />
+        <Route path="hostel/form-builder" element={<HostelAllocationFieldsPage />} />
 
         {/* Inventory */}
         <Route path="inventory/assets" element={<AssetRegisterPage />} />
@@ -349,6 +374,10 @@ export const AppRoutes = () => {
         <Route path="inventory/purchase" element={<PurchaseEntryPage />} />
         <Route path="inventory/stock" element={<StockInOutPage />} />
         <Route path="inventory/vendors" element={<VendorManagementPage />} />
+        <Route path="inventory/maintenance" element={<AssetMaintenancePage />} />
+        <Route path="academic-calendar" element={<AcademicCalendarPage />} />
+        <Route path="finance/expenses" element={<ExpenseManagementPage />} />
+        <Route path="staff/recruitment" element={<RecruitmentPage />} />
 
         {/* Certificates */}
         <Route path="certificates/format" element={<CertificateFormatPage />} />
@@ -363,6 +392,7 @@ export const AppRoutes = () => {
 
         {/* Reports */}
         <Route path="reports/center" element={<ReportCenterPage />} />
+        <Route path="reports/builder" element={<ReportBuilderPage />} />
         <Route path="reports/history" element={<ReportHistoryPage />} />
         <Route path="reports/saved" element={<SavedReportsPage />} />
         <Route path="reports/request" element={<ReportRequestPage />} />

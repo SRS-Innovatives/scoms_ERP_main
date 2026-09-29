@@ -4,9 +4,11 @@ const { ValidationError } = require('../../errors/customErrors');
 const startOfDay = (d) => { const x = new Date(d); x.setHours(0, 0, 0, 0); return x; };
 const endOfDay = (d) => { const x = new Date(d); x.setHours(23, 59, 59, 999); return x; };
 
-/** FEE_COLLECTION — every successful payment received in a date range. */
+/** FEE_COLLECTION — every successful payment received in a date range. Whole-institution
+ * by default; narrow to one class (courseId/sectionId) or one student (studentId) — the
+ * same optional-narrowing pattern every other report in this engine uses. */
 module.exports = async (institutionId, filters) => {
-  const { dateFrom, dateTo, paymentMode } = filters;
+  const { dateFrom, dateTo, paymentMode, courseId, sectionId, studentId } = filters;
   if (!dateFrom || !dateTo) throw new ValidationError('dateFrom and dateTo are required');
 
   const payments = await prisma.feePayment.findMany({
@@ -15,6 +17,7 @@ module.exports = async (institutionId, filters) => {
       paymentStatus: 'SUCCESS',
       paidAt: { gte: startOfDay(dateFrom), lte: endOfDay(dateTo) },
       ...(paymentMode && { paymentMode }),
+      ...(studentId ? { studentId } : (courseId || sectionId) && { student: { ...(courseId && { courseId }), ...(sectionId && { sectionId }) } }),
     },
     include: {
       student: { select: { firstName: true, lastName: true, rollNumber: true } },

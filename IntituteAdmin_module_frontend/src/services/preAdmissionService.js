@@ -14,9 +14,10 @@ const remove = (id) => apiCall(`/pre-admission/applications/${id}`, { method: 'D
 
 const getApiKeySettings = () => apiCall('/pre-admission/settings/api-key');
 const regenerateApiKey = () => apiCall('/pre-admission/settings/api-key/regenerate', { method: 'POST' });
+const updateFeeAmount = (feeAmount) => apiCall('/pre-admission/settings/fee', { method: 'PATCH', body: { feeAmount } });
 
 export const preAdmissionService = {
   getAll, getById, create, updateStatus, generateReceipt, admit, remove,
-  getApiKeySettings, regenerateApiKey,
+  getApiKeySettings, regenerateApiKey, updateFeeAmount,
 };
 export default preAdmissionService;

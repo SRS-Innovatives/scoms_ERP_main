@@ -2,20 +2,23 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNotification } from '../../context/NotificationContext';
 import { Images, ArrowLeft, Loader2 } from 'lucide-react';
 import galleryService from '../../services/galleryService';
+import ErrorState from '../../components/common/ErrorState';
 
 export const GalleryPage = () => {
   const { error: showError } = useNotification();
   const [albums, setAlbums] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [openAlbum, setOpenAlbum] = useState(null);
   const [loadingPhotos, setLoadingPhotos] = useState(false);
   const [lightbox, setLightbox] = useState(null);
 
   const fetchAlbums = useCallback(() => {
     setLoading(true);
+    setError(false);
     galleryService.getAlbums()
       .then((res) => setAlbums(res.data || []))
-      .catch((err) => showError(err.message || 'Failed to load albums', 'Load Failed'))
+      .catch((err) => { showError(err.message || 'Failed to load albums', 'Load Failed'); setError(true); })
       .finally(() => setLoading(false));
   }, [showError]);
 
@@ -32,6 +35,10 @@ export const GalleryPage = () => {
 
   if (loading) {
     return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-indigo-600" /></div>;
+  }
+
+  if (error) {
+    return <ErrorState onRetry={fetchAlbums} />;
   }
 
   if (openAlbum) {

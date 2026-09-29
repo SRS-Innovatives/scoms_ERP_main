@@ -8,9 +8,14 @@ const API_PREFIX = '/api/v1/student';
 
 export const apiCall = async (endpoint, options = {}) => {
   const token = localStorage.getItem('scoms_student_token');
+  // A Parent has no studentId of their own — this tells the backend's resolveActiveChild
+  // middleware which real, verified child to scope the request to. A Student never sets
+  // this (their own studentId already comes from their own JWT), so it's a no-op for them.
+  const activeChildId = localStorage.getItem('scoms_active_child_id');
   const headers = {
     'Content-Type': 'application/json',
     ...(token && { Authorization: `Bearer ${token}` }),
+    ...(activeChildId && { 'X-Active-Student-Id': activeChildId }),
     ...options.headers,
   };
 

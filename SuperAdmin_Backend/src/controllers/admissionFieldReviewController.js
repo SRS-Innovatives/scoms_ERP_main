@@ -52,7 +52,8 @@ const approveField = async (req, res, next) => {
       where: { id },
       data: { status: 'APPROVED', reviewedById: req.user.id, reviewedAt: new Date(), rejectionReason: null },
     });
-    const formLabel = field.entityType === 'STAFF_PROFILE' ? "Staff Registration form" : 'admission form';
+    const FORM_LABELS = { STAFF_PROFILE: 'Staff Registration form', TRANSPORT_ENROLLMENT: 'Transport Enrollment form', HOSTEL_ALLOCATION: 'Hostel Allocation form', FEE_ASSIGNMENT: 'Fee Assignment form', LIBRARY_MEMBERSHIP: 'Library Membership form', ADMISSION: 'admission form' };
+    const formLabel = FORM_LABELS[field.entityType] || 'admission form';
     return sendSuccess(res, field, `"${field.label}" approved — it is now live on ${existing.institution.name}'s ${formLabel}`);
   } catch (err) {
     next(err);

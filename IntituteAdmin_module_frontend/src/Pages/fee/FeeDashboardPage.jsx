@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import SummaryCard from '../../components/common/SummaryCard';
 import DataTable from '../../components/common/DataTable';
 import EmptyState from '../../components/common/EmptyState';
+import ErrorState from '../../components/common/ErrorState';
 import { useNotification } from '../../context/NotificationContext';
 import { CreditCard, TrendingUp, DollarSign, Wallet, FileText, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -13,16 +14,21 @@ export const FeeDashboardPage = () => {
   const [summary, setSummary] = useState(null);
   const [pending, setPending] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
-  useEffect(() => {
+  const loadDashboard = useCallback(() => {
+    setLoading(true);
+    setError(false);
     Promise.all([feeService.getDashboard(), feeService.getPendingFees()])
       .then(([dashRes, pendingRes]) => {
         setSummary(dashRes.data);
         setPending((pendingRes.data || []).slice(0, 8));
       })
-      .catch((err) => notifyError(`Failed to load fee dashboard: ${err.message}`))
+      .catch((err) => { notifyError(`Failed to load fee dashboard: ${err.message}`); setError(true); })
       .finally(() => setLoading(false));
   }, [notifyError]);
+
+  useEffect(() => { loadDashboard(); }, [loadDashboard]);
 
   const columns = [
     { header: 'Roll No', key: 'student', sortable: false, render: (val) => <span className="font-mono font-bold text-rose-600">{val?.rollNumber}</span> },
@@ -37,6 +43,10 @@ export const FeeDashboardPage = () => {
 
   if (loading) {
     return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-indigo-600" /></div>;
+  }
+
+  if (error) {
+    return <ErrorState onRetry={loadDashboard} />;
   }
 
   return (

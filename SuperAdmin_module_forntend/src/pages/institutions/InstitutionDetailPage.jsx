@@ -3,13 +3,251 @@ import { useNotification } from '../../context/NotificationContext';
 import { Building2, Users, GraduationCap, Briefcase, CreditCard, Receipt, Layers, FileText, Activity, Settings, Check, Loader2, Save } from 'lucide-react';
 import { useParams } from 'react-router-dom';
 import institutionService from '../../services/institutionService';
+import userService from '../../services/userService';
+import billingService from '../../services/billingService';
+import auditLogService from '../../services/auditLogService';
+import subscriptionService from '../../services/subscriptionService';
 import StatusBadge from '../../components/common/StatusBadge';
+import ErrorState from '../../components/common/ErrorState';
+
+const InstitutionUsersTab = ({ institutionId }) => {
+  const { error: showError } = useNotification();
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+
+  const load = React.useCallback(() => {
+    setLoading(true);
+    setError(false);
+    userService.getUsers({ institutionId, limit: 100 })
+      .then((res) => setUsers(res.data || []))
+      .catch((err) => { showError(err.message || 'Failed to load users', 'Load Failed'); setError(true); })
+      .finally(() => setLoading(false));
+  }, [institutionId, showError]);
+
+  React.useEffect(() => { load(); }, [load]);
+
+  if (loading) return <div className="flex justify-center py-10"><Loader2 className="w-6 h-6 animate-spin text-indigo-600" /></div>;
+  if (error) return <ErrorState onRetry={load} />;
+  if (users.length === 0) return <p className="text-xs text-slate-500 py-4">No users found for this institution.</p>;
+
+  return (
+    <table className="w-full text-left text-xs">
+      <thead className="uppercase text-[10px] font-semibold text-slate-500 border-b border-slate-200 dark:border-slate-800">
+        <tr><th className="py-2 pr-3">Name</th><th className="py-2 pr-3">Email</th><th className="py-2 pr-3">Role</th><th className="py-2 pr-3">Phone</th><th className="py-2">Status</th></tr>
+      </thead>
+      <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+        {users.map((u) => (
+          <tr key={u.id}>
+            <td className="py-2 pr-3 font-semibold text-slate-900 dark:text-white">{u.name}</td>
+            <td className="py-2 pr-3 text-slate-600 dark:text-slate-300">{u.email}</td>
+            <td className="py-2 pr-3 text-slate-600 dark:text-slate-300">{u.role}</td>
+            <td className="py-2 pr-3 text-slate-600 dark:text-slate-300">{u.phone}</td>
+            <td className="py-2"><StatusBadge status={u.status} size="sm" /></td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+};
+
+const InstitutionBillingTab = ({ institutionId }) => {
+  const { error: showError } = useNotification();
+  const [invoices, setInvoices] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+
+  const load = React.useCallback(() => {
+    setLoading(true);
+    setError(false);
+    billingService.getInvoices({ institutionId, limit: 50 })
+      .then((res) => setInvoices(res.data || []))
+      .catch((err) => { showError(err.message || 'Failed to load invoices', 'Load Failed'); setError(true); })
+      .finally(() => setLoading(false));
+  }, [institutionId, showError]);
+
+  React.useEffect(() => { load(); }, [load]);
+
+  if (loading) return <div className="flex justify-center py-10"><Loader2 className="w-6 h-6 animate-spin text-indigo-600" /></div>;
+  if (error) return <ErrorState onRetry={load} />;
+  if (invoices.length === 0) return <p className="text-xs text-slate-500 py-4">No invoices raised for this institution yet.</p>;
+
+  return (
+    <table className="w-full text-left text-xs">
+      <thead className="uppercase text-[10px] font-semibold text-slate-500 border-b border-slate-200 dark:border-slate-800">
+        <tr><th className="py-2 pr-3">Invoice #</th><th className="py-2 pr-3">Amount</th><th className="py-2 pr-3">Status</th><th className="py-2">Date</th></tr>
+      </thead>
+      <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+        {invoices.map((inv) => (
+          <tr key={inv.id}>
+            <td className="py-2 pr-3 font-mono text-slate-600 dark:text-slate-400">{inv.invoiceNumber}</td>
+            <td className="py-2 pr-3 font-semibold text-slate-900 dark:text-white">₹{Number(inv.totalAmount ?? inv.amount ?? 0).toLocaleString('en-IN')}</td>
+            <td className="py-2 pr-3"><StatusBadge status={inv.status} size="sm" /></td>
+            <td className="py-2 text-slate-500">{new Date(inv.createdAt).toLocaleDateString()}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+};
+
+const InstitutionActivityTab = ({ institutionId }) => {
+  const { error: showError } = useNotification();
+  const [logs, setLogs] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+
+  const load = React.useCallback(() => {
+    setLoading(true);
+    setError(false);
+    auditLogService.getAuditLogs({ institutionId, limit: 50 })
+      .then((res) => setLogs(res.data || []))
+      .catch((err) => { showError(err.message || 'Failed to load audit logs', 'Load Failed'); setError(true); })
+      .finally(() => setLoading(false));
+  }, [institutionId, showError]);
+
+  React.useEffect(() => { load(); }, [load]);
+
+  if (loading) return <div className="flex justify-center py-10"><Loader2 className="w-6 h-6 animate-spin text-indigo-600" /></div>;
+  if (error) return <ErrorState onRetry={load} />;
+  if (logs.length === 0) return <p className="text-xs text-slate-500 py-4">No recorded activity for this institution yet.</p>;
+
+  return (
+    <div className="space-y-2">
+      {logs.map((log) => (
+        <div key={log.id} className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 flex items-center justify-between text-xs">
+          <div>
+            <p className="font-semibold text-slate-900 dark:text-white">{log.action} — {log.module}{log.entity ? ` (${log.entity})` : ''}</p>
+            <p className="text-slate-500">{log.user?.email || 'System'}</p>
+          </div>
+          <span className="text-slate-400 font-mono">{new Date(log.createdAt).toLocaleString()}</span>
+        </div>
+      ))}
+    </div>
+  );
+};
+
+const InstitutionSubscriptionTab = ({ institutionId }) => {
+  const { error: showError } = useNotification();
+  const [subscriptions, setSubscriptions] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+
+  const load = React.useCallback(() => {
+    setLoading(true);
+    setError(false);
+    subscriptionService.getSubscriptions({ institutionId, limit: 20 })
+      .then((res) => setSubscriptions(res.data || []))
+      .catch((err) => { showError(err.message || 'Failed to load subscriptions', 'Load Failed'); setError(true); })
+      .finally(() => setLoading(false));
+  }, [institutionId, showError]);
+
+  React.useEffect(() => { load(); }, [load]);
+
+  if (loading) return <div className="flex justify-center py-10"><Loader2 className="w-6 h-6 animate-spin text-indigo-600" /></div>;
+  if (error) return <ErrorState onRetry={load} />;
+  if (subscriptions.length === 0) return <p className="text-xs text-slate-500 py-4">No subscription history for this institution yet.</p>;
+
+  return (
+    <table className="w-full text-left text-xs">
+      <thead className="uppercase text-[10px] font-semibold text-slate-500 border-b border-slate-200 dark:border-slate-800">
+        <tr><th className="py-2 pr-3">Plan</th><th className="py-2 pr-3">Price / Month</th><th className="py-2 pr-3">Start</th><th className="py-2 pr-3">End</th><th className="py-2">Status</th></tr>
+      </thead>
+      <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+        {subscriptions.map((s) => (
+          <tr key={s.id}>
+            <td className="py-2 pr-3 font-semibold text-slate-900 dark:text-white">{s.plan?.name || '—'}</td>
+            <td className="py-2 pr-3 font-mono text-slate-600 dark:text-slate-300">{s.plan?.priceMonthly != null ? `₹${Number(s.plan.priceMonthly).toLocaleString('en-IN')}` : '—'}</td>
+            <td className="py-2 pr-3 text-slate-500">{new Date(s.startDate).toLocaleDateString()}</td>
+            <td className="py-2 pr-3 text-slate-500">{new Date(s.endDate).toLocaleDateString()}</td>
+            <td className="py-2"><StatusBadge status={s.status} size="sm" /></td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+};
+
+const EDITABLE_FIELDS = [
+  { key: 'name', label: 'Institution Name', required: true },
+  { key: 'affiliation', label: 'Affiliation' },
+  { key: 'registrationNumber', label: 'Registration Number' },
+  { key: 'gstin', label: 'GSTIN' },
+  { key: 'email', label: 'Official Email', type: 'email' },
+  { key: 'phone', label: 'Phone' },
+  { key: 'website', label: 'Website' },
+  { key: 'principalName', label: 'Principal / Director' },
+  { key: 'establishedYear', label: 'Established Year', type: 'number' },
+  { key: 'address', label: 'Address', span: true },
+  { key: 'city', label: 'City' },
+  { key: 'state', label: 'State' },
+  { key: 'pincode', label: 'Pincode' },
+];
+
+const InstitutionEditForm = ({ inst, onSaved }) => {
+  const { success, error: showError } = useNotification();
+  const [form, setForm] = useState(() =>
+    Object.fromEntries(EDITABLE_FIELDS.map((f) => [f.key, inst[f.key] ?? '']))
+  );
+  const [saving, setSaving] = useState(false);
+
+  const handleChange = (key, value) => setForm((prev) => ({ ...prev, [key]: value }));
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!form.name.trim()) {
+      showError('Institution name is required', 'Missing Field');
+      return;
+    }
+    setSaving(true);
+    try {
+      const payload = { ...form, establishedYear: form.establishedYear ? Number(form.establishedYear) : null };
+      const res = await institutionService.updateInstitution(inst.id, payload);
+      onSaved(res.data);
+      success('Institution details updated', 'Saved');
+    } catch (err) {
+      showError(err.message || 'Failed to update institution', 'Save Failed');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4 text-xs">
+      <div>
+        <h3 className="font-bold text-sm text-slate-900 dark:text-slate-100">Institution Details</h3>
+        <p className="text-[11px] text-slate-500 mt-0.5">Correct or update this institution's master profile. Login credentials and module access are managed separately.</p>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {EDITABLE_FIELDS.map((f) => (
+          <div key={f.key} className={f.span ? 'sm:col-span-2' : ''}>
+            <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">{f.label}{f.required && ' *'}</label>
+            <input
+              type={f.type || 'text'}
+              required={f.required}
+              value={form[f.key]}
+              onChange={(e) => handleChange(f.key, e.target.value)}
+              className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white font-medium"
+            />
+          </div>
+        ))}
+      </div>
+      <div className="flex justify-end pt-2">
+        <button type="submit" disabled={saving} className="flex items-center gap-1.5 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-semibold shadow-sm disabled:opacity-50">
+          {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+          {saving ? 'Saving...' : 'Save Changes'}
+        </button>
+      </div>
+    </form>
+  );
+};
 
 export const InstitutionDetailPage = () => {
   const { id } = useParams();
   const { success, warning, error: showError } = useNotification();
   const [inst, setInst] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [activeTab, setActiveTab] = useState('Overview');
 
   const [moduleCatalog, setModuleCatalog] = useState([]);
@@ -17,31 +255,32 @@ export const InstitutionDetailPage = () => {
   const [savingModules, setSavingModules] = useState(false);
   const [updatingStatus, setUpdatingStatus] = useState(false);
 
-  React.useEffect(() => {
-    const fetchInst = async () => {
-      try {
-        setLoading(true);
-        const [instRes, catalogRes] = await Promise.all([
-          institutionService.getInstitutionById(id),
-          institutionService.getModuleCatalog(),
-        ]);
-        if (instRes?.data) {
-          setInst(instRes.data);
-          setSelectedModules(
-            Array.isArray(instRes.data.modules) && instRes.data.modules.length > 0
-              ? instRes.data.modules
-              : (catalogRes.data || []).map((m) => m.key) // legacy/unset institutions default to everything enabled
-          );
-        }
-        setModuleCatalog(catalogRes.data || []);
-      } catch (err) {
-        console.error("Failed to fetch institution", err);
-      } finally {
-        setLoading(false);
+  const fetchInst = React.useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(false);
+      const [instRes, catalogRes] = await Promise.all([
+        institutionService.getInstitutionById(id),
+        institutionService.getModuleCatalog(),
+      ]);
+      if (instRes?.data) {
+        setInst(instRes.data);
+        setSelectedModules(
+          Array.isArray(instRes.data.modules) && instRes.data.modules.length > 0
+            ? instRes.data.modules
+            : (catalogRes.data || []).map((m) => m.key) // legacy/unset institutions default to everything enabled
+        );
       }
-    };
-    fetchInst();
-  }, [id]);
+      setModuleCatalog(catalogRes.data || []);
+    } catch (err) {
+      showError(err.message || 'Failed to load institution', 'Load Failed');
+      setError(true);
+    } finally {
+      setLoading(false);
+    }
+  }, [id, showError]);
+
+  React.useEffect(() => { fetchInst(); }, [fetchInst]);
 
   const toggleModule = (key) => {
     setSelectedModules((prev) => (prev.includes(key) ? prev.filter((m) => m !== key) : [...prev, key]));
@@ -93,6 +332,10 @@ export const InstitutionDetailPage = () => {
         <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
       </div>
     );
+  }
+
+  if (error) {
+    return <ErrorState onRetry={fetchInst} />;
   }
 
   if (!inst) {
@@ -155,25 +398,23 @@ export const InstitutionDetailPage = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs">
             <div className="space-y-3">
               <h3 className="font-bold text-sm text-slate-900 dark:text-slate-100 border-b pb-2">Institutional Master Info</h3>
-              <p><span className="text-slate-500">Affiliation:</span> <span className="font-semibold">{inst.affiliation}</span></p>
-              <p><span className="text-slate-500">Registration Number:</span> <span className="font-mono font-semibold">{inst.regNo}</span></p>
-              <p><span className="text-slate-500">Official Email:</span> <span className="font-semibold">{inst.email}</span></p>
-              <p><span className="text-slate-500">Phone:</span> <span className="font-semibold">{inst.phone}</span></p>
-              <p><span className="text-slate-500">Established Year:</span> <span className="font-semibold">{inst.establishedYear}</span></p>
+              <p><span className="text-slate-500">Affiliation:</span> <span className="font-semibold">{inst.affiliation || '—'}</span></p>
+              <p><span className="text-slate-500">Registration Number:</span> <span className="font-mono font-semibold">{inst.registrationNumber || '—'}</span></p>
+              <p><span className="text-slate-500">Official Email:</span> <span className="font-semibold">{inst.email || '—'}</span></p>
+              <p><span className="text-slate-500">Phone:</span> <span className="font-semibold">{inst.phone || '—'}</span></p>
+              <p><span className="text-slate-500">Established Year:</span> <span className="font-semibold">{inst.establishedYear || '—'}</span></p>
             </div>
             <div className="space-y-3">
               <h3 className="font-bold text-sm text-slate-900 dark:text-slate-100 border-b pb-2">Location & Leadership</h3>
-              <p><span className="text-slate-500">Address:</span> <span className="font-semibold">{inst.address}, {inst.city}, {inst.state} - {inst.pincode}</span></p>
-              <p><span className="text-slate-500">Principal / Director:</span> <span className="font-semibold">{inst.principal}</span></p>
-              <p><span className="text-slate-500">Contact Person:</span> <span className="font-semibold">{inst.contactPerson}</span></p>
-              <p><span className="text-slate-500">Active Subscription:</span> <span className="font-bold text-indigo-600">{inst.plan}</span></p>
+              <p><span className="text-slate-500">Address:</span> <span className="font-semibold">{[inst.address, inst.city, inst.state].filter(Boolean).join(', ') || '—'}{inst.pincode ? ` - ${inst.pincode}` : ''}</span></p>
+              <p><span className="text-slate-500">Principal / Director:</span> <span className="font-semibold">{inst.principalName || '—'}</span></p>
+              <p><span className="text-slate-500">Website:</span> <span className="font-semibold">{inst.website || '—'}</span></p>
+              <p><span className="text-slate-500">Active Subscription:</span> <span className="font-bold text-indigo-600">{inst.planName || '—'}</span></p>
             </div>
           </div>
         )}
 
-        {activeTab === 'Users' && (
-          <div className="text-xs text-slate-500 py-4">Users fetching will be wired up via API.</div>
-        )}
+        {activeTab === 'Users' && <InstitutionUsersTab institutionId={inst.id} />}
 
         {activeTab === 'Modules' && (
           <div className="space-y-4 text-xs">
@@ -220,15 +461,17 @@ export const InstitutionDetailPage = () => {
           </div>
         )}
 
-        {activeTab === 'Billing' && (
-           <div className="text-xs text-slate-500 py-4">Billing data fetching will be wired up via API.</div>
+        {activeTab === 'Billing' && <InstitutionBillingTab institutionId={inst.id} />}
+
+        {activeTab === 'Activity' && <InstitutionActivityTab institutionId={inst.id} />}
+
+        {activeTab === 'Subscription' && <InstitutionSubscriptionTab institutionId={inst.id} />}
+
+        {activeTab === 'Settings' && (
+          <InstitutionEditForm inst={inst} onSaved={(updated) => setInst((prev) => ({ ...prev, ...updated }))} />
         )}
 
-        {activeTab === 'Activity' && (
-           <div className="text-xs text-slate-500 py-4">Audit logs fetching will be wired up via API.</div>
-        )}
-
-        {['Students', 'Staff', 'Subscription', 'Documents', 'Settings'].includes(activeTab) && (
+        {['Students', 'Staff', 'Documents'].includes(activeTab) && (
           <div className="text-xs text-slate-500 py-4">
             <p className="font-bold text-slate-800 dark:text-slate-200">{activeTab} Panel for {inst.name}</p>
             <p className="mt-1">Tenant isolated data loaded cleanly for Super Admin inspection.</p>

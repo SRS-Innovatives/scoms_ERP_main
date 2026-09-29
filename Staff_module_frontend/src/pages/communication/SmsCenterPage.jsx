@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { Send, Loader2 } from 'lucide-react';
 import { useNotification } from '../../context/NotificationContext';
 import attendanceService from '../../services/attendanceService';
 import smsService from '../../services/smsService';
+import ErrorState from '../../components/common/ErrorState';
 
 export const SmsCenterPage = () => {
   const { success, error: showError } = useNotification();
@@ -11,8 +12,11 @@ export const SmsCenterPage = () => {
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const [error, setError] = useState(false);
 
-  useEffect(() => {
+  const load = useCallback(() => {
+    setLoading(true);
+    setError(false);
     attendanceService.getMyClasses()
       .then((res) => {
         const mappingsData = res.data || [];
@@ -22,9 +26,11 @@ export const SmsCenterPage = () => {
         setMappings(unique);
         if (unique.length > 0) setSectionId(unique[0].section.id);
       })
-      .catch((err) => showError(err.message || 'Failed to load classes', 'Load Failed'))
+      .catch((err) => { showError(err.message || 'Failed to load classes', 'Load Failed'); setError(true); })
       .finally(() => setLoading(false));
   }, [showError]);
+
+  useEffect(() => { load(); }, [load]);
 
   const handleSend = async () => {
     if (!sectionId || !message.trim()) return;
@@ -42,6 +48,10 @@ export const SmsCenterPage = () => {
 
   if (loading) {
     return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-rose-600" /></div>;
+  }
+
+  if (error) {
+    return <ErrorState onRetry={load} />;
   }
 
   if (mappings.length === 0) {

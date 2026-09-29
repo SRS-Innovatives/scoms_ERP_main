@@ -7,6 +7,7 @@ import FormInput from '../../components/common/FormInput';
 import { BookOpen, Search, Plus, FileText, Edit, Trash2, Loader2 } from 'lucide-react';
 import { useNotification } from '../../context/NotificationContext';
 import knowledgeBaseService from '../../services/knowledgeBaseService';
+import ErrorState from '../../components/common/ErrorState';
 
 const emptyForm = { title: '', category: 'General', content: '' };
 
@@ -14,6 +15,7 @@ export const KnowledgeBasePage = () => {
   const { success, error: showError } = useNotification();
   const [articles, setArticles] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState('All');
 
@@ -25,9 +27,10 @@ export const KnowledgeBasePage = () => {
 
   const fetchArticles = useCallback(() => {
     setLoading(true);
+    setError(false);
     knowledgeBaseService.getArticles()
       .then((res) => setArticles(res.data || []))
-      .catch((err) => showError(err.message || 'Failed to load articles', 'Load Failed'))
+      .catch((err) => { showError(err.message || 'Failed to load articles', 'Load Failed'); setError(true); })
       .finally(() => setLoading(false));
   }, [showError]);
 
@@ -121,6 +124,10 @@ export const KnowledgeBasePage = () => {
 
   if (loading) {
     return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-indigo-600" /></div>;
+  }
+
+  if (error) {
+    return <ErrorState onRetry={fetchArticles} />;
   }
 
   return (

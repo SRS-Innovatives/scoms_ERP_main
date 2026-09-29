@@ -57,6 +57,7 @@ import FeedbackPage from '../pages/services/FeedbackPage';
 import ResumeBuilderPage from '../pages/career/ResumeBuilderPage';
 import InternshipsPage from '../pages/career/InternshipsPage';
 import PlacementsPage from '../pages/career/PlacementsPage';
+import MyApplicationsPage from '../pages/career/MyApplicationsPage';
 import AchievementsPage from '../pages/career/AchievementsPage';
 
 // AI
@@ -125,6 +126,7 @@ export const AppRoutes = () => {
               <Route path="student/resume" element={<ResumeBuilderPage />} />
               <Route path="student/internships" element={<InternshipsPage />} />
               <Route path="student/placements" element={<PlacementsPage />} />
+              <Route path="student/applications" element={<MyApplicationsPage />} />
               <Route path="student/achievements" element={<AchievementsPage />} />
               <Route path="student/ai" element={<AiAssistantPage />} />
               <Route path="student/ai/study-plan" element={<AiStudyPlanPage />} />

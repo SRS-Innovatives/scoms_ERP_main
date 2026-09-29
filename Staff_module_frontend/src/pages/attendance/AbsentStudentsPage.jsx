@@ -1,22 +1,32 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import attendanceService from '../../services/attendanceService';
 import { useNotification } from '../../context/NotificationContext';
 import { Loader2, Users } from 'lucide-react';
+import ErrorState from '../../components/common/ErrorState';
 
 export const AbsentStudentsPage = () => {
   const { error: showError } = useNotification();
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
-  useEffect(() => {
+  const load = useCallback(() => {
+    setLoading(true);
+    setError(false);
     attendanceService.getHistory()
       .then((res) => setSessions((res.data || []).filter((s) => s.absentCount > 0)))
-      .catch((err) => showError(err.message || 'Failed to load attendance history', 'Load Failed'))
+      .catch((err) => { showError(err.message || 'Failed to load attendance history', 'Load Failed'); setError(true); })
       .finally(() => setLoading(false));
   }, [showError]);
 
+  useEffect(() => { load(); }, [load]);
+
   if (loading) {
     return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-indigo-600" /></div>;
+  }
+
+  if (error) {
+    return <ErrorState onRetry={load} />;
   }
 
   return (

@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { User, Loader2 } from 'lucide-react';
 import { useNotification } from '../../context/NotificationContext';
 import staffService from '../../services/staffService';
 import timetableService from '../../services/timetableService';
+import ErrorState from '../../components/common/ErrorState';
 
 const DAYS = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
 const DAY_LABELS = { MONDAY: 'Monday', TUESDAY: 'Tuesday', WEDNESDAY: 'Wednesday', THURSDAY: 'Thursday', FRIDAY: 'Friday', SATURDAY: 'Saturday' };
@@ -18,25 +19,33 @@ export const TeacherTimetablePage = () => {
   const [staffId, setStaffId] = useState('');
   const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
-  useEffect(() => {
+  const loadStaff = useCallback(() => {
+    setLoading(true);
+    setError(false);
     staffService.getAll()
       .then((res) => {
         setStaffList(res.data || []);
         if ((res.data || []).length > 0) setStaffId(res.data[0].id);
       })
-      .catch((err) => notifyError(`Failed to load staff: ${err.message}`))
+      .catch((err) => { notifyError(`Failed to load staff: ${err.message}`); setError(true); })
       .finally(() => setLoading(false));
   }, [notifyError]);
 
-  useEffect(() => {
+  useEffect(() => { loadStaff(); }, [loadStaff]);
+
+  const loadTeacherTimetable = useCallback(() => {
     if (!staffId) return;
     setLoading(true);
+    setError(false);
     timetableService.getForTeacher(staffId)
       .then((res) => setEntries(res.data || []))
-      .catch((err) => notifyError(`Failed to load teacher timetable: ${err.message}`))
+      .catch((err) => { notifyError(`Failed to load teacher timetable: ${err.message}`); setError(true); })
       .finally(() => setLoading(false));
-  }, [staffId]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [staffId, notifyError]);
+
+  useEffect(() => { loadTeacherTimetable(); }, [loadTeacherTimetable]);
 
   const selectedStaff = staffList.find((s) => s.id === staffId);
   const byDay = {};
@@ -57,6 +66,8 @@ export const TeacherTimetablePage = () => {
 
       {loading ? (
         <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-indigo-600" /></div>
+      ) : error ? (
+        <ErrorState onRetry={() => { loadStaff(); loadTeacherTimetable(); }} />
       ) : (
         <>
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-xs text-xs">

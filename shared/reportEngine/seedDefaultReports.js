@@ -59,7 +59,7 @@ const DEFAULT_REPORTS = [
   {
     code: 'ATTENDANCE_SUMMARY',
     name: 'Attendance Summary Report',
-    description: 'Per-section attendance rate aggregated over a date range.',
+    description: 'Attendance rate over a date range — whole institution, one class, or one student.',
     category: 'ATTENDANCE',
     module: 'Attendance',
     icon: 'CalendarCheck',
@@ -67,6 +67,7 @@ const DEFAULT_REPORTS = [
       { fieldKey: 'dateFrom', label: 'Date From', inputType: 'DATE', required: true, sortOrder: 1 },
       { fieldKey: 'dateTo', label: 'Date To', inputType: 'DATE', required: true, sortOrder: 2 },
       { fieldKey: 'sectionId', label: 'Section', inputType: 'SECTION', source: 'SECTION', sortOrder: 3 },
+      { fieldKey: 'studentId', label: 'Student (optional — one student\'s own summary)', inputType: 'SELECT', source: 'STUDENT', dependsOn: 'sectionId', sortOrder: 4 },
     ],
     columns: [
       { fieldKey: 'section', label: 'Section', sortOrder: 1 },
@@ -80,7 +81,7 @@ const DEFAULT_REPORTS = [
   {
     code: 'ATTENDANCE_DETAILED',
     name: 'Detailed Attendance Report',
-    description: 'Every attendance session recorded in a date range, one row per session.',
+    description: 'Every attendance session in a date range, one row per session — whole class or one student\'s own day-by-day log.',
     category: 'ATTENDANCE',
     module: 'Attendance',
     icon: 'ListChecks',
@@ -89,6 +90,7 @@ const DEFAULT_REPORTS = [
       { fieldKey: 'dateTo', label: 'Date To', inputType: 'DATE', required: true, sortOrder: 2 },
       { fieldKey: 'sectionId', label: 'Section', inputType: 'SECTION', source: 'SECTION', sortOrder: 3 },
       { fieldKey: 'subjectId', label: 'Subject', inputType: 'SUBJECT', source: 'SUBJECT', dependsOn: 'sectionId', sortOrder: 4 },
+      { fieldKey: 'studentId', label: 'Student (optional — one student\'s own log)', inputType: 'SELECT', source: 'STUDENT', dependsOn: 'sectionId', sortOrder: 5 },
     ],
     columns: [
       { fieldKey: 'date', label: 'Date', sortOrder: 1 },
@@ -104,7 +106,7 @@ const DEFAULT_REPORTS = [
   {
     code: 'FEE_COLLECTION',
     name: 'Fee Collection Report',
-    description: 'Every successful fee payment received in a date range.',
+    description: 'Every successful fee payment in a date range — whole institution, one class, or one student.',
     category: 'FEES',
     module: 'Fees',
     icon: 'Wallet',
@@ -113,6 +115,9 @@ const DEFAULT_REPORTS = [
       { fieldKey: 'dateFrom', label: 'Date From', inputType: 'DATE', required: true, sortOrder: 1 },
       { fieldKey: 'dateTo', label: 'Date To', inputType: 'DATE', required: true, sortOrder: 2 },
       { fieldKey: 'paymentMode', label: 'Payment Mode', inputType: 'PAYMENT_MODE', source: 'PAYMENT_MODE', sortOrder: 3 },
+      { fieldKey: 'courseId', label: 'Course', inputType: 'COURSE', source: 'COURSE', sortOrder: 4 },
+      { fieldKey: 'sectionId', label: 'Section', inputType: 'SECTION', source: 'SECTION', dependsOn: 'courseId', sortOrder: 5 },
+      { fieldKey: 'studentId', label: 'Student (optional — one student\'s own payments)', inputType: 'SELECT', source: 'STUDENT', dependsOn: 'sectionId', sortOrder: 6 },
     ],
     columns: [
       { fieldKey: 'date', label: 'Date', sortOrder: 1 },
@@ -135,7 +140,8 @@ const DEFAULT_REPORTS = [
     filters: [
       { fieldKey: 'courseId', label: 'Course', inputType: 'COURSE', source: 'COURSE', sortOrder: 1 },
       { fieldKey: 'sectionId', label: 'Section', inputType: 'SECTION', source: 'SECTION', dependsOn: 'courseId', sortOrder: 2 },
-      { fieldKey: 'minimumOutstanding', label: 'Minimum Outstanding (₹)', inputType: 'NUMBER', dataType: 'number', sortOrder: 3 },
+      { fieldKey: 'studentId', label: 'Student (optional — just this one student)', inputType: 'SELECT', source: 'STUDENT', dependsOn: 'sectionId', sortOrder: 3 },
+      { fieldKey: 'minimumOutstanding', label: 'Minimum Outstanding (₹)', inputType: 'NUMBER', dataType: 'number', sortOrder: 4 },
     ],
     columns: [
       { fieldKey: 'name', label: 'Student Name', sortOrder: 1 },
@@ -159,6 +165,7 @@ const DEFAULT_REPORTS = [
     filters: [
       { fieldKey: 'examId', label: 'Exam', inputType: 'SELECT', source: 'EXAM', required: true, sortOrder: 1 },
       { fieldKey: 'sectionId', label: 'Section', inputType: 'SECTION', source: 'SECTION', sortOrder: 2 },
+      { fieldKey: 'studentId', label: 'Student (optional — just this one student)', inputType: 'SELECT', source: 'STUDENT', dependsOn: 'sectionId', sortOrder: 3 },
     ],
     columns: [
       { fieldKey: 'name', label: 'Student Name', sortOrder: 1 },
@@ -173,13 +180,16 @@ const DEFAULT_REPORTS = [
   {
     code: 'STUDENT_PERFORMANCE',
     name: 'Student Performance Report',
-    description: 'Average marks % per student across every exam recorded, optionally scoped to one section.',
+    description: 'Average marks % across every exam recorded — whole institution, one class, or one student\'s own trend, optionally scoped to a date range.',
     category: 'ANALYTICS',
     module: 'Examination',
     icon: 'TrendingUp',
     filters: [
       { fieldKey: 'courseId', label: 'Course', inputType: 'COURSE', source: 'COURSE', sortOrder: 1 },
       { fieldKey: 'sectionId', label: 'Section', inputType: 'SECTION', source: 'SECTION', dependsOn: 'courseId', sortOrder: 2 },
+      { fieldKey: 'studentId', label: 'Student (optional — one student\'s own trend)', inputType: 'SELECT', source: 'STUDENT', dependsOn: 'sectionId', sortOrder: 3 },
+      { fieldKey: 'dateFrom', label: 'Exams From (optional)', inputType: 'DATE', sortOrder: 4 },
+      { fieldKey: 'dateTo', label: 'Exams To (optional)', inputType: 'DATE', sortOrder: 5 },
     ],
     columns: [
       { fieldKey: 'name', label: 'Student Name', sortOrder: 1 },

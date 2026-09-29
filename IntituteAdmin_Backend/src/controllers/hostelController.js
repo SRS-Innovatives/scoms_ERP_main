@@ -104,7 +104,11 @@ const createBed = async (req, res, next) => {
 
 const allocateBed = async (req, res, next) => {
   try {
-    const { bedId, studentId } = req.body;
+    // Institution-specific extra allocation fields (SuperAdmin-approved only — see
+    // AdmissionCustomField, entityType HOSTEL_ALLOCATION). Same trust convention as
+    // Student admission/Transport enrollment: frontend only ever renders APPROVED
+    // fields, so whatever arrives here is accepted as-is.
+    const { bedId, studentId, customFields } = req.body;
     if (!bedId || !studentId) throw new ValidationError('bedId and studentId are required');
 
     const bed = await prisma.hostelBed.findFirst({ where: { id: bedId, hostel: { institutionId: req.institutionId } } });
@@ -119,7 +123,11 @@ const allocateBed = async (req, res, next) => {
 
     const updated = await prisma.hostelBed.update({
       where: { id: bedId },
-      data: { studentId, isOccupied: true },
+      data: {
+        studentId,
+        isOccupied: true,
+        ...(customFields && Object.keys(customFields).length > 0 && { customFields }),
+      },
     });
     return sendSuccess(res, updated, 'Bed allocated to student successfully');
   } catch (err) {

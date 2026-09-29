@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import DataTable from '../../components/common/DataTable';
 import StatusBadge from '../../components/common/StatusBadge';
 import { useNotification } from '../../context/NotificationContext';
 import { ShieldCheck, Loader2 } from 'lucide-react';
 import settingsService from '../../services/settingsService';
+import ErrorState from '../../components/common/ErrorState';
 
 const ROLE_LABELS = {
   INSTITUTE_ADMIN: 'Institute Admin / Principal Office',
@@ -24,13 +25,18 @@ export const UserRolesPage = () => {
   const { notifyError } = useNotification();
   const [roles, setRoles] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
-  useEffect(() => {
+  const load = useCallback(() => {
+    setLoading(true);
+    setError(false);
     settingsService.getUserRoles()
       .then((res) => setRoles(res.data || []))
-      .catch((err) => notifyError(`Failed to load roles: ${err.message}`))
+      .catch((err) => { notifyError(`Failed to load roles: ${err.message}`); setError(true); })
       .finally(() => setLoading(false));
   }, [notifyError]);
+
+  useEffect(() => { load(); }, [load]);
 
   const columns = [
     { header: 'Role Title', key: 'role', render: (val) => <span className="font-bold text-slate-900 dark:text-white flex items-center gap-2"><ShieldCheck className="w-4 h-4 text-indigo-600" />{ROLE_LABELS[val] || val}</span> },
@@ -42,6 +48,10 @@ export const UserRolesPage = () => {
 
   if (loading) {
     return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-indigo-600" /></div>;
+  }
+
+  if (error) {
+    return <ErrorState onRetry={load} />;
   }
 
   return (

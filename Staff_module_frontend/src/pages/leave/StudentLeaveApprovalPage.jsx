@@ -3,6 +3,7 @@ import StatusBadge from '../../components/common/StatusBadge';
 import { useNotification } from '../../context/NotificationContext';
 import { CheckCircle, XCircle, Loader2, Inbox } from 'lucide-react';
 import studentLeaveService from '../../services/studentLeaveService';
+import ErrorState from '../../components/common/ErrorState';
 
 const TYPE_LABELS = { MEDICAL: 'Medical Leave', CASUAL: 'Casual / Personal Leave', DUTY: 'On Duty (OD)', EARNED: 'Earned Leave' };
 
@@ -12,13 +13,15 @@ export const StudentLeaveApprovalPage = () => {
   const { success, error: showError } = useNotification();
   const [leaves, setLeaves] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [acting, setActing] = useState(null);
 
   const load = useCallback(() => {
     setLoading(true);
+    setError(false);
     studentLeaveService.getStudentLeaves()
       .then((res) => setLeaves(res.data || []))
-      .catch((err) => showError(err.message || 'Failed to load leave requests', 'Load Failed'))
+      .catch((err) => { showError(err.message || 'Failed to load leave requests', 'Load Failed'); setError(true); })
       .finally(() => setLoading(false));
   }, [showError]);
 
@@ -46,6 +49,8 @@ export const StudentLeaveApprovalPage = () => {
 
       {loading ? (
         <div className="flex justify-center py-10"><Loader2 className="w-6 h-6 animate-spin text-sky-600" /></div>
+      ) : error ? (
+        <ErrorState onRetry={load} />
       ) : leaves.length === 0 ? (
         <div className="text-center py-10 text-xs text-slate-500 flex flex-col items-center gap-2">
           <Inbox className="w-8 h-8 text-slate-300" /> No student leave requests to review.

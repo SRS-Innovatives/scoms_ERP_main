@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import FormInput from '../../components/common/FormInput';
 import { useNotification } from '../../context/NotificationContext';
 import { Save, Loader2, ExternalLink } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import settingsService from '../../services/settingsService';
+import ErrorState from '../../components/common/ErrorState';
 
 const OTHER_TABS = [
   { label: 'Branding', path: '/super-admin/settings/branding' },
@@ -25,14 +26,19 @@ export const SettingsPage = () => {
   const [activeTab, setActiveTab] = useState('General');
   const [config, setConfig] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
+  const load = useCallback(() => {
+    setLoading(true);
+    setError(false);
     settingsService.getSettings()
       .then((res) => setConfig(res.data))
-      .catch((err) => showError(err.message || 'Failed to load settings', 'Load Failed'))
+      .catch((err) => { showError(err.message || 'Failed to load settings', 'Load Failed'); setError(true); })
       .finally(() => setLoading(false));
   }, [showError]);
+
+  useEffect(() => { load(); }, [load]);
 
   const handleSave = async (e) => {
     e.preventDefault();
@@ -55,6 +61,10 @@ export const SettingsPage = () => {
 
   if (loading) {
     return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-indigo-600" /></div>;
+  }
+
+  if (error) {
+    return <ErrorState onRetry={load} />;
   }
 
   return (

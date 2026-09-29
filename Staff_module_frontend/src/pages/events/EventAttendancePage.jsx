@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { CheckCircle2, Circle, Save, Loader2 } from 'lucide-react';
 import eventService from '../../services/eventService';
 import { useNotification } from '../../context/NotificationContext';
+import ErrorState from '../../components/common/ErrorState';
 
 export const EventAttendancePage = () => {
   const { success, error: showError } = useNotification();
@@ -10,19 +11,24 @@ export const EventAttendancePage = () => {
   const [registrations, setRegistrations] = useState([]);
   const [attendedMap, setAttendedMap] = useState({});
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [loadingRegs, setLoadingRegs] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
+  const loadEvents = () => {
+    setLoading(true);
+    setError(false);
     eventService.getEvents()
       .then((res) => {
         const list = res.data || [];
         setEvents(list);
         if (list.length > 0) setEventId(list[0].id);
       })
-      .catch((err) => showError(err.message || 'Failed to load events', 'Load Failed'))
+      .catch((err) => { showError(err.message || 'Failed to load events', 'Load Failed'); setError(true); })
       .finally(() => setLoading(false));
-  }, [showError]);
+  };
+
+  useEffect(loadEvents, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!eventId) return;
@@ -54,6 +60,10 @@ export const EventAttendancePage = () => {
 
   if (loading) {
     return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-sky-600" /></div>;
+  }
+
+  if (error) {
+    return <ErrorState onRetry={loadEvents} />;
   }
 
   if (events.length === 0) {

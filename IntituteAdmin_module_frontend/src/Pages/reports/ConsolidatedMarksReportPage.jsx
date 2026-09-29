@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import ReportConfigBox, { ReportCheckbox } from '../../components/common/ReportConfigBox';
 import EmptyState from '../../components/common/EmptyState';
+import ErrorState from '../../components/common/ErrorState';
 import { useNotification } from '../../context/NotificationContext';
 import { FileBarChart, Printer, Loader2, RefreshCw } from 'lucide-react';
 import examService from '../../services/examService';
@@ -32,6 +33,8 @@ export const ConsolidatedMarksReportPage = () => {
   const [report, setReport] = useState(null);
   const [loadingOptions, setLoadingOptions] = useState(true);
   const [loadingReport, setLoadingReport] = useState(false);
+  const [optionsError, setOptionsError] = useState(false);
+  const [reportError, setReportError] = useState(false);
 
   // Column toggles
   const [showAdmissionNo, setShowAdmissionNo] = useState(true);
@@ -54,23 +57,28 @@ export const ConsolidatedMarksReportPage = () => {
   const [showParentSign, setShowParentSign] = useState(true);
   const [signatories, setSignatories] = useState('Class Teacher, Principal');
 
-  useEffect(() => {
+  const loadOptions = useCallback(() => {
+    setLoadingOptions(true);
+    setOptionsError(false);
     Promise.all([examService.getExams(), sectionService.getAll()])
       .then(([examRes, sectionRes]) => {
         setExams(examRes.data || []);
         setSections(sectionRes.data || []);
         if ((examRes.data || []).length > 0) setExamId(examRes.data[0].id);
       })
-      .catch((err) => notifyError(`Failed to load report options: ${err.message}`))
+      .catch((err) => { notifyError(`Failed to load report options: ${err.message}`); setOptionsError(true); })
       .finally(() => setLoadingOptions(false));
   }, [notifyError]);
+
+  useEffect(() => { loadOptions(); }, [loadOptions]);
 
   const generate = useCallback(() => {
     if (!examId) return;
     setLoadingReport(true);
+    setReportError(false);
     examService.getConsolidatedReport(examId, sectionId || undefined)
       .then((res) => setReport(res.data))
-      .catch((err) => notifyError(`Failed to generate report: ${err.message}`))
+      .catch((err) => { notifyError(`Failed to generate report: ${err.message}`); setReportError(true); })
       .finally(() => setLoadingReport(false));
   }, [examId, sectionId, notifyError]);
 
@@ -92,6 +100,10 @@ export const ConsolidatedMarksReportPage = () => {
 
   if (loadingOptions) {
     return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-indigo-600" /></div>;
+  }
+
+  if (optionsError) {
+    return <ErrorState onRetry={loadOptions} />;
   }
 
   return (
@@ -169,6 +181,8 @@ export const ConsolidatedMarksReportPage = () => {
 
       {loadingReport ? (
         <div className="flex justify-center py-16"><Loader2 className="w-7 h-7 animate-spin text-indigo-600" /></div>
+      ) : reportError ? (
+        <ErrorState onRetry={generate} />
       ) : !report || report.subjects.length === 0 ? (
         <EmptyState title="No Exam Schedule Set Up" description="Set up subject-wise exam schedules with marks entered before generating this report." icon={FileBarChart} />
       ) : filteredRows.length === 0 ? (

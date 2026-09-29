@@ -3,6 +3,7 @@ import examService from '../../services/examService';
 import { useNotification } from '../../context/NotificationContext';
 import { Sparkles, Plus, Trash2, Eye, Loader2, Wand2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import ErrorState from '../../components/common/ErrorState';
 
 export const DRAFT_STORAGE_KEY = 'staff_question_paper_draft';
 
@@ -14,6 +15,7 @@ export const QuestionPaperGeneratorPage = () => {
   const [subjectId, setSubjectId] = useState('');
   const [allQuestions, setAllQuestions] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [generating, setGenerating] = useState(false);
 
   const [paperTitle, setPaperTitle] = useState('');
@@ -22,16 +24,20 @@ export const QuestionPaperGeneratorPage = () => {
   const [mediumCount, setMediumCount] = useState(5);
   const [hardCount, setHardCount] = useState(2);
 
-  useEffect(() => {
+  const loadSubjects = () => {
+    setLoading(true);
+    setError(false);
     examService.getMySubjects()
       .then(async (res) => {
         const list = res.data || [];
         setSubjects(list);
         if (list.length > 0) setSubjectId(list[0].id);
       })
-      .catch((err) => showError(err.message || 'Failed to load subjects', 'Load Failed'))
+      .catch((err) => { showError(err.message || 'Failed to load subjects', 'Load Failed'); setError(true); })
       .finally(() => setLoading(false));
-  }, [showError]);
+  };
+
+  useEffect(loadSubjects, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!subjectId) return;
@@ -78,6 +84,10 @@ export const QuestionPaperGeneratorPage = () => {
 
   if (loading) {
     return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-sky-600" /></div>;
+  }
+
+  if (error) {
+    return <ErrorState onRetry={loadSubjects} />;
   }
 
   if (subjects.length === 0) {

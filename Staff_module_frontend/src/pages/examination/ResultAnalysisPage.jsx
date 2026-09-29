@@ -3,6 +3,7 @@ import PerformanceChart from '../../components/common/PerformanceChart';
 import examService from '../../services/examService';
 import { useNotification } from '../../context/NotificationContext';
 import { Loader2 } from 'lucide-react';
+import ErrorState from '../../components/common/ErrorState';
 
 const GRADE_ORDER = ['A+', 'A', 'B', 'C', 'D', 'F'];
 
@@ -12,18 +13,23 @@ export const ResultAnalysisPage = () => {
   const [selectedId, setSelectedId] = useState('');
   const [roster, setRoster] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [loadingRoster, setLoadingRoster] = useState(false);
 
-  useEffect(() => {
+  const loadSchedules = () => {
+    setLoading(true);
+    setError(false);
     examService.getMySchedules()
       .then((res) => {
         const list = res.data || [];
         setSchedules(list);
         if (list.length > 0) setSelectedId(list[0].id);
       })
-      .catch((err) => showError(err.message || 'Failed to load exam duties', 'Load Failed'))
+      .catch((err) => { showError(err.message || 'Failed to load exam duties', 'Load Failed'); setError(true); })
       .finally(() => setLoading(false));
-  }, [showError]);
+  };
+
+  useEffect(loadSchedules, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!selectedId) return;
@@ -36,6 +42,10 @@ export const ResultAnalysisPage = () => {
 
   if (loading) {
     return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-sky-600" /></div>;
+  }
+
+  if (error) {
+    return <ErrorState onRetry={loadSchedules} />;
   }
 
   if (schedules.length === 0) {

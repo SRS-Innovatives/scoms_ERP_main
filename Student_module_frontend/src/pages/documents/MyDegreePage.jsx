@@ -1,22 +1,32 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Award, Loader2, CheckCircle2, Clock } from 'lucide-react';
 import { useNotification } from '../../context/NotificationContext';
 import degreeService from '../../services/degreeService';
+import ErrorState from '../../components/common/ErrorState';
 
 export const MyDegreePage = () => {
   const { error: showError } = useNotification();
   const [degrees, setDegrees] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
-  useEffect(() => {
+  const load = useCallback(() => {
+    setLoading(true);
+    setError(false);
     degreeService.getAll()
       .then((res) => setDegrees(res.data || []))
-      .catch((err) => showError(err.message || 'Failed to load degree records', 'Load Failed'))
+      .catch((err) => { showError(err.message || 'Failed to load degree records', 'Load Failed'); setError(true); })
       .finally(() => setLoading(false));
   }, [showError]);
 
+  useEffect(() => { load(); }, [load]);
+
   if (loading) {
     return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-indigo-600" /></div>;
+  }
+
+  if (error) {
+    return <ErrorState onRetry={load} />;
   }
 
   return (

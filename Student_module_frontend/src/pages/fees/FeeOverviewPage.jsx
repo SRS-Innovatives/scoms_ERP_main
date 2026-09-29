@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import StatCard from '../../components/common/StatCard';
 import PageHeader from '../../components/common/PageHeader';
 import StatusBadge from '../../components/common/StatusBadge';
@@ -6,19 +6,25 @@ import { CreditCard, DollarSign, Receipt, AlertCircle, Loader2 } from 'lucide-re
 import { useNavigate } from 'react-router-dom';
 import { useNotification } from '../../context/NotificationContext';
 import feeService from '../../services/feeService';
+import ErrorState from '../../components/common/ErrorState';
 
 export const FeeOverviewPage = () => {
   const navigate = useNavigate();
   const { error: showError } = useNotification();
   const [assignments, setAssignments] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
-  useEffect(() => {
+  const load = useCallback(() => {
+    setLoading(true);
+    setError(false);
     feeService.getFees()
       .then((res) => setAssignments(res.data || []))
-      .catch((err) => showError(err.message || 'Failed to load fee ledger', 'Load Failed'))
+      .catch((err) => { showError(err.message || 'Failed to load fee ledger', 'Load Failed'); setError(true); })
       .finally(() => setLoading(false));
   }, [showError]);
+
+  useEffect(() => { load(); }, [load]);
 
   const { totalFee, paidFee, pendingFee, nearestDueDate } = useMemo(() => {
     const totalFee = assignments.reduce((sum, a) => sum + a.totalAmount - a.discountAmount, 0);
@@ -31,6 +37,10 @@ export const FeeOverviewPage = () => {
 
   if (loading) {
     return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-indigo-600" /></div>;
+  }
+
+  if (error) {
+    return <ErrorState onRetry={load} />;
   }
 
   return (

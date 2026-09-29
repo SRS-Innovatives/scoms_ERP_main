@@ -1,10 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import StudentTable from '../../components/common/StudentTable';
 import attendanceService from '../../services/attendanceService';
 import profileService from '../../services/profileService';
 import { useNotification } from '../../context/NotificationContext';
 import { Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import ErrorState from '../../components/common/ErrorState';
 
 const toRow = (s, classLabel) => ({
   id: s.id,
@@ -26,8 +27,12 @@ export const ClassDetailsPage = () => {
   const [roster, setRoster] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadingRoster, setLoadingRoster] = useState(false);
+  const [error, setError] = useState(false);
+  const [rosterError, setRosterError] = useState(false);
 
-  useEffect(() => {
+  const load = useCallback(() => {
+    setLoading(true);
+    setError(false);
     Promise.all([attendanceService.getMyClasses(), profileService.getMyProfile()])
       .then(([classesRes, profileRes]) => {
         const list = classesRes.data || [];
@@ -35,23 +40,32 @@ export const ClassDetailsPage = () => {
         setProfile(profileRes.data);
         if (list.length > 0) setSelectedMappingId(list[0].id);
       })
-      .catch((err) => showError(err.message || 'Failed to load classes', 'Load Failed'))
+      .catch((err) => { showError(err.message || 'Failed to load classes', 'Load Failed'); setError(true); })
       .finally(() => setLoading(false));
   }, [showError]);
 
+  useEffect(() => { load(); }, [load]);
+
   const selectedMapping = mappings.find((m) => m.id === selectedMappingId);
 
-  useEffect(() => {
+  const loadRoster = useCallback(() => {
     if (!selectedMapping) return;
     setLoadingRoster(true);
+    setRosterError(false);
     attendanceService.getRoster(selectedMapping.section.id)
       .then((res) => setRoster(res.data || []))
-      .catch((err) => showError(err.message || 'Failed to load roster', 'Load Failed'))
+      .catch((err) => { showError(err.message || 'Failed to load roster', 'Load Failed'); setRosterError(true); })
       .finally(() => setLoadingRoster(false));
   }, [selectedMappingId]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  useEffect(() => { loadRoster(); }, [loadRoster]);
+
   if (loading) {
     return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-indigo-600" /></div>;
+  }
+
+  if (error) {
+    return <ErrorState onRetry={load} />;
   }
 
   if (mappings.length === 0) {
@@ -98,6 +112,8 @@ export const ClassDetailsPage = () => {
 
       {loadingRoster ? (
         <div className="flex justify-center py-16"><Loader2 className="w-7 h-7 animate-spin text-indigo-600" /></div>
+      ) : rosterError ? (
+        <ErrorState onRetry={loadRoster} />
       ) : (
         <StudentTable
           students={roster.map((s) => toRow(s, classLabel))}

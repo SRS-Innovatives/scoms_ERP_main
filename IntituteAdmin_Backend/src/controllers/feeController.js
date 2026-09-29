@@ -16,9 +16,20 @@ const {
   generateChallanNumber,
   NotFoundError,
   ValidationError,
+  BusinessRuleError,
   pushNotification,
   pushNotificationToMany,
 } = require('../../../shared');
+
+/** This legacy single-amount fee system is sunset for NEW billing as of this change —
+ * two fee systems (this one and the Dynamic Fee Engine in feeEngineController.js) were
+ * live side by side with no signal to staff about which to use, creating a real
+ * duplicate-billing risk (two structures for the same real-world fee, both assignable to
+ * the same student, both counted in the shared dashboards). Existing legacy structures/
+ * assignments keep working — view, collect against, refund, report on — so money already
+ * owed stays collectible. Only the three "create new billing" entry points are blocked. */
+const LEGACY_SUNSET_MESSAGE = 'The classic Fee Structure system no longer accepts new fee structures or assignments — use the Dynamic Fee Engine (Fee Heads → Fee Structure Builder) instead. Existing legacy fee structures remain viewable and collectible.';
+const blockLegacyCreate = () => { throw new BusinessRuleError(LEGACY_SUNSET_MESSAGE); };
 
 // ============================================================
 // Fee Categories (static — backed by the FeeCategoryType enum)
@@ -78,6 +89,7 @@ const getFeeStructures = async (req, res, next) => {
 
 const createFeeStructure = async (req, res, next) => {
   try {
+    blockLegacyCreate();
     const { name, category, academicYearId, courseId, totalAmount, dueDate, lateFeePerDay } = req.body;
     if (!name || !academicYearId || !totalAmount || !dueDate) {
       throw new ValidationError('name, academicYearId, totalAmount, dueDate are required');
@@ -156,7 +168,11 @@ const getStudentAssignments = async (req, res, next) => {
 
 const assignFeeToStudent = async (req, res, next) => {
   try {
-    const { feeStructureId, studentId, discountAmount, scholarshipName, scholarshipRef } = req.body;
+    blockLegacyCreate();
+    // Institution-specific extra assignment fields (SuperAdmin-approved only — see
+    // AdmissionCustomField, entityType FEE_ASSIGNMENT). Same trust convention as
+    // admission/transport/hostel: frontend only ever renders APPROVED fields.
+    const { feeStructureId, studentId, discountAmount, scholarshipName, scholarshipRef, customFields } = req.body;
     if (!feeStructureId || !studentId) throw new ValidationError('feeStructureId and studentId are required');
 
     const structure = await prisma.feeStructure.findFirst({ where: { id: feeStructureId, institutionId: req.institutionId } });
@@ -177,6 +193,7 @@ const assignFeeToStudent = async (req, res, next) => {
         ...computeAssignment(structure, discountAmount),
         scholarshipName: scholarshipName || null,
         scholarshipRef: scholarshipRef || null,
+        customFields: customFields && Object.keys(customFields).length > 0 ? customFields : undefined,
       },
     });
 
@@ -197,6 +214,7 @@ const assignFeeToStudent = async (req, res, next) => {
 
 const bulkAssignFee = async (req, res, next) => {
   try {
+    blockLegacyCreate();
     const { feeStructureId, courseId, sectionId } = req.body;
     if (!feeStructureId || !courseId) throw new ValidationError('feeStructureId and courseId are required');
 

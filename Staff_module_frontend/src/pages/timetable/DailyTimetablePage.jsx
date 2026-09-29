@@ -3,6 +3,7 @@ import ScheduleTimeline from '../../components/common/ScheduleTimeline';
 import { Loader2 } from 'lucide-react';
 import timetableService from '../../services/timetableService';
 import { useNotification } from '../../context/NotificationContext';
+import ErrorState from '../../components/common/ErrorState';
 
 const DAY_NAMES = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
 
@@ -19,16 +20,25 @@ export const DailyTimetablePage = () => {
   const { error: showError } = useNotification();
   const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
-  useEffect(() => {
+  const load = React.useCallback(() => {
+    setLoading(true);
+    setError(false);
     timetableService.getMyTimetable()
       .then((res) => setEntries(res.data || []))
-      .catch((err) => showError(err.message || 'Failed to load timetable', 'Load Failed'))
+      .catch((err) => { showError(err.message || 'Failed to load timetable', 'Load Failed'); setError(true); })
       .finally(() => setLoading(false));
   }, [showError]);
 
+  useEffect(() => { load(); }, [load]);
+
   if (loading) {
     return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-indigo-600" /></div>;
+  }
+
+  if (error) {
+    return <ErrorState onRetry={load} />;
   }
 
   const today = DAY_NAMES[new Date().getDay()];

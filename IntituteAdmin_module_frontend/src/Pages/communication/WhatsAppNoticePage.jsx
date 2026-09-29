@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import DataTable from '../../components/common/DataTable';
 import EmptyState from '../../components/common/EmptyState';
+import ErrorState from '../../components/common/ErrorState';
 import WhatsAppComposeModal from '../../components/modals/WhatsAppComposeModal';
 import { useNotification } from '../../context/NotificationContext';
 import { MessageCircle, Send, CheckCircle2, XCircle, Loader2 } from 'lucide-react';
@@ -11,12 +12,14 @@ export const WhatsAppNoticePage = () => {
   const [showModal, setShowModal] = useState(false);
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   const fetchLogs = useCallback(() => {
     setLoading(true);
+    setError(false);
     broadcastService.getWhatsappLogs()
       .then((res) => setLogs(res.data || []))
-      .catch((err) => notifyError(`Failed to load WhatsApp logs: ${err.message}`))
+      .catch((err) => { notifyError(`Failed to load WhatsApp logs: ${err.message}`); setError(true); })
       .finally(() => setLoading(false));
   }, [notifyError]);
 
@@ -57,6 +60,8 @@ export const WhatsAppNoticePage = () => {
 
       {loading ? (
         <div className="flex justify-center py-16"><Loader2 className="w-7 h-7 animate-spin text-emerald-600" /></div>
+      ) : error ? (
+        <ErrorState onRetry={fetchLogs} />
       ) : logs.length === 0 ? (
         <EmptyState title="No WhatsApp Messages Sent Yet" description="Compose a WhatsApp broadcast to get started." icon={MessageCircle} />
       ) : (

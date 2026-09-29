@@ -4,6 +4,7 @@ import SearchFilterBar from '../../components/common/SearchFilterBar';
 import StatusBadge from '../../components/common/StatusBadge';
 import StudentCard from '../../components/common/StudentCard';
 import EmptyState from '../../components/common/EmptyState';
+import ErrorState from '../../components/common/ErrorState';
 import { useNotification } from '../../context/NotificationContext';
 import { useNavigate } from 'react-router-dom';
 import { Grid, List, Plus, CreditCard, Users, Loader2 } from 'lucide-react';
@@ -16,12 +17,14 @@ export const StudentListPage = () => {
   const [viewMode, setViewMode] = useState('table');
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   const load = useCallback(() => {
     setLoading(true);
+    setError(false);
     studentService.getAll({ search })
       .then((res) => setStudents(res.data || []))
-      .catch((err) => notifyError(`Failed to load students: ${err.message}`))
+      .catch((err) => { notifyError(`Failed to load students: ${err.message}`); setError(true); })
       .finally(() => setLoading(false));
   }, [search, notifyError]);
 
@@ -134,6 +137,8 @@ export const StudentListPage = () => {
 
       {loading ? (
         <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-indigo-600" /></div>
+      ) : error ? (
+        <ErrorState onRetry={load} />
       ) : mapped.length === 0 ? (
         <EmptyState title="No Students Found" description="No students match your search, or none have been admitted yet." icon={Users} />
       ) : viewMode === 'table' ? (

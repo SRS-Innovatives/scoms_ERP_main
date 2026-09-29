@@ -3,19 +3,22 @@ import PageHeader from '../../components/common/PageHeader';
 import { useNotification } from '../../context/NotificationContext';
 import { Star, CheckCircle2, Loader2 } from 'lucide-react';
 import feedbackService from '../../services/feedbackService';
+import ErrorState from '../../components/common/ErrorState';
 
 export const FeedbackPage = () => {
   const { success, error: showError } = useNotification();
   const [subjects, setSubjects] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [drafts, setDrafts] = useState({});
   const [submitting, setSubmitting] = useState(null);
 
   const load = useCallback(() => {
     setLoading(true);
+    setError(false);
     feedbackService.getFeedbackSubjects()
       .then((res) => setSubjects(res.data || []))
-      .catch((err) => showError(err.message || 'Failed to load subjects', 'Load Failed'))
+      .catch((err) => { showError(err.message || 'Failed to load subjects', 'Load Failed'); setError(true); })
       .finally(() => setLoading(false));
   }, [showError]);
 
@@ -45,6 +48,10 @@ export const FeedbackPage = () => {
 
   if (loading) {
     return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-indigo-600" /></div>;
+  }
+
+  if (error) {
+    return <ErrorState onRetry={load} />;
   }
 
   return (

@@ -4,19 +4,22 @@ import StatusBadge from '../../components/common/StatusBadge';
 import { useNotification } from '../../context/NotificationContext';
 import { Loader2 } from 'lucide-react';
 import transportService from '../../services/transportService';
+import ErrorState from '../../components/common/ErrorState';
 
 export const VehicleAttendancePage = () => {
   const { notifySuccess, notifyError } = useNotification();
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [trips, setTrips] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [busyKey, setBusyKey] = useState(null);
 
   const fetchTrips = useCallback(() => {
     setLoading(true);
+    setError(false);
     transportService.getTrips(date)
       .then((res) => setTrips(res.data || []))
-      .catch((err) => notifyError(`Failed to load trip log: ${err.message}`))
+      .catch((err) => { notifyError(`Failed to load trip log: ${err.message}`); setError(true); })
       .finally(() => setLoading(false));
   }, [date, notifyError]);
 
@@ -67,6 +70,8 @@ export const VehicleAttendancePage = () => {
 
       {loading ? (
         <div className="flex justify-center py-16"><Loader2 className="w-7 h-7 animate-spin text-indigo-600" /></div>
+      ) : error ? (
+        <ErrorState onRetry={fetchTrips} />
       ) : (
         <DataTable columns={columns} data={trips} />
       )}

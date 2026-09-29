@@ -1,26 +1,36 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import PageHeader from '../../components/common/PageHeader';
 import { Eye, EyeOff, Loader2, BookX } from 'lucide-react';
 import { useNotification } from '../../context/NotificationContext';
+import ErrorState from '../../components/common/ErrorState';
 import questionBankService from '../../services/questionBankService';
 
 export const QuestionBankPage = () => {
   const { error: showError } = useNotification();
   const [questions, setQuestions] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [revealed, setRevealed] = useState({});
 
-  useEffect(() => {
+  const load = useCallback(() => {
+    setLoading(true);
+    setError(false);
     questionBankService.getQuestions()
       .then((res) => setQuestions(res.data || []))
-      .catch((err) => showError(err.message || 'Failed to load question bank', 'Load Failed'))
+      .catch((err) => { showError(err.message || 'Failed to load question bank', 'Load Failed'); setError(true); })
       .finally(() => setLoading(false));
   }, [showError]);
+
+  useEffect(() => { load(); }, [load]);
 
   const toggleReveal = (id) => setRevealed((prev) => ({ ...prev, [id]: !prev[id] }));
 
   if (loading) {
     return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-indigo-600" /></div>;
+  }
+
+  if (error) {
+    return <ErrorState onRetry={load} />;
   }
 
   return (

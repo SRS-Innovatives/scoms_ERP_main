@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import FormModal from '../../components/common/FormModal';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
 import EmptyState from '../../components/common/EmptyState';
+import ErrorState from '../../components/common/ErrorState';
 import { useNotification } from '../../context/NotificationContext';
 import { FileText, Plus, Edit, Trash2, Lock, Loader2 } from 'lucide-react';
 import templateService from '../../services/templateService';
@@ -13,6 +14,7 @@ export const TemplateLibraryPage = () => {
   const { notifySuccess, notifyError } = useNotification();
   const [templates, setTemplates] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [channelFilter, setChannelFilter] = useState('SMS');
 
   const [modalOpen, setModalOpen] = useState(false);
@@ -23,9 +25,10 @@ export const TemplateLibraryPage = () => {
 
   const fetchTemplates = useCallback(() => {
     setLoading(true);
+    setError(false);
     templateService.getAll()
       .then((res) => setTemplates(res.data || []))
-      .catch((err) => notifyError(`Failed to load templates: ${err.message}`))
+      .catch((err) => { notifyError(`Failed to load templates: ${err.message}`); setError(true); })
       .finally(() => setLoading(false));
   }, [notifyError]);
 
@@ -80,6 +83,10 @@ export const TemplateLibraryPage = () => {
 
   if (loading) {
     return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-indigo-600" /></div>;
+  }
+
+  if (error) {
+    return <ErrorState onRetry={fetchTemplates} />;
   }
 
   return (

@@ -3,6 +3,7 @@ import PageHeader from '../../components/common/PageHeader';
 import { Send, User, Loader2, MessageSquareOff } from 'lucide-react';
 import { useNotification } from '../../context/NotificationContext';
 import messageService from '../../services/messageService';
+import ErrorState from '../../components/common/ErrorState';
 
 export const MessagesPage = () => {
   const { error: showError } = useNotification();
@@ -11,19 +12,24 @@ export const MessagesPage = () => {
   const [messages, setMessages] = useState([]);
   const [msg, setMsg] = useState('');
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [sending, setSending] = useState(false);
   const bottomRef = useRef(null);
 
-  useEffect(() => {
+  const loadTeachers = useCallback(() => {
+    setLoading(true);
+    setError(false);
     messageService.getTeachers()
       .then((res) => {
         const data = res.data || [];
         setTeachers(data);
         if (data.length > 0) setSelected(data[0]);
       })
-      .catch((err) => showError(err.message || 'Failed to load teachers', 'Load Failed'))
+      .catch((err) => { showError(err.message || 'Failed to load teachers', 'Load Failed'); setError(true); })
       .finally(() => setLoading(false));
   }, [showError]);
+
+  useEffect(() => { loadTeachers(); }, [loadTeachers]);
 
   const loadConversation = useCallback(() => {
     if (!selected) return;
@@ -52,6 +58,10 @@ export const MessagesPage = () => {
 
   if (loading) {
     return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-indigo-600" /></div>;
+  }
+
+  if (error) {
+    return <ErrorState onRetry={loadTeachers} />;
   }
 
   if (teachers.length === 0) {

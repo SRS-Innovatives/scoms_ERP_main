@@ -2,22 +2,26 @@ import React, { useEffect, useState } from 'react';
 import { useNotification } from '../../context/NotificationContext';
 import { Send, CheckCircle2, Loader2, Clock } from 'lucide-react';
 import examService from '../../services/examService';
+import ErrorState from '../../components/common/ErrorState';
 
 export const PublishMarksPage = () => {
   const { success, error: showError } = useNotification();
   const [schedules, setSchedules] = useState([]);
   const [selectedId, setSelectedId] = useState('');
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [publishing, setPublishing] = useState(false);
 
   const load = () => {
+    setLoading(true);
+    setError(false);
     examService.getMySchedules()
       .then((res) => {
         const list = res.data || [];
         setSchedules(list);
         if (list.length > 0 && !selectedId) setSelectedId(list[0].id);
       })
-      .catch((err) => showError(err.message || 'Failed to load exam duties', 'Load Failed'))
+      .catch((err) => { showError(err.message || 'Failed to load exam duties', 'Load Failed'); setError(true); })
       .finally(() => setLoading(false));
   };
 
@@ -41,6 +45,10 @@ export const PublishMarksPage = () => {
 
   if (loading) {
     return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-sky-600" /></div>;
+  }
+
+  if (error) {
+    return <ErrorState onRetry={load} />;
   }
 
   if (schedules.length === 0) {

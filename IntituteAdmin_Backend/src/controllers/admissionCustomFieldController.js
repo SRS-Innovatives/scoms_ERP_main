@@ -6,15 +6,34 @@
  * DRAFT (free to edit) -> PENDING_APPROVAL (locked, waiting on SuperAdmin) -> APPROVED
  * (now live on the real form) | REJECTED. Editing an already-APPROVED field re-queues it
  * for approval — an institution can never silently change what SuperAdmin already signed
- * off on. `entityType` picks which form a field belongs to (ADMISSION, STAFF_PROFILE, ...)
- * — same lifecycle, same endpoints, just scoped per form.
+ * off on. `entityType` picks which form a field belongs to (ADMISSION, STAFF_PROFILE,
+ * TRANSPORT_ENROLLMENT, ...) — same lifecycle, same endpoints, just scoped per form.
  */
 const { prisma, sendSuccess, NotFoundError, ValidationError } = require('../../../shared');
 
 const FIELD_TYPES = ['TEXT', 'NUMBER', 'DATE', 'EMAIL', 'PHONE', 'TEXTAREA', 'SELECT', 'CHECKBOX'];
-const ENTITY_TYPES = ['ADMISSION', 'STAFF_PROFILE'];
+const ENTITY_TYPES = ['ADMISSION', 'STAFF_PROFILE', 'TRANSPORT_ENROLLMENT', 'HOSTEL_ALLOCATION', 'FEE_ASSIGNMENT', 'LIBRARY_MEMBERSHIP'];
 
 const toFieldKey = (label) => label.trim().toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+
+const VISIBILITY_OPERATORS = ['equals', 'not_equals'];
+
+/** A visibilityCondition must point at a real field on the same form, and not at
+ * itself — otherwise it's either a typo or an impossible-to-satisfy rule. */
+const validateVisibilityCondition = async (visibilityCondition, institutionId, entityType, ownFieldKey) => {
+  if (!visibilityCondition) return;
+  const { dependsOnFieldKey, operator, value } = visibilityCondition;
+  if (!dependsOnFieldKey || !operator || value === undefined) {
+    throw new ValidationError('visibilityCondition requires dependsOnFieldKey, operator and value');
+  }
+  if (!VISIBILITY_OPERATORS.includes(operator)) throw new ValidationError(`visibilityCondition.operator must be one of ${VISIBILITY_OPERATORS.join(', ')}`);
+  if (dependsOnFieldKey === ownFieldKey) throw new ValidationError('A field cannot have a visibility condition that depends on itself');
+
+  const target = await prisma.admissionCustomField.findUnique({
+    where: { institutionId_entityType_fieldKey: { institutionId, entityType, fieldKey: dependsOnFieldKey } },
+  });
+  if (!target) throw new ValidationError(`visibilityCondition references an unknown field "${dependsOnFieldKey}"`);
+};
 
 const resolveEntityType = (req) => {
   const entityType = req.query.entityType || req.body.entityType || 'ADMISSION';
@@ -36,14 +55,17 @@ const getFields = async (req, res, next) => {
 };
 
 /** Only what a live form is allowed to render — APPROVED fields for the requested
- * entity type only. */
+ * entity type only. Includes helpText/hidden/visibilityCondition so the consuming
+ * form can actually apply them (a hidden field is still returned — the frontend
+ * decides not to render it — since its key may be the target of another field's
+ * visibilityCondition). */
 const getApprovedFields = async (req, res, next) => {
   try {
     const entityType = resolveEntityType(req);
     const fields = await prisma.admissionCustomField.findMany({
       where: { institutionId: req.institutionId, entityType, status: 'APPROVED' },
       orderBy: [{ order: 'asc' }, { createdAt: 'asc' }],
-      select: { id: true, fieldKey: true, label: true, fieldType: true, section: true, options: true, required: true, order: true },
+      select: { id: true, fieldKey: true, label: true, fieldType: true, section: true, options: true, required: true, order: true, helpText: true, hidden: true, visibilityCondition: true },
     });
     return sendSuccess(res, fields, 'Approved fields retrieved successfully');
   } catch (err) {
@@ -54,7 +76,7 @@ const getApprovedFields = async (req, res, next) => {
 const createField = async (req, res, next) => {
   try {
     const entityType = resolveEntityType(req);
-    const { label, fieldType = 'TEXT', section, options, required, order } = req.body;
+    const { label, fieldType = 'TEXT', section, options, required, order, helpText, hidden, visibilityCondition } = req.body;
     if (!label) throw new ValidationError('label is required');
     if (!FIELD_TYPES.includes(fieldType)) throw new ValidationError(`fieldType must be one of ${FIELD_TYPES.join(', ')}`);
     if (fieldType === 'SELECT' && (!Array.isArray(options) || options.length === 0)) {
@@ -66,6 +88,8 @@ const createField = async (req, res, next) => {
 
     const existing = await prisma.admissionCustomField.findUnique({ where: { institutionId_entityType_fieldKey: { institutionId: req.institutionId, entityType, fieldKey } } });
     if (existing) throw new ValidationError('A field with this label (or a very similar one) already exists');
+
+    await validateVisibilityCondition(visibilityCondition, req.institutionId, entityType, fieldKey);
 
     const count = await prisma.admissionCustomField.count({ where: { institutionId: req.institutionId, entityType } });
     const field = await prisma.admissionCustomField.create({
@@ -79,6 +103,9 @@ const createField = async (req, res, next) => {
         options: fieldType === 'SELECT' ? options : undefined,
         required: !!required,
         order: Number.isInteger(order) ? order : count,
+        helpText: helpText || null,
+        hidden: !!hidden,
+        visibilityCondition: visibilityCondition || undefined,
         status: 'DRAFT',
       },
     });
@@ -95,11 +122,14 @@ const updateField = async (req, res, next) => {
     if (!existing) throw new NotFoundError('Custom field not found');
     if (existing.status === 'PENDING_APPROVAL') throw new ValidationError('This field is currently awaiting SuperAdmin review and cannot be edited until that review completes');
 
-    const { label, fieldType, section, options, required, order } = req.body;
+    const { label, fieldType, section, options, required, order, helpText, hidden, visibilityCondition } = req.body;
     if (fieldType && !FIELD_TYPES.includes(fieldType)) throw new ValidationError(`fieldType must be one of ${FIELD_TYPES.join(', ')}`);
     const nextType = fieldType || existing.fieldType;
     if (nextType === 'SELECT' && options !== undefined && (!Array.isArray(options) || options.length === 0)) {
       throw new ValidationError('options (a non-empty array of choices) is required for a SELECT field');
+    }
+    if (visibilityCondition !== undefined) {
+      await validateVisibilityCondition(visibilityCondition, req.institutionId, existing.entityType, existing.fieldKey);
     }
 
     // Editing a previously-APPROVED field re-queues it — SuperAdmin must sign off on
@@ -115,6 +145,9 @@ const updateField = async (req, res, next) => {
         ...(options !== undefined && { options }),
         ...(required !== undefined && { required: !!required }),
         ...(order !== undefined && { order }),
+        ...(helpText !== undefined && { helpText }),
+        ...(hidden !== undefined && { hidden: !!hidden }),
+        ...(visibilityCondition !== undefined && { visibilityCondition }),
         ...(wasApproved && { status: 'PENDING_APPROVAL', submittedAt: new Date(), reviewedById: null, reviewedAt: null, rejectionReason: null }),
       },
     });

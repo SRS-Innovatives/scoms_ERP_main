@@ -3,6 +3,7 @@ import PageHeader from '../../components/common/PageHeader';
 import { useNotification } from '../../context/NotificationContext';
 import { Award, Trophy, Loader2, Plus, X } from 'lucide-react';
 import achievementService from '../../services/achievementService';
+import ErrorState from '../../components/common/ErrorState';
 
 const CATEGORY_OPTIONS = [
   { value: 'ACADEMIC', label: 'Academic' },
@@ -18,15 +19,17 @@ export const AchievementsPage = () => {
   const { success, error: showError } = useNotification();
   const [achievements, setAchievements] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState(emptyForm);
 
   const load = useCallback(() => {
     setLoading(true);
+    setError(false);
     achievementService.getMyAchievements()
       .then((res) => setAchievements(res.data || []))
-      .catch((err) => showError(err.message || 'Failed to load achievements', 'Load Failed'))
+      .catch((err) => { showError(err.message || 'Failed to load achievements', 'Load Failed'); setError(true); })
       .finally(() => setLoading(false));
   }, [showError]);
 
@@ -50,6 +53,10 @@ export const AchievementsPage = () => {
 
   if (loading) {
     return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-indigo-600" /></div>;
+  }
+
+  if (error) {
+    return <ErrorState onRetry={load} />;
   }
 
   return (

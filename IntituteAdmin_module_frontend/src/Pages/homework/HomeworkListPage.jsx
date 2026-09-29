@@ -4,6 +4,7 @@ import { useNotification } from '../../context/NotificationContext';
 import { Loader2, Paperclip, ClipboardList } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import homeworkService from '../../services/homeworkService';
+import ErrorState from '../../components/common/ErrorState';
 
 /** Read-only, institution-wide view of every homework post — actual posting happens on
  * the Staff side per subject/section, same division as attendance oversight. */
@@ -12,12 +13,14 @@ export const HomeworkListPage = () => {
   const navigate = useNavigate();
   const [homework, setHomework] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   const fetchAll = useCallback(() => {
     setLoading(true);
+    setError(false);
     homeworkService.getAll()
       .then((res) => setHomework(res.data || []))
-      .catch((err) => showError(err.message || 'Failed to load homework posts', 'Load Failed'))
+      .catch((err) => { showError(err.message || 'Failed to load homework posts', 'Load Failed'); setError(true); })
       .finally(() => setLoading(false));
   }, [showError]);
 
@@ -82,6 +85,8 @@ export const HomeworkListPage = () => {
         <div className="flex justify-center items-center py-20">
           <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
         </div>
+      ) : error ? (
+        <ErrorState onRetry={fetchAll} />
       ) : homework.length === 0 ? (
         <div className="glass-card p-10 rounded-2xl border border-slate-200 dark:border-slate-800 text-center text-xs text-slate-500 flex flex-col items-center gap-2">
           <ClipboardList className="w-8 h-8 text-slate-300" />

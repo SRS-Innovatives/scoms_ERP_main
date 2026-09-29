@@ -231,8 +231,8 @@ const deleteApplication = async (req, res, next) => {
 
 const getApiKeySettings = async (req, res, next) => {
   try {
-    const institution = await prisma.institution.findUnique({ where: { id: req.institutionId }, select: { preAdmissionApiKey: true } });
-    return sendSuccess(res, { apiKey: institution?.preAdmissionApiKey || null }, 'API key settings retrieved successfully');
+    const institution = await prisma.institution.findUnique({ where: { id: req.institutionId }, select: { preAdmissionApiKey: true, preAdmissionFeeAmount: true } });
+    return sendSuccess(res, { apiKey: institution?.preAdmissionApiKey || null, feeAmount: institution?.preAdmissionFeeAmount || null }, 'API key settings retrieved successfully');
   } catch (err) {
     next(err);
   }
@@ -248,6 +248,23 @@ const regenerateApiKey = async (req, res, next) => {
   }
 };
 
+/** Sets (or clears) the application fee every new submission must pay before it's
+ * accepted. Only ever applies going forward — existing applications keep the fee amount
+ * they were submitted under (see PreAdmissionApplication.feeAmount). */
+const updateFeeAmount = async (req, res, next) => {
+  try {
+    const { feeAmount } = req.body;
+    if (feeAmount !== null && feeAmount !== undefined && (isNaN(feeAmount) || Number(feeAmount) < 0)) {
+      throw new ValidationError('feeAmount must be a non-negative number, or null to remove the fee');
+    }
+    const value = feeAmount === null || feeAmount === undefined || Number(feeAmount) === 0 ? null : Number(feeAmount);
+    await prisma.institution.update({ where: { id: req.institutionId }, data: { preAdmissionFeeAmount: value } });
+    return sendSuccess(res, { feeAmount: value }, value ? `Application fee set to ₹${value}` : 'Application fee removed — new applications will no longer require payment');
+  } catch (err) {
+    next(err);
+  }
+};
+
 module.exports = {
   getApplications,
   getApplicationById,
@@ -257,5 +274,6 @@ module.exports = {
   admitApplication,
   deleteApplication,
   getApiKeySettings,
+  updateFeeAmount,
   regenerateApiKey,
 };

@@ -3,6 +3,7 @@ import AttendanceTable from '../../components/common/AttendanceTable';
 import attendanceService from '../../services/attendanceService';
 import { useNotification } from '../../context/NotificationContext';
 import { Calendar, Clock, BookOpen, Save, Loader2 } from 'lucide-react';
+import ErrorState from '../../components/common/ErrorState';
 
 const UI_TO_STATUS = { Present: 'PRESENT', Absent: 'ABSENT', Late: 'LATE', 'On Duty': 'LEAVE' };
 
@@ -10,6 +11,7 @@ export const TakeAttendancePage = () => {
   const { success, error: showError } = useNotification();
   const [myClasses, setMyClasses] = useState([]);
   const [loadingClasses, setLoadingClasses] = useState(true);
+  const [classesError, setClassesError] = useState(false);
   const [loadingRoster, setLoadingRoster] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -22,16 +24,20 @@ export const TakeAttendancePage = () => {
   const [alreadyRecorded, setAlreadyRecorded] = useState(false);
   const [smsEnabled, setSmsEnabled] = useState(true);
 
-  useEffect(() => {
+  const loadClasses = useCallback(() => {
+    setLoadingClasses(true);
+    setClassesError(false);
     attendanceService.getMyClasses()
       .then((res) => setMyClasses(res.data || []))
-      .catch((err) => showError(err.message || 'Failed to load assigned classes', 'Load Failed'))
+      .catch((err) => { showError(err.message || 'Failed to load assigned classes', 'Load Failed'); setClassesError(true); })
       .finally(() => setLoadingClasses(false));
 
     attendanceService.getSmsStatus()
       .then((res) => setSmsEnabled(res.data?.enabled !== false))
       .catch(() => {}); // non-critical — the save flow itself is the source of truth either way
   }, [showError]);
+
+  useEffect(() => { loadClasses(); }, [loadClasses]);
 
   const selectedMapping = myClasses.find((m) => m.id === selectedMappingId);
 
@@ -100,6 +106,10 @@ export const TakeAttendancePage = () => {
 
   if (loadingClasses) {
     return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-indigo-600" /></div>;
+  }
+
+  if (classesError) {
+    return <ErrorState onRetry={loadClasses} />;
   }
 
   return (

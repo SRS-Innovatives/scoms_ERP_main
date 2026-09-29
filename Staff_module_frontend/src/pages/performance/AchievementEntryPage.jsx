@@ -3,6 +3,7 @@ import { useNotification } from '../../context/NotificationContext';
 import { Award, Save, Loader2 } from 'lucide-react';
 import attendanceService from '../../services/attendanceService';
 import achievementService from '../../services/achievementService';
+import ErrorState from '../../components/common/ErrorState';
 
 const CATEGORIES = ['ACADEMIC', 'SPORTS', 'CULTURAL', 'TECHNICAL', 'OTHER'];
 
@@ -11,6 +12,7 @@ export const AchievementEntryPage = () => {
   const [students, setStudents] = useState([]);
   const [achievements, setAchievements] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [saving, setSaving] = useState(false);
 
   const [studentId, setStudentId] = useState('');
@@ -20,6 +22,8 @@ export const AchievementEntryPage = () => {
   const [awardedDate, setAwardedDate] = useState(new Date().toISOString().slice(0, 10));
 
   const load = () => {
+    setLoading(true);
+    setError(false);
     Promise.all([attendanceService.getMyClasses(), achievementService.getAll()])
       .then(async ([classesRes, achRes]) => {
         const mappings = classesRes.data || [];
@@ -36,7 +40,7 @@ export const AchievementEntryPage = () => {
         if (unique.length > 0) setStudentId((prev) => prev || unique[0].id);
         setAchievements(achRes.data || []);
       })
-      .catch((err) => showError(err.message || 'Failed to load data', 'Load Failed'))
+      .catch((err) => { showError(err.message || 'Failed to load data', 'Load Failed'); setError(true); })
       .finally(() => setLoading(false));
   };
 
@@ -62,6 +66,10 @@ export const AchievementEntryPage = () => {
 
   if (loading) {
     return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-sky-600" /></div>;
+  }
+
+  if (error) {
+    return <ErrorState onRetry={load} />;
   }
 
   if (students.length === 0) {

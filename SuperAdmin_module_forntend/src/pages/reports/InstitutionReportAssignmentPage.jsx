@@ -1,9 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { Loader2, Building2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import reportManagementService from '../../services/reportManagementService';
 import institutionService from '../../services/institutionService';
 import { useNotification } from '../../context/NotificationContext';
+import ErrorState from '../../components/common/ErrorState';
 
 /** Super Admin — assigns/enables the report catalog per institution (Layer 2). Proves the
  * per-tenant configuration: two institutions can have a different set of reports enabled,
@@ -14,27 +15,36 @@ export const InstitutionReportAssignmentPage = () => {
   const [selectedId, setSelectedId] = useState('');
   const [reports, setReports] = useState([]);
   const [loadingInstitutions, setLoadingInstitutions] = useState(true);
+  const [institutionsError, setInstitutionsError] = useState(false);
   const [loadingReports, setLoadingReports] = useState(false);
+  const [reportsError, setReportsError] = useState(false);
 
-  useEffect(() => {
+  const loadInstitutions = useCallback(() => {
+    setLoadingInstitutions(true);
+    setInstitutionsError(false);
     institutionService.getInstitutions({ limit: 200 })
       .then((res) => {
         const list = res.data || [];
         setInstitutions(list);
         if (list.length > 0) setSelectedId(list[0].id);
       })
-      .catch((err) => showError(`Failed to load institutions: ${err.message}`))
+      .catch((err) => { showError(`Failed to load institutions: ${err.message}`); setInstitutionsError(true); })
       .finally(() => setLoadingInstitutions(false));
   }, [showError]);
 
-  useEffect(() => {
+  useEffect(() => { loadInstitutions(); }, [loadInstitutions]);
+
+  const loadReports = useCallback(() => {
     if (!selectedId) return;
     setLoadingReports(true);
+    setReportsError(false);
     reportManagementService.getInstitutionReports(selectedId)
       .then((res) => setReports(res.data || []))
-      .catch((err) => showError(`Failed to load report configuration: ${err.message}`))
+      .catch((err) => { showError(`Failed to load report configuration: ${err.message}`); setReportsError(true); })
       .finally(() => setLoadingReports(false));
   }, [selectedId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => { loadReports(); }, [loadReports]);
 
   const handleToggle = async (report) => {
     const nextEnabled = !report.enabled;
@@ -50,6 +60,10 @@ export const InstitutionReportAssignmentPage = () => {
 
   if (loadingInstitutions) {
     return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-amber-600" /></div>;
+  }
+
+  if (institutionsError) {
+    return <ErrorState onRetry={loadInstitutions} />;
   }
 
   return (
@@ -74,6 +88,8 @@ export const InstitutionReportAssignmentPage = () => {
 
       {loadingReports ? (
         <div className="flex justify-center py-16"><Loader2 className="w-7 h-7 animate-spin text-amber-600" /></div>
+      ) : reportsError ? (
+        <ErrorState title="Failed to load report configuration" onRetry={loadReports} />
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {reports.map((r) => (

@@ -172,4 +172,16 @@ const getEmailLogs = async (req, res, next) => {
   }
 };
 
-module.exports = { broadcastSms, broadcastEmail, broadcastWhatsapp, getSmsLogs, getEmailLogs, getWhatsappLogs };
+module.exports = {
+  broadcastSms,
+  broadcastEmail,
+  broadcastWhatsapp,
+  getSmsLogs,
+  getEmailLogs,
+  getWhatsappLogs,
+  // Exported for notificationSchedulerController / the scheduled-dispatch job to reuse
+  // the exact same audience resolution and {{name}} personalization — never duplicated.
+  resolveRecipients,
+  personalize,
+  RECIPIENT_GROUPS,
+};

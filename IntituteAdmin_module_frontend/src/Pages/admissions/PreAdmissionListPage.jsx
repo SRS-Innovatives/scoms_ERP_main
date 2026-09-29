@@ -281,6 +281,16 @@ export const PreAdmissionListPage = () => {
     },
     { header: 'Date', key: 'createdAt', render: (val) => new Date(val).toLocaleDateString() },
     {
+      header: 'App. Fee', key: 'feeAmount', sortable: false,
+      render: (val, row) => !val ? (
+        <span className="text-[10px] text-slate-300">—</span>
+      ) : row.feePaid ? (
+        <span className="text-[10px] font-bold px-2 py-1 rounded-lg bg-emerald-100 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-400">Paid ₹{val}</span>
+      ) : (
+        <span className="text-[10px] font-bold px-2 py-1 rounded-lg bg-amber-100 dark:bg-amber-500/15 text-amber-700 dark:text-amber-400">Unpaid ₹{val}</span>
+      ),
+    },
+    {
       header: 'Application', key: 'view', sortable: false,
       render: (_, row) => (
         <button onClick={(e) => { e.stopPropagation(); setViewApp(row); }} className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/50" title="View Application">

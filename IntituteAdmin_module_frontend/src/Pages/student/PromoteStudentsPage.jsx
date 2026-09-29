@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import DataTable from '../../components/common/DataTable';
 import FormSection from '../../components/common/FormSection';
 import EmptyState from '../../components/common/EmptyState';
+import ErrorState from '../../components/common/ErrorState';
 import { useNotification } from '../../context/NotificationContext';
 import { ArrowUpRight, Users, Loader2 } from 'lucide-react';
 import studentService from '../../services/studentService';
@@ -15,23 +16,30 @@ export const PromoteStudentsPage = () => {
   const [students, setStudents] = useState([]);
   const [selectedIds, setSelectedIds] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [loadingStudents, setLoadingStudents] = useState(false);
+  const [studentsError, setStudentsError] = useState(false);
   const [promoting, setPromoting] = useState(false);
 
-  useEffect(() => {
+  const loadSections = useCallback(() => {
+    setLoading(true);
+    setError(false);
     sectionService.getAll()
       .then((res) => {
         const data = res.data || [];
         setSections(data);
         if (data.length > 0) setFromSectionId(data[0].id);
       })
-      .catch((err) => notifyError(`Failed to load sections: ${err.message}`))
+      .catch((err) => { notifyError(`Failed to load sections: ${err.message}`); setError(true); })
       .finally(() => setLoading(false));
   }, [notifyError]);
+
+  useEffect(() => { loadSections(); }, [loadSections]);
 
   const loadStudents = useCallback(() => {
     if (!fromSectionId) { setStudents([]); return; }
     setLoadingStudents(true);
+    setStudentsError(false);
     studentService.getAll({ sectionId: fromSectionId, limit: 200 })
       .then((res) => {
         const list = res.data || [];
@@ -41,7 +49,7 @@ export const PromoteStudentsPage = () => {
         // empty-selection-means-everyone rule.
         setSelectedIds(list.map((s) => s.id));
       })
-      .catch((err) => notifyError(`Failed to load students: ${err.message}`))
+      .catch((err) => { notifyError(`Failed to load students: ${err.message}`); setStudentsError(true); })
       .finally(() => setLoadingStudents(false));
   }, [fromSectionId, notifyError]);
 
@@ -78,6 +86,10 @@ export const PromoteStudentsPage = () => {
 
   if (loading) {
     return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-indigo-600" /></div>;
+  }
+
+  if (error) {
+    return <ErrorState onRetry={loadSections} />;
   }
 
   return (
@@ -121,6 +133,8 @@ export const PromoteStudentsPage = () => {
 
           {loadingStudents ? (
             <div className="flex justify-center py-10"><Loader2 className="w-6 h-6 animate-spin text-indigo-600" /></div>
+          ) : studentsError ? (
+            <ErrorState onRetry={loadStudents} />
           ) : students.length === 0 ? (
             <div className="glass-card p-8 rounded-2xl border border-slate-200 dark:border-slate-800 text-center text-xs text-slate-500">
               No students in this section.

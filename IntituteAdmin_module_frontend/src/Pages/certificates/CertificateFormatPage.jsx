@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { Loader2, FileCheck, RotateCcw, Save, Info } from 'lucide-react';
 import certificateTemplateService from '../../services/certificateTemplateService';
 import { useInstitution } from '../../context/InstitutionContext';
 import { useNotification } from '../../context/NotificationContext';
+import ErrorState from '../../components/common/ErrorState';
 
 /**
  * Certificate Format Customization — the certificate-module equivalent of the Report
@@ -17,20 +18,25 @@ export const CertificateFormatPage = () => {
   const [catalog, setCatalog] = useState([]);
   const [selectedCode, setSelectedCode] = useState('');
   const [loadingCatalog, setLoadingCatalog] = useState(true);
+  const [catalogError, setCatalogError] = useState(false);
   const [loadingFormat, setLoadingFormat] = useState(false);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState(null);
 
-  useEffect(() => {
+  const fetchCatalog = useCallback(() => {
+    setLoadingCatalog(true);
+    setCatalogError(false);
     certificateTemplateService.getCatalog()
       .then((res) => {
         const list = res.data || [];
         setCatalog(list);
         if (list.length > 0) setSelectedCode(list[0].code);
       })
-      .catch((err) => showError(`Failed to load certificate catalog: ${err.message}`))
+      .catch((err) => { showError(`Failed to load certificate catalog: ${err.message}`); setCatalogError(true); })
       .finally(() => setLoadingCatalog(false));
   }, [showError]);
+
+  useEffect(() => { fetchCatalog(); }, [fetchCatalog]);
 
   useEffect(() => {
     if (!selectedCode) return;
@@ -82,6 +88,10 @@ export const CertificateFormatPage = () => {
 
   if (loadingCatalog) {
     return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-indigo-600" /></div>;
+  }
+
+  if (catalogError) {
+    return <ErrorState onRetry={fetchCatalog} />;
   }
 
   const selectedMeta = catalog.find((c) => c.code === selectedCode);

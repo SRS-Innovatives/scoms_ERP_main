@@ -6,6 +6,7 @@ import { useNotification } from '../../context/NotificationContext';
 import { MapPin } from 'lucide-react';
 import transportService from '../../services/transportService';
 import studentService from '../../services/studentService';
+import ErrorState from '../../components/common/ErrorState';
 
 const emptyForm = { studentId: '', routeId: '', pickupPoint: '' };
 
@@ -15,19 +16,21 @@ export const StudentRouteMappingPage = () => {
   const [routes, setRoutes] = useState([]);
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState(emptyForm);
 
   const fetchAll = useCallback(() => {
     setLoading(true);
+    setError(false);
     Promise.all([transportService.getMappings(), transportService.getRoutes(), studentService.getAll()])
       .then(([mapRes, routeRes, studentRes]) => {
         setMappings(mapRes.data || []);
         setRoutes(routeRes.data || []);
         setStudents(studentRes.data || []);
       })
-      .catch((err) => notifyError(`Failed to load route mappings: ${err.message}`))
+      .catch((err) => { notifyError(`Failed to load route mappings: ${err.message}`); setError(true); })
       .finally(() => setLoading(false));
   }, [notifyError]);
 
@@ -70,7 +73,9 @@ export const StudentRouteMappingPage = () => {
         </button>
       </div>
 
-      {!loading && mappings.length === 0 ? (
+      {error ? (
+        <ErrorState onRetry={fetchAll} />
+      ) : !loading && mappings.length === 0 ? (
         <EmptyState title="No Students Mapped Yet" description="Map the first student to a bus route." actionLabel="Map Student to Route" onAction={() => setModalOpen(true)} icon={MapPin} />
       ) : (
         <DataTable columns={columns} data={mappings} loading={loading} />

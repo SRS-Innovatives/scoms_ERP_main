@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import DataTable from '../../components/common/DataTable';
 import FormModal from '../../components/common/FormModal';
 import ChallanTemplate from '../../components/print/ChallanTemplate';
+import ErrorState from '../../components/common/ErrorState';
 import { useNotification } from '../../context/NotificationContext';
 import { FileText, Plus } from 'lucide-react';
 import feeService from '../../services/feeService';
@@ -18,15 +19,17 @@ export const ChallanGenerationPage = () => {
   const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState(emptyForm);
   const [previewChallan, setPreviewChallan] = useState(null);
+  const [error, setError] = useState(false);
 
   const fetchAll = () => {
     setLoading(true);
+    setError(false);
     Promise.all([feeService.getChallans(), studentService.getAll()])
       .then(([challanRes, studentRes]) => {
         setChallans(challanRes.data || []);
         setStudents(studentRes.data || []);
       })
-      .catch((err) => notifyError(`Failed to load challans: ${err.message}`))
+      .catch((err) => { notifyError(`Failed to load challans: ${err.message}`); setError(true); })
       .finally(() => setLoading(false));
   };
 
@@ -73,6 +76,10 @@ export const ChallanGenerationPage = () => {
     { header: 'Bank', key: 'bankName' },
     { header: 'Status', key: 'status' },
   ];
+
+  if (error) {
+    return <ErrorState onRetry={fetchAll} />;
+  }
 
   return (
     <div className="space-y-6">

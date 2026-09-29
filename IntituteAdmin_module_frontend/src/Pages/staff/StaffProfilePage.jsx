@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import StatusBadge from '../../components/common/StatusBadge';
+import ErrorState from '../../components/common/ErrorState';
 import FormModal from '../../components/common/FormModal';
 import { useNotification } from '../../context/NotificationContext';
 import { Mail, Phone, Award, Briefcase, Plus, Loader2 } from 'lucide-react';
@@ -15,6 +16,7 @@ export const StaffProfilePage = () => {
   const [allStaff, setAllStaff] = useState([]);
   const [staff, setStaff] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [qualModalOpen, setQualModalOpen] = useState(false);
   const [expModalOpen, setExpModalOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -33,9 +35,10 @@ export const StaffProfilePage = () => {
   const fetchProfile = useCallback(() => {
     if (!staffId) return;
     setLoading(true);
+    setError(false);
     staffService.getById(staffId)
       .then((res) => setStaff(res.data))
-      .catch((err) => notifyError(`Failed to load staff profile: ${err.message}`))
+      .catch((err) => { notifyError(`Failed to load staff profile: ${err.message}`); setError(true); })
       .finally(() => setLoading(false));
   }, [staffId, notifyError]);
 
@@ -73,7 +76,15 @@ export const StaffProfilePage = () => {
     }
   };
 
-  if (loading || !staff) {
+  if (loading) {
+    return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-indigo-600" /></div>;
+  }
+
+  if (error) {
+    return <ErrorState onRetry={fetchProfile} />;
+  }
+
+  if (!staff) {
     return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-indigo-600" /></div>;
   }
 

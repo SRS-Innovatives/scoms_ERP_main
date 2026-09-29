@@ -5,6 +5,7 @@ import academicYearService from '../../services/academicYearService';
 import courseService from '../../services/courseService';
 import sectionService from '../../services/sectionService';
 import { useNotification } from '../../context/NotificationContext';
+import ErrorState from '../../components/common/ErrorState';
 
 const FREQUENCIES = ['ONE_TIME', 'MONTHLY', 'QUARTERLY', 'HALF_YEARLY', 'ANNUAL', 'SEMESTER', 'INSTALLMENT', 'CUSTOM'];
 const STATUS_STYLE = { DRAFT: 'bg-amber-100 text-amber-700', PUBLISHED: 'bg-emerald-100 text-emerald-700', ARCHIVED: 'bg-slate-200 text-slate-600' };
@@ -25,6 +26,7 @@ export const FeeStructureBuilderPage = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [expandedId, setExpandedId] = useState(null);
+  const [error, setError] = useState(false);
 
   const [name, setName] = useState('');
   const [academicYearId, setAcademicYearId] = useState('');
@@ -36,6 +38,7 @@ export const FeeStructureBuilderPage = () => {
   const [items, setItems] = useState([{ feeHeadId: '', amount: '', frequency: 'ANNUAL' }]);
 
   const load = () => {
+    setError(false);
     Promise.all([
       feeEngineService.getStructures(),
       feeEngineService.getFeeHeads(true),
@@ -48,7 +51,7 @@ export const FeeStructureBuilderPage = () => {
         setAcademicYears(ayRes.data || []);
         setCourses(courseRes.data || []);
       })
-      .catch((err) => showError(`Failed to load: ${err.message}`))
+      .catch((err) => { showError(`Failed to load: ${err.message}`); setError(true); })
       .finally(() => setLoading(false));
   };
 
@@ -137,6 +140,10 @@ export const FeeStructureBuilderPage = () => {
 
   if (loading) {
     return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-indigo-600" /></div>;
+  }
+
+  if (error) {
+    return <ErrorState onRetry={load} />;
   }
 
   return (

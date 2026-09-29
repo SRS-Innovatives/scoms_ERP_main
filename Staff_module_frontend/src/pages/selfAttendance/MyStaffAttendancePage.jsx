@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { ShieldCheck, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useNotification } from '../../context/NotificationContext';
 import profileService from '../../services/profileService';
+import ErrorState from '../../components/common/ErrorState';
 
 const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 const STATUS_COLOR = {
@@ -19,12 +20,14 @@ export const MyStaffAttendancePage = () => {
   const [year, setYear] = useState(now.getFullYear());
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   const fetchAttendance = useCallback(() => {
     setLoading(true);
+    setError(false);
     profileService.getMyAttendance(month, year)
       .then((res) => setData(res.data))
-      .catch((err) => showError(err.message || 'Failed to load attendance', 'Load Failed'))
+      .catch((err) => { showError(err.message || 'Failed to load attendance', 'Load Failed'); setError(true); })
       .finally(() => setLoading(false));
   }, [month, year, showError]);
 
@@ -66,6 +69,8 @@ export const MyStaffAttendancePage = () => {
 
       {loading ? (
         <div className="flex justify-center py-16"><Loader2 className="w-7 h-7 animate-spin text-sky-600" /></div>
+      ) : error ? (
+        <ErrorState onRetry={fetchAttendance} />
       ) : (
         <>
           <div>

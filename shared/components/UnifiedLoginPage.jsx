@@ -111,13 +111,19 @@ export const MODULE_ROLES = [
   },
 ];
 
+// Demo-credential autofill and the pre-filled-password banner are dev-tooling, not
+// something a real deployment should ship — import.meta.env.DEV is false in every
+// `vite build` output (what actually gets deployed), true only under `vite`/`vite dev`,
+// so this needs no separate config flag to stay off in production.
+const isDevEnvironment = Boolean(import.meta.env?.DEV);
+
 export const UnifiedLoginPage = ({ defaultRole = 'INSTITUTE_ADMIN', onCustomLoginSuccess }) => {
   const navigate = useNavigate();
   const [activeModule, setActiveModule] = useState(
     MODULE_ROLES.find((m) => m.id === defaultRole) || MODULE_ROLES[1]
   );
-  const [identifier, setIdentifier] = useState(activeModule.demoUser.identifier);
-  const [password, setPassword] = useState(activeModule.demoUser.password);
+  const [identifier, setIdentifier] = useState(isDevEnvironment ? activeModule.demoUser.identifier : '');
+  const [password, setPassword] = useState(isDevEnvironment ? activeModule.demoUser.password : '');
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
   const [loading, setLoading] = useState(false);
@@ -126,8 +132,8 @@ export const UnifiedLoginPage = ({ defaultRole = 'INSTITUTE_ADMIN', onCustomLogi
 
   const handleModuleSelect = (moduleItem) => {
     setActiveModule(moduleItem);
-    setIdentifier(moduleItem.demoUser.identifier);
-    setPassword(moduleItem.demoUser.password);
+    setIdentifier(isDevEnvironment ? moduleItem.demoUser.identifier : '');
+    setPassword(isDevEnvironment ? moduleItem.demoUser.password : '');
     setErrorMessage('');
     setSuccessMessage('');
   };
@@ -163,30 +169,39 @@ export const UnifiedLoginPage = ({ defaultRole = 'INSTITUTE_ADMIN', onCustomLogi
       const result = await response.json();
 
       if (response.ok && result.success) {
-        setSuccessMessage('Authentication successful. Redirecting...');
         const { user, accessToken, refreshToken, redirectUrl } = result.data;
 
-        localStorage.setItem('scoms_access_token', accessToken || 'demo_access_token');
-        localStorage.setItem('scoms_refresh_token', refreshToken || 'demo_refresh_token');
+        // A success response with no real token is a backend bug, not something to
+        // paper over with a fake token string — that would silently send the user
+        // into the app carrying credentials that will fail on the very first
+        // authenticated request, with no indication why.
+        if (!accessToken || !refreshToken) {
+          throw new Error('Login succeeded but the server did not return a session token. Please try again or contact support.');
+        }
+
+        setSuccessMessage('Authentication successful. Redirecting...');
+
+        localStorage.setItem('scoms_access_token', accessToken);
+        localStorage.setItem('scoms_refresh_token', refreshToken);
         localStorage.setItem('scoms_user', JSON.stringify(user));
         localStorage.setItem('scoms_current_role', user.role || activeModule.id);
 
         // Set role/module-specific tokens and user details
         if (user.role === 'SUPER_ADMIN' || user.role === 'PLATFORM_ADMIN') {
-          localStorage.setItem('scoms_superadmin_token', accessToken || 'demo_access_token');
+          localStorage.setItem('scoms_superadmin_token', accessToken);
           localStorage.setItem('scoms_superadmin_user', JSON.stringify(user));
         } else if (user.role === 'INSTITUTE_ADMIN') {
-          localStorage.setItem('scoms_admin_token', accessToken || 'demo_access_token');
+          localStorage.setItem('scoms_admin_token', accessToken);
           localStorage.setItem('scoms_admin_user', JSON.stringify(user));
         } else if ([
           'PRINCIPAL', 'VICE_PRINCIPAL', 'HOD', 'TEACHER', 'STAFF',
           'ACCOUNTANT', 'LIBRARIAN', 'TRANSPORT_MANAGER', 'HOSTEL_WARDEN',
           'EXAM_ADMIN', 'PLACEMENT_OFFICER'
         ].includes(user.role)) {
-          localStorage.setItem('scoms_staff_token', accessToken || 'demo_access_token');
+          localStorage.setItem('scoms_staff_token', accessToken);
           localStorage.setItem('scoms_staff_user', JSON.stringify(user));
         } else if (user.role === 'STUDENT' || user.role === 'PARENT') {
-          localStorage.setItem('scoms_student_token', accessToken || 'demo_access_token');
+          localStorage.setItem('scoms_student_token', accessToken);
           localStorage.setItem('scoms_student_user', JSON.stringify(user));
         }
 
@@ -419,15 +434,17 @@ export const UnifiedLoginPage = ({ defaultRole = 'INSTITUTE_ADMIN', onCustomLogi
             </button>
           </form>
 
-          {/* Quick Demo Pre-fill helper banner (Development only) */}
-          <div className="mt-10 p-4 rounded-xl bg-slate-50 border border-slate-100">
-            <p className="text-xs text-slate-500 text-center flex flex-wrap items-center justify-center gap-2">
-              <span>Demo credentials pre-filled.</span>
-              <span className="flex items-center gap-1.5">
-                Test Password: <code className="text-xs font-semibold text-slate-700 bg-white px-2 py-0.5 rounded border border-gray-200">Password@123</code>
-              </span>
-            </p>
-          </div>
+          {/* Quick Demo Pre-fill helper banner — dev builds only, see isDevEnvironment above */}
+          {isDevEnvironment && (
+            <div className="mt-10 p-4 rounded-xl bg-slate-50 border border-slate-100">
+              <p className="text-xs text-slate-500 text-center flex flex-wrap items-center justify-center gap-2">
+                <span>Demo credentials pre-filled.</span>
+                <span className="flex items-center gap-1.5">
+                  Test Password: <code className="text-xs font-semibold text-slate-700 bg-white px-2 py-0.5 rounded border border-gray-200">Password@123</code>
+                </span>
+              </p>
+            </div>
+          )}
 
         </div>
       </div>

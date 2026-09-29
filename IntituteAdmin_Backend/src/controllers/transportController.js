@@ -130,7 +130,11 @@ const getMappings = async (req, res, next) => {
 
 const assignStudentToRoute = async (req, res, next) => {
   try {
-    const { studentId, routeId, pickupPoint } = req.body;
+    // Institution-specific extra enrollment fields (SuperAdmin-approved only — see
+    // AdmissionCustomField, entityType TRANSPORT_ENROLLMENT). Same trust convention as
+    // Student admission's customFields: the frontend only ever renders APPROVED fields,
+    // so whatever arrives here is accepted as-is.
+    const { studentId, routeId, pickupPoint, customFields } = req.body;
     if (!studentId || !routeId || !pickupPoint) throw new ValidationError('studentId, routeId, pickupPoint are required');
 
     const route = await prisma.transportRoute.findFirst({ where: { id: routeId, institutionId: req.institutionId } });
@@ -139,10 +143,12 @@ const assignStudentToRoute = async (req, res, next) => {
     const student = await prisma.student.findFirst({ where: { id: studentId, institutionId: req.institutionId } });
     if (!student) throw new NotFoundError('Student not found or access denied');
 
+    const customFieldsData = customFields && Object.keys(customFields).length > 0 ? customFields : undefined;
+
     const mapping = await prisma.studentTransportMapping.upsert({
       where: { studentId },
-      create: { studentId, routeId, pickupPoint },
-      update: { routeId, pickupPoint },
+      create: { studentId, routeId, pickupPoint, customFields: customFieldsData },
+      update: { routeId, pickupPoint, ...(customFieldsData !== undefined && { customFields: customFieldsData }) },
     });
     return sendSuccess(res, mapping, 'Student assigned to bus route successfully', 201);
   } catch (err) {

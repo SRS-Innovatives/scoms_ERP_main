@@ -5,6 +5,7 @@ import EmptyState from '../../components/common/EmptyState';
 import { Loader2, CheckCircle2, XCircle, X, ListChecks } from 'lucide-react';
 import admissionFieldService from '../../services/admissionFieldService';
 import { useNotification } from '../../context/NotificationContext';
+import ErrorState from '../../components/common/ErrorState';
 
 const FIELD_TYPE_LABEL = { TEXT: 'Text', NUMBER: 'Number', DATE: 'Date', EMAIL: 'Email', PHONE: 'Phone', TEXTAREA: 'Paragraph', SELECT: 'Dropdown', CHECKBOX: 'Checkbox' };
 
@@ -45,14 +46,16 @@ export const AdmissionFieldApprovalsPage = () => {
   const { success, error: showError } = useNotification();
   const [fields, setFields] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [rejecting, setRejecting] = useState(null);
   const [busyId, setBusyId] = useState(null);
 
   const fetchAll = useCallback(() => {
     setLoading(true);
+    setError(false);
     admissionFieldService.getPending()
       .then((res) => setFields(res.data || []))
-      .catch((err) => showError(err.message, 'Load Failed'))
+      .catch((err) => { showError(err.message, 'Load Failed'); setError(true); })
       .finally(() => setLoading(false));
   }, [showError]);
 
@@ -85,6 +88,16 @@ export const AdmissionFieldApprovalsPage = () => {
     }
   };
 
+  const handleBulkApprove = async (selectedIds) => {
+    try {
+      const res = await admissionFieldService.bulkReview(selectedIds, 'APPROVED');
+      success(`${res.data?.updated ?? selectedIds.length} field(s) approved`, 'Approved');
+      fetchAll();
+    } catch (err) {
+      showError(err.message, 'Bulk Approve Failed');
+    }
+  };
+
   const columns = [
     {
       header: 'Institution', key: 'institution', sortable: false,
@@ -97,11 +110,21 @@ export const AdmissionFieldApprovalsPage = () => {
     },
     {
       header: 'Form', key: 'entityType', sortable: false,
-      render: (v) => (
-        <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${v === 'STAFF_PROFILE' ? 'bg-violet-50 dark:bg-violet-950/40 text-violet-700 dark:text-violet-400' : 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-400'}`}>
-          {v === 'STAFF_PROFILE' ? 'Staff Registration' : 'Admission Form'}
-        </span>
-      ),
+      render: (v) => {
+        const styles = {
+          STAFF_PROFILE: 'bg-violet-50 dark:bg-violet-950/40 text-violet-700 dark:text-violet-400',
+          TRANSPORT_ENROLLMENT: 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400',
+          HOSTEL_ALLOCATION: 'bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-400',
+          FEE_ASSIGNMENT: 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400',
+          LIBRARY_MEMBERSHIP: 'bg-sky-50 dark:bg-sky-950/40 text-sky-700 dark:text-sky-400',
+        };
+        const labels = { STAFF_PROFILE: 'Staff Registration', TRANSPORT_ENROLLMENT: 'Transport Enrollment', HOSTEL_ALLOCATION: 'Hostel Allocation', FEE_ASSIGNMENT: 'Fee Assignment', LIBRARY_MEMBERSHIP: 'Library Membership' };
+        return (
+          <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${styles[v] || 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-400'}`}>
+            {labels[v] || 'Admission Form'}
+          </span>
+        );
+      },
     },
     {
       header: 'Field', key: 'label',
@@ -148,10 +171,12 @@ export const AdmissionFieldApprovalsPage = () => {
 
       {loading ? (
         <div className="flex justify-center py-16"><Loader2 className="w-7 h-7 animate-spin text-indigo-600" /></div>
+      ) : error ? (
+        <ErrorState onRetry={fetchAll} />
       ) : fields.length === 0 ? (
         <EmptyState icon={ListChecks} title="Nothing Pending" message="No institution currently has a custom admission field awaiting your review." />
       ) : (
-        <DataTable columns={columns} data={fields} />
+        <DataTable columns={columns} data={fields} onBulkAction={handleBulkApprove} bulkActionLabel="Approve Selected" />
       )}
 
       <RejectModal field={rejecting} onClose={() => setRejecting(null)} onConfirm={handleReject} submitting={busyId === rejecting?.id} />

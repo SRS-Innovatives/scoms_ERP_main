@@ -7,6 +7,7 @@ import { useNotification } from '../../context/NotificationContext';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Briefcase } from 'lucide-react';
 import staffService from '../../services/staffService';
+import ErrorState from '../../components/common/ErrorState';
 
 export const NonTeachingStaffPage = () => {
   const navigate = useNavigate();
@@ -14,12 +15,14 @@ export const NonTeachingStaffPage = () => {
   const [search, setSearch] = useState('');
   const [nonTeaching, setNonTeaching] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   const fetchAll = useCallback(() => {
     setLoading(true);
+    setError(false);
     staffService.getAll('NON_TEACHING')
       .then((res) => setNonTeaching(res.data || []))
-      .catch((err) => notifyError(`Failed to load non-teaching staff: ${err.message}`))
+      .catch((err) => { notifyError(`Failed to load non-teaching staff: ${err.message}`); setError(true); })
       .finally(() => setLoading(false));
   }, [notifyError]);
 
@@ -53,7 +56,9 @@ export const NonTeachingStaffPage = () => {
 
       <SearchFilterBar searchQuery={search} onSearchChange={setSearch} placeholder="Search non-teaching staff..." />
 
-      {!loading && filtered.length === 0 ? (
+      {!loading && error ? (
+        <ErrorState onRetry={fetchAll} />
+      ) : !loading && filtered.length === 0 ? (
         <EmptyState title="No Non-Teaching Staff Yet" description="Register the first non-teaching staff member." actionLabel="Add Non-Teaching Staff" onAction={() => navigate('/admin/staff/registration')} icon={Briefcase} />
       ) : (
         <DataTable columns={columns} data={filtered} loading={loading} />

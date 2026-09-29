@@ -90,6 +90,7 @@ export const navigationConfig = [
       { key: 'resume', title: 'Resume Builder', path: '/student/resume', module: 'career_portfolio' },
       { key: 'internships', title: 'Internships', path: '/student/internships', module: 'placement' },
       { key: 'placements', title: 'Placements', path: '/student/placements', module: 'placement' },
+      { key: 'my-applications', title: 'My Applications', path: '/student/applications', module: 'placement' },
       { key: 'achievements', title: 'Achievements Portfolio', path: '/student/achievements', module: 'career_portfolio' }
     ]
   },

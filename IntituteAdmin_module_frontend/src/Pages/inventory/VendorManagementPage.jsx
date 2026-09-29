@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import DataTable from '../../components/common/DataTable';
 import SearchFilterBar from '../../components/common/SearchFilterBar';
 import EmptyState from '../../components/common/EmptyState';
+import ErrorState from '../../components/common/ErrorState';
 import FormModal from '../../components/common/FormModal';
 import { useNotification } from '../../context/NotificationContext';
 import { Truck } from 'lucide-react';
@@ -14,15 +15,17 @@ export const VendorManagementPage = () => {
   const [search, setSearch] = useState('');
   const [vendors, setVendors] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState(emptyForm);
 
   const fetchAll = useCallback(() => {
     setLoading(true);
+    setError(false);
     inventoryService.getVendors()
       .then((res) => setVendors(res.data || []))
-      .catch((err) => notifyError(`Failed to load vendors: ${err.message}`))
+      .catch((err) => { notifyError(`Failed to load vendors: ${err.message}`); setError(true); })
       .finally(() => setLoading(false));
   }, [notifyError]);
 
@@ -63,7 +66,9 @@ export const VendorManagementPage = () => {
 
       <SearchFilterBar searchQuery={search} onSearchChange={setSearch} placeholder="Search vendor name..." addLabel="Add Vendor" onAddClick={() => setModalOpen(true)} />
 
-      {!loading && filtered.length === 0 ? (
+      {!loading && error ? (
+        <ErrorState onRetry={fetchAll} />
+      ) : !loading && filtered.length === 0 ? (
         <EmptyState title="No Vendors Yet" description="Add the first approved vendor to the directory." actionLabel="Add Vendor" onAction={() => setModalOpen(true)} icon={Truck} />
       ) : (
         <DataTable columns={columns} data={filtered} loading={loading} />

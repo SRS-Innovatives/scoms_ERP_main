@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import ReportConfigBox, { ReportCheckbox } from '../../components/common/ReportConfigBox';
 import EmptyState from '../../components/common/EmptyState';
+import ErrorState from '../../components/common/ErrorState';
 import { useNotification } from '../../context/NotificationContext';
 import { CalendarCheck, Printer, Loader2, RefreshCw } from 'lucide-react';
 import attendanceService from '../../services/attendanceService';
@@ -29,27 +30,34 @@ export const ConsolidatedAttendanceReportPage = () => {
   const [report, setReport] = useState(null);
   const [loadingOptions, setLoadingOptions] = useState(true);
   const [loadingReport, setLoadingReport] = useState(false);
+  const [optionsError, setOptionsError] = useState(false);
+  const [reportError, setReportError] = useState(false);
 
   const [showWeekday, setShowWeekday] = useState(true);
   const [minPct, setMinPct] = useState('');
   const [highlightBelow, setHighlightBelow] = useState(75);
 
-  useEffect(() => {
+  const loadOptions = useCallback(() => {
+    setLoadingOptions(true);
+    setOptionsError(false);
     sectionService.getAll()
       .then((res) => {
         setSections(res.data || []);
         if ((res.data || []).length > 0) setSectionId(res.data[0].id);
       })
-      .catch((err) => notifyError(`Failed to load sections: ${err.message}`))
+      .catch((err) => { notifyError(`Failed to load sections: ${err.message}`); setOptionsError(true); })
       .finally(() => setLoadingOptions(false));
   }, [notifyError]);
+
+  useEffect(() => { loadOptions(); }, [loadOptions]);
 
   const generate = useCallback(() => {
     if (!sectionId) return;
     setLoadingReport(true);
+    setReportError(false);
     attendanceService.getConsolidatedReport(sectionId, month, year)
       .then((res) => setReport(res.data))
-      .catch((err) => notifyError(`Failed to generate report: ${err.message}`))
+      .catch((err) => { notifyError(`Failed to generate report: ${err.message}`); setReportError(true); })
       .finally(() => setLoadingReport(false));
   }, [sectionId, month, year, notifyError]);
 
@@ -62,6 +70,10 @@ export const ConsolidatedAttendanceReportPage = () => {
 
   if (loadingOptions) {
     return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-indigo-600" /></div>;
+  }
+
+  if (optionsError) {
+    return <ErrorState onRetry={loadOptions} />;
   }
 
   return (
@@ -130,6 +142,8 @@ export const ConsolidatedAttendanceReportPage = () => {
 
       {loadingReport ? (
         <div className="flex justify-center py-16"><Loader2 className="w-7 h-7 animate-spin text-indigo-600" /></div>
+      ) : reportError ? (
+        <ErrorState onRetry={generate} />
       ) : !report || report.rows.length === 0 ? (
         <EmptyState title="No Students in This Section" icon={CalendarCheck} />
       ) : filteredRows.length === 0 ? (

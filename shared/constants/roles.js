@@ -111,6 +111,41 @@ const PERMISSIONS = {
   ANALYTICS_VIEW: 'analytics.view',
   REPORTS_VIEW: 'reports.view',
   AUDIT_LOGS_VIEW: 'audit_logs.view',
+
+  // Placement Cell
+  PLACEMENT_MANAGE: 'placement.manage',
+
+  // Expense Management
+  EXPENSES_VIEW: 'expenses.view',
+  EXPENSES_CREATE: 'expenses.create',
+  EXPENSES_APPROVE: 'expenses.approve',
+
+  // Staff-portal feature areas previously unmapped (Phase 3 shadow-mode completion)
+  LAB_MANAGE: 'lab.manage',
+  APPOINTMENTS_MANAGE: 'appointments.manage',
+  PTM_MANAGE: 'ptm.manage',
+  ACHIEVEMENTS_MANAGE: 'achievements.manage',
+  MESSAGING_ACCESS: 'messaging.access',
+  RESEARCH_MANAGE: 'research.manage',
+  GALLERY_MANAGE: 'gallery.manage',
+  EVENTS_MANAGE: 'events.manage',
+
+  // Platform-level (SuperAdmin/PlatformAdmin boundary — Phase 3 SuperAdmin RBAC wiring)
+  REPORTS_MANAGE: 'reports.manage',
+  USERS_MANAGE_ROLES: 'users.manage_roles',
+  ADMISSION_FIELDS_REVIEW: 'admission_fields.review',
+  BILLING_MANAGE: 'billing.manage',
+  SUBSCRIPTIONS_MANAGE: 'subscriptions.manage',
+  SUPPORT_MANAGE: 'support.manage',
+  KNOWLEDGE_BASE_MANAGE: 'knowledge_base.manage',
+  AI_CONFIG_MANAGE: 'ai_config.manage',
+  PLATFORM_SETTINGS_MANAGE: 'platform_settings.manage',
+  SECURITY_MANAGE: 'security.manage',
+  INTEGRATIONS_MANAGE: 'integrations.manage',
+  SMS_MANAGE: 'sms.manage',
+  EMAIL_MANAGE: 'email.manage',
+  WHATSAPP_MANAGE: 'whatsapp.manage',
+  MODULE_REGISTRY_MANAGE: 'module_registry.manage',
 };
 
 module.exports = {

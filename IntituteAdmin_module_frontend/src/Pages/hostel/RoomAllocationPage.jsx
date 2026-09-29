@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import DataTable from '../../components/common/DataTable';
 import StatusBadge from '../../components/common/StatusBadge';
 import EmptyState from '../../components/common/EmptyState';
+import ErrorState from '../../components/common/ErrorState';
 import FormModal from '../../components/common/FormModal';
 import { useNotification } from '../../context/NotificationContext';
 import { BedDouble, Plus, LogOut } from 'lucide-react';
@@ -17,6 +18,7 @@ export const RoomAllocationPage = () => {
   const [hostels, setHostels] = useState([]);
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [bedModalOpen, setBedModalOpen] = useState(false);
   const [allocModalOpen, setAllocModalOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -26,13 +28,14 @@ export const RoomAllocationPage = () => {
 
   const fetchAll = useCallback(() => {
     setLoading(true);
+    setError(false);
     Promise.all([hostelService.getBeds(), hostelService.getHostels(), studentService.getAll()])
       .then(([bedRes, hostelRes, studentRes]) => {
         setBeds(bedRes.data || []);
         setHostels(hostelRes.data || []);
         setStudents(studentRes.data || []);
       })
-      .catch((err) => notifyError(`Failed to load hostel beds: ${err.message}`))
+      .catch((err) => { notifyError(`Failed to load hostel beds: ${err.message}`); setError(true); })
       .finally(() => setLoading(false));
   }, [notifyError]);
 
@@ -84,6 +87,10 @@ export const RoomAllocationPage = () => {
   };
 
   const vacantBeds = beds.filter((b) => !b.isOccupied);
+
+  if (error) {
+    return <ErrorState onRetry={fetchAll} />;
+  }
 
   const columns = [
     { header: 'Room / Bed', key: 'roomNumber', sortable: false, render: (val, row) => <span className="font-mono font-bold text-indigo-600">{val} / {row.bedNumber}</span> },

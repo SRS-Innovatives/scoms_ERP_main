@@ -1,7 +1,8 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { useNotification } from '../../context/NotificationContext';
 import { Clock, ArrowLeft, Trophy, Loader2, BookX } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import ErrorState from '../../components/common/ErrorState';
 import questionBankService from '../../services/questionBankService';
 
 const QUIZ_SIZE = 10;
@@ -23,13 +24,16 @@ export const PracticeTestSimulatorPage = () => {
   const [allQuestions, setAllQuestions] = useState([]);
   const [quiz, setQuiz] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [currentQ, setCurrentQ] = useState(0);
   const [selectedAnswers, setSelectedAnswers] = useState({});
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [startedAt, setStartedAt] = useState(null);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
 
-  useEffect(() => {
+  const load = useCallback(() => {
+    setLoading(true);
+    setError(false);
     questionBankService.getQuestions()
       .then((res) => {
         const mcq = (res.data || []).filter((q) => Array.isArray(q.options) && q.options.length > 0 && q.correctAnswer);
@@ -37,9 +41,11 @@ export const PracticeTestSimulatorPage = () => {
         setQuiz(shuffle(mcq).slice(0, QUIZ_SIZE));
         setStartedAt(Date.now());
       })
-      .catch((err) => showError(err.message || 'Failed to load practice questions', 'Load Failed'))
+      .catch((err) => { showError(err.message || 'Failed to load practice questions', 'Load Failed'); setError(true); })
       .finally(() => setLoading(false));
   }, [showError]);
+
+  useEffect(() => { load(); }, [load]);
 
   const handleOptionSelect = (opt) => {
     setSelectedAnswers({ ...selectedAnswers, [currentQ]: opt });
@@ -63,6 +69,17 @@ export const PracticeTestSimulatorPage = () => {
 
   if (loading) {
     return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-indigo-600" /></div>;
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-6 max-w-4xl mx-auto">
+        <button onClick={() => navigate('/student/question-bank')} className="flex items-center gap-1 text-xs font-semibold text-slate-600 dark:text-slate-400">
+          <ArrowLeft className="w-4 h-4" /> Back to Question Bank
+        </button>
+        <ErrorState onRetry={load} />
+      </div>
+    );
   }
 
   if (quiz.length === 0) {

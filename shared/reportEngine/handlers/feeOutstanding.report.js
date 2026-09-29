@@ -1,17 +1,22 @@
 const prisma = require('../../database/client');
 
-/** FEE_OUTSTANDING — students with a due balance above an optional minimum threshold. */
+/** FEE_OUTSTANDING — students with a due balance above an optional minimum threshold.
+ * Whole-institution by default; narrow to one class (courseId/sectionId) or one student
+ * (studentId — every fee category that student still owes on, not just one). */
 module.exports = async (institutionId, filters) => {
-  const { courseId, sectionId, minimumOutstanding } = filters;
+  const { courseId, sectionId, studentId, minimumOutstanding } = filters;
   const threshold = minimumOutstanding ? Number(minimumOutstanding) : 0;
 
   const assignments = await prisma.studentFeeAssignment.findMany({
     where: {
       dueAmount: { gt: threshold },
+      // studentId is never trusted alone — student.institutionId still gates every row,
+      // exactly like the class-scoped (courseId/sectionId) case right below it.
+      ...(studentId && { studentId }),
       student: {
         institutionId,
-        ...(courseId && { courseId }),
-        ...(sectionId && { sectionId }),
+        ...(!studentId && courseId && { courseId }),
+        ...(!studentId && sectionId && { sectionId }),
       },
     },
     include: {

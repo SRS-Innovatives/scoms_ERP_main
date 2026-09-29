@@ -1,7 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { Printer, Loader2, Save, LayoutGrid, RectangleVertical, RectangleHorizontal, ShieldCheck } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
+import ErrorState from '../../components/common/ErrorState';
 import { useNotification } from '../../context/NotificationContext';
 import { useInstitution } from '../../context/InstitutionContext';
 import studentService from '../../services/studentService';
@@ -36,11 +37,14 @@ export const IDCardPreviewPage = () => {
   const [students, setStudents] = useState([]);
   const [studentId, setStudentId] = useState(presetId || '');
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [orientation, setOrientation] = useState('VERTICAL');
   const [template, setTemplate] = useState('CLASSIC');
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
+  const loadData = useCallback(() => {
+    setLoading(true);
+    setError(false);
     Promise.all([studentService.getAll({ limit: 500 }), settingsService.getSettings()])
       .then(([studentsRes, settingsRes]) => {
         const list = studentsRes.data || [];
@@ -49,10 +53,12 @@ export const IDCardPreviewPage = () => {
         setOrientation(settingsRes.data?.idCardOrientation || 'VERTICAL');
         setTemplate(settingsRes.data?.idCardTemplate || 'CLASSIC');
       })
-      .catch((err) => notifyError(`Failed to load ID card data: ${err.message}`))
+      .catch((err) => { notifyError(`Failed to load ID card data: ${err.message}`); setError(true); })
       .finally(() => setLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => { loadData(); }, [loadData]);
 
   const student = students.find((s) => s.id === studentId);
 
@@ -70,6 +76,10 @@ export const IDCardPreviewPage = () => {
 
   if (loading) {
     return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-indigo-600" /></div>;
+  }
+
+  if (error) {
+    return <ErrorState onRetry={loadData} />;
   }
 
   const dims = DIMENSIONS[orientation];

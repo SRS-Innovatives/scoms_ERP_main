@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import PageHeader from '../../components/common/PageHeader';
 import { User, Loader2, BookOpen } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -6,14 +6,18 @@ import { useNotification } from '../../context/NotificationContext';
 import studentService from '../../services/studentService';
 import attendanceService from '../../services/attendanceService';
 import examService from '../../services/examService';
+import ErrorState from '../../components/common/ErrorState';
 
 export const MySubjectsPage = () => {
   const navigate = useNavigate();
   const { error: showError } = useNotification();
   const [subjects, setSubjects] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
-  useEffect(() => {
+  const load = useCallback(() => {
+    setLoading(true);
+    setError(false);
     Promise.all([studentService.getMySubjects(), attendanceService.getAttendance(), examService.getResults()])
       .then(([subjectsRes, attendanceRes, resultsRes]) => {
         const attendanceBySubject = {};
@@ -36,12 +40,18 @@ export const MySubjectsPage = () => {
 
         setSubjects(merged);
       })
-      .catch((err) => showError(err.message || 'Failed to load subjects', 'Load Failed'))
+      .catch((err) => { showError(err.message || 'Failed to load subjects', 'Load Failed'); setError(true); })
       .finally(() => setLoading(false));
   }, [showError]);
 
+  useEffect(() => { load(); }, [load]);
+
   if (loading) {
     return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-indigo-600" /></div>;
+  }
+
+  if (error) {
+    return <ErrorState onRetry={load} />;
   }
 
   return (

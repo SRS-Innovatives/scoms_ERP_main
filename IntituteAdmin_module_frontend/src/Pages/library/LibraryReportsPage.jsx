@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import DataTable from '../../components/common/DataTable';
+import ErrorState from '../../components/common/ErrorState';
 import { useNotification } from '../../context/NotificationContext';
 import { Loader2 } from 'lucide-react';
 import libraryService from '../../services/libraryService';
@@ -8,13 +9,18 @@ export const LibraryReportsPage = () => {
   const { notifyError } = useNotification();
   const [report, setReport] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
-  useEffect(() => {
+  const fetchReport = useCallback(() => {
+    setLoading(true);
+    setError(false);
     libraryService.getReports()
       .then((res) => setReport(res.data))
-      .catch((err) => notifyError(`Failed to load library report: ${err.message}`))
+      .catch((err) => { notifyError(`Failed to load library report: ${err.message}`); setError(true); })
       .finally(() => setLoading(false));
   }, [notifyError]);
+
+  useEffect(() => { fetchReport(); }, [fetchReport]);
 
   const columns = [
     { header: 'Title', key: 'title', render: (val) => <span className="font-bold text-slate-900 dark:text-white">{val}</span> },
@@ -26,6 +32,10 @@ export const LibraryReportsPage = () => {
 
   if (loading) {
     return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-indigo-600" /></div>;
+  }
+
+  if (error) {
+    return <ErrorState onRetry={fetchReport} />;
   }
 
   return (

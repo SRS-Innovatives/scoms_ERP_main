@@ -1,23 +1,33 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { Loader2, History, CheckCircle2, XCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import reportService from '../../services/reportService';
 import { useNotification } from '../../context/NotificationContext';
+import ErrorState from '../../components/common/ErrorState';
 
 export const ReportHistoryPage = () => {
   const { error: showError } = useNotification();
   const [runs, setRuns] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
-  useEffect(() => {
+  const load = useCallback(() => {
+    setLoading(true);
+    setError(false);
     reportService.getHistory()
       .then((res) => setRuns(res.data || []))
-      .catch((err) => showError(`Failed to load report history: ${err.message}`))
+      .catch((err) => { showError(`Failed to load report history: ${err.message}`); setError(true); })
       .finally(() => setLoading(false));
   }, [showError]);
 
+  useEffect(() => { load(); }, [load]);
+
   if (loading) {
     return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-indigo-600" /></div>;
+  }
+
+  if (error) {
+    return <ErrorState onRetry={load} />;
   }
 
   return (

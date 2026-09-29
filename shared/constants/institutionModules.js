@@ -58,6 +58,11 @@ const MODULE_CATALOG = [
   { key: 'messaging', label: 'Internal Messaging', description: 'Direct chat between students, parents and staff', recommendedFor: ['SCHOOL', 'COLLEGE', 'AUTONOMOUS_COLLEGE', 'UNIVERSITY'] },
   { key: 'gallery', label: 'Photo Gallery', description: 'Event/campus photo albums — Institute Admin & Staff upload, everyone in the institution can view', recommendedFor: ['SCHOOL', 'COLLEGE', 'AUTONOMOUS_COLLEGE', 'UNIVERSITY'] },
   { key: 'pre_admission', label: 'Pre-Admission / Application Form', description: 'A public API your own website\'s admission form can submit into — applications land here for review, then one click converts a real student admission', recommendedFor: ['SCHOOL', 'COLLEGE', 'AUTONOMOUS_COLLEGE', 'UNIVERSITY'] },
+  { key: 'academic_calendar', label: 'Academic Calendar', description: 'Institution-wide calendar of holidays, exam windows, events and deadlines — visible across every portal', recommendedFor: ['SCHOOL', 'COLLEGE', 'AUTONOMOUS_COLLEGE', 'UNIVERSITY'] },
+  { key: 'expense_management', label: 'Expense Management', description: 'Log institution operating expenses with a lightweight approval workflow before marking paid', recommendedFor: ['SCHOOL', 'COLLEGE', 'AUTONOMOUS_COLLEGE', 'UNIVERSITY'] },
+  { key: 'hr_recruitment', label: 'HR Recruitment', description: 'Post staff job openings and track candidate applications through to a hiring decision', recommendedFor: ['SCHOOL', 'COLLEGE', 'AUTONOMOUS_COLLEGE', 'UNIVERSITY'] },
+  { key: 'workflow_engine', label: 'Workflow Engine', description: 'Configure multi-step approval chains (e.g. Dept Head then Principal) and attach them to real requests', recommendedFor: ['SCHOOL', 'COLLEGE', 'AUTONOMOUS_COLLEGE', 'UNIVERSITY'] },
+  { key: 'automation_engine', label: 'Event Automation', description: 'Configure "when X happens, send this notification" rules (e.g. fee overdue, leave approved)', recommendedFor: ['SCHOOL', 'COLLEGE', 'AUTONOMOUS_COLLEGE', 'UNIVERSITY'] },
 ];
 
 const OPTIONAL_MODULE_KEYS = MODULE_CATALOG.map((m) => m.key);

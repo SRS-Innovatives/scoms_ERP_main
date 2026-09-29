@@ -17,6 +17,8 @@ const {
   NotFoundError,
   ValidationError,
   pushNotificationToMany,
+  emitEvent,
+  EVENT_TYPES,
 } = require('../../../shared');
 
 const getStudents = async (req, res, next) => {
@@ -308,6 +310,16 @@ const createStudentAdmission = async (req, res, next) => {
         link: `/admin/student/list`,
       }))
       .catch(() => {});
+
+    // Fire-and-forget application event (Phase 9) — logged for audit/history and
+    // matched against any institution-configured AutomationRule. Never affects this
+    // response either way; see shared/events/dispatcher.js.
+    emitEvent(req.institutionId, EVENT_TYPES.STUDENT_ADMITTED, {
+      name: `${firstName} ${lastName}`,
+      admissionNumber: result.student.admissionNumber,
+      email: email || undefined,
+      phone: phone || undefined,
+    });
 
     // Never return the password hash to the client — it serves no purpose there and
     // is needless sensitive-data exposure. The real temporary password (needed so the

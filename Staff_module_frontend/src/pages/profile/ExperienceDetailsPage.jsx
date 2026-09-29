@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Briefcase, Plus, Loader2 } from 'lucide-react';
 import { useNotification } from '../../context/NotificationContext';
 import profileService from '../../services/profileService';
+import ErrorState from '../../components/common/ErrorState';
 
 const emptyForm = { organization: '', roleTitle: '', fromDate: '', toDate: '', description: '' };
 
@@ -12,12 +13,14 @@ export const ExperienceDetailsPage = () => {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState(emptyForm);
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState(false);
 
   const fetchAll = () => {
     setLoading(true);
+    setError(false);
     profileService.getMyProfile()
       .then((res) => setExperiences(res.data.experiences || []))
-      .catch((err) => showError(err.message || 'Failed to load experience records', 'Load Failed'))
+      .catch((err) => { showError(err.message || 'Failed to load experience records', 'Load Failed'); setError(true); })
       .finally(() => setLoading(false));
   };
 
@@ -41,6 +44,10 @@ export const ExperienceDetailsPage = () => {
 
   if (loading) {
     return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-sky-600" /></div>;
+  }
+
+  if (error) {
+    return <ErrorState onRetry={fetchAll} />;
   }
 
   return (

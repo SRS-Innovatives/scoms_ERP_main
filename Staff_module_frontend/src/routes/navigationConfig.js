@@ -16,7 +16,12 @@ import {
   BarChart3,
   Printer,
   ShieldCheck,
-  Images
+  Images,
+  Wallet,
+  Receipt,
+  Bus,
+  Building2,
+  Briefcase
 } from 'lucide-react';
 
 export const navigationConfig = [
@@ -96,6 +101,7 @@ export const navigationConfig = [
     title: 'Examinations & Question Paper',
     icon: GraduationCap,
     children: [
+      { key: 'exam-setup', title: 'Exam Setup', path: '/staff/exams/setup' },
       { key: 'exam-duties', title: 'My Exam Duties', path: '/staff/exams/duties' },
       { key: 'question-bank', title: 'Question Bank', path: '/staff/exams/bank' },
       { key: 'create-question', title: 'Create Question', path: '/staff/exams/create-q' },
@@ -130,7 +136,8 @@ export const navigationConfig = [
       { key: 'daily-timetable', title: 'Daily Schedule', path: '/staff/timetable/daily' },
       { key: 'weekly-timetable', title: 'Weekly Schedule Grid', path: '/staff/timetable/weekly' },
       { key: 'substitute-classes', title: 'Substitute Classes', path: '/staff/timetable/substitute' },
-      { key: 'free-periods', title: 'Free Periods', path: '/staff/timetable/free' }
+      { key: 'free-periods', title: 'Free Periods', path: '/staff/timetable/free' },
+      { key: 'academic-calendar', title: 'Academic Calendar', path: '/staff/academic-calendar' }
     ]
   },
   {
@@ -260,5 +267,35 @@ export const navigationConfig = [
       { key: 'print-parent', title: 'Parent Meeting Record Sheet', path: '/staff/print/parent-record' },
       { key: 'print-duty', title: 'Duty Allotment Letter', path: '/staff/print/duty-letter' }
     ]
+  },
+  {
+    key: 'fee',
+    title: 'Fee Collection Desk',
+    icon: Wallet,
+    path: '/staff/finance/fee-desk'
+  },
+  {
+    key: 'expense_management',
+    title: 'Expense Log',
+    icon: Receipt,
+    path: '/staff/finance/expenses'
+  },
+  {
+    key: 'transport',
+    title: 'Transport Desk',
+    icon: Bus,
+    path: '/staff/transport/desk'
+  },
+  {
+    key: 'hostel',
+    title: 'Hostel Desk',
+    icon: Building2,
+    path: '/staff/hostel/desk'
+  },
+  {
+    key: 'placement',
+    title: 'Placement Cell',
+    icon: Briefcase,
+    path: '/staff/placement/desk'
   }
 ];

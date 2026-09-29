@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import EmptyState from '../../components/common/EmptyState';
+import ErrorState from '../../components/common/ErrorState';
 import { useNotification } from '../../context/NotificationContext';
 import { Save, Loader2, Lock, Unlock, Upload, X, AlertTriangle } from 'lucide-react';
 import examService from '../../services/examService';
@@ -42,21 +43,26 @@ export const MarksEntryPage = () => {
   const [marksMap, setMarksMap] = useState({});
   const [absentMap, setAbsentMap] = useState({});
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [saving, setSaving] = useState(false);
   const [unlockOpen, setUnlockOpen] = useState(false);
   const [unlocking, setUnlocking] = useState(false);
   const [importErrors, setImportErrors] = useState([]);
   const fileInputRef = useRef(null);
 
-  useEffect(() => {
+  const fetchExams = useCallback(() => {
+    setLoading(true);
+    setError(false);
     examService.getExams()
       .then((res) => {
         setExams(res.data || []);
         if ((res.data || []).length > 0) setExamId(res.data[0].id);
       })
-      .catch((err) => notifyError(`Failed to load exams: ${err.message}`))
+      .catch((err) => { notifyError(`Failed to load exams: ${err.message}`); setError(true); })
       .finally(() => setLoading(false));
   }, [notifyError]);
+
+  useEffect(() => { fetchExams(); }, [fetchExams]);
 
   useEffect(() => {
     if (!examId) return;
@@ -162,6 +168,8 @@ export const MarksEntryPage = () => {
 
       {loading ? (
         <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-indigo-600" /></div>
+      ) : error ? (
+        <ErrorState onRetry={fetchExams} />
       ) : !scheduleId ? (
         <EmptyState title="No Exam Schedule Selected" message="Select an exam with at least one subject schedule." />
       ) : (

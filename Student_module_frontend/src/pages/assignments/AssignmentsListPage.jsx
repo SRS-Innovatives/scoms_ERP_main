@@ -6,6 +6,7 @@ import { FileText, Upload, CheckCircle2, Loader2, ClipboardList, Paperclip } fro
 import { useNavigate } from 'react-router-dom';
 import { useNotification } from '../../context/NotificationContext';
 import assignmentService from '../../services/assignmentService';
+import ErrorState from '../../components/common/ErrorState';
 
 const deriveStatus = (asn) => {
   if (asn.mySubmission) return asn.mySubmission.status === 'REVIEWED' ? 'Graded' : (asn.mySubmission.status === 'LATE' ? 'Late' : 'Submitted');
@@ -17,13 +18,15 @@ export const AssignmentsListPage = () => {
   const { error: showError } = useNotification();
   const [assignments, setAssignments] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [selectedAsn, setSelectedAsn] = useState(null);
 
   const load = useCallback(() => {
     setLoading(true);
+    setError(false);
     assignmentService.getAssignments()
       .then((res) => setAssignments(res.data || []))
-      .catch((err) => showError(err.message || 'Failed to load assignments', 'Load Failed'))
+      .catch((err) => { showError(err.message || 'Failed to load assignments', 'Load Failed'); setError(true); })
       .finally(() => setLoading(false));
   }, [showError]);
 
@@ -31,6 +34,10 @@ export const AssignmentsListPage = () => {
 
   if (loading) {
     return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-indigo-600" /></div>;
+  }
+
+  if (error) {
+    return <ErrorState onRetry={load} />;
   }
 
   return (

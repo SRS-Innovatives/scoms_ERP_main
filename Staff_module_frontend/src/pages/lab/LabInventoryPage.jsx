@@ -3,6 +3,7 @@ import StatusBadge from '../../components/common/StatusBadge';
 import { FlaskConical, Plus, Loader2, X } from 'lucide-react';
 import { useNotification } from '../../context/NotificationContext';
 import labService from '../../services/labService';
+import ErrorState from '../../components/common/ErrorState';
 
 const emptyForm = { assetTag: '', name: '', location: '', quantity: 1, condition: 'GOOD', calibrationDueDate: '' };
 
@@ -10,15 +11,17 @@ export const LabInventoryPage = () => {
   const { success, error: showError } = useNotification();
   const [assets, setAssets] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState(emptyForm);
 
   const load = useCallback(() => {
     setLoading(true);
+    setError(false);
     labService.getAssets()
       .then((res) => setAssets(res.data || []))
-      .catch((err) => showError(err.message || 'Failed to load lab register', 'Load Failed'))
+      .catch((err) => { showError(err.message || 'Failed to load lab register', 'Load Failed'); setError(true); })
       .finally(() => setLoading(false));
   }, [showError]);
 
@@ -78,6 +81,8 @@ export const LabInventoryPage = () => {
 
       {loading ? (
         <div className="flex justify-center py-10"><Loader2 className="w-6 h-6 animate-spin text-sky-600" /></div>
+      ) : error ? (
+        <ErrorState onRetry={load} />
       ) : assets.length === 0 ? (
         <div className="text-center py-10 text-xs text-slate-500">No lab equipment registered yet.</div>
       ) : (

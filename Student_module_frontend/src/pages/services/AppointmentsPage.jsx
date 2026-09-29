@@ -3,6 +3,7 @@ import PageHeader from '../../components/common/PageHeader';
 import StatusBadge from '../../components/common/StatusBadge';
 import { useNotification } from '../../context/NotificationContext';
 import { Loader2, CalendarPlus, Inbox } from 'lucide-react';
+import ErrorState from '../../components/common/ErrorState';
 import appointmentService from '../../services/appointmentService';
 
 export const AppointmentsPage = () => {
@@ -10,11 +11,13 @@ export const AppointmentsPage = () => {
   const [teachers, setTeachers] = useState([]);
   const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState({ staffId: '', slotDate: '', slotTime: '', purpose: '' });
 
   const load = useCallback(() => {
     setLoading(true);
+    setError(false);
     Promise.all([appointmentService.getTeachers(), appointmentService.getMyAppointments()])
       .then(([teachersRes, appointmentsRes]) => {
         const t = teachersRes.data || [];
@@ -22,7 +25,7 @@ export const AppointmentsPage = () => {
         setAppointments(appointmentsRes.data || []);
         if (t.length > 0) setForm((prev) => ({ ...prev, staffId: prev.staffId || t[0].id }));
       })
-      .catch((err) => showError(err.message || 'Failed to load appointments', 'Load Failed'))
+      .catch((err) => { showError(err.message || 'Failed to load appointments', 'Load Failed'); setError(true); })
       .finally(() => setLoading(false));
   }, [showError]);
 
@@ -45,6 +48,10 @@ export const AppointmentsPage = () => {
 
   if (loading) {
     return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-indigo-600" /></div>;
+  }
+
+  if (error) {
+    return <ErrorState onRetry={load} />;
   }
 
   return (

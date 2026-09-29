@@ -54,6 +54,10 @@ const ROLE_PERMISSIONS = {
     PERMISSIONS.GRIEVANCES_RESOLVE,
     PERMISSIONS.REPORTS_VIEW,
     PERMISSIONS.ANALYTICS_VIEW,
+    PERMISSIONS.PLACEMENT_MANAGE,
+    PERMISSIONS.EXPENSES_VIEW,
+    PERMISSIONS.EXPENSES_CREATE,
+    PERMISSIONS.EXPENSES_APPROVE,
   ],
 
   [ROLES.PRINCIPAL]: [
@@ -68,6 +72,32 @@ const ROLE_PERMISSIONS = {
     PERMISSIONS.FEES_VIEW,
     PERMISSIONS.REPORTS_VIEW,
     PERMISSIONS.ANALYTICS_VIEW,
+    PERMISSIONS.APPOINTMENTS_MANAGE,
+    PERMISSIONS.PTM_MANAGE,
+    PERMISSIONS.MESSAGING_ACCESS,
+    PERMISSIONS.GALLERY_MANAGE,
+  ],
+
+  // Mirrors PRINCIPAL — same oversight scope, no institution-wide unique permission of
+  // its own in the current feature set. Previously had NO entry in this matrix at all
+  // (hasPermission() silently returned false for every permission), a real gap found
+  // during Phase 3 shadow-mode wiring, not a pre-existing intentional restriction.
+  [ROLES.VICE_PRINCIPAL]: [
+    PERMISSIONS.ACADEMICS_VIEW,
+    PERMISSIONS.STUDENTS_VIEW,
+    PERMISSIONS.STAFF_VIEW,
+    PERMISSIONS.ATTENDANCE_VIEW,
+    PERMISSIONS.LEAVE_APPROVE,
+    PERMISSIONS.EXAMS_VIEW,
+    PERMISSIONS.RESULTS_VIEW,
+    PERMISSIONS.RESULTS_PUBLISH,
+    PERMISSIONS.FEES_VIEW,
+    PERMISSIONS.REPORTS_VIEW,
+    PERMISSIONS.ANALYTICS_VIEW,
+    PERMISSIONS.APPOINTMENTS_MANAGE,
+    PERMISSIONS.PTM_MANAGE,
+    PERMISSIONS.MESSAGING_ACCESS,
+    PERMISSIONS.GALLERY_MANAGE,
   ],
 
   [ROLES.HOD]: [
@@ -87,6 +117,14 @@ const ROLE_PERMISSIONS = {
     PERMISSIONS.QUESTIONS_VIEW,
     PERMISSIONS.QUESTIONS_CREATE,
     PERMISSIONS.REPORTS_VIEW,
+    PERMISSIONS.LAB_MANAGE,
+    PERMISSIONS.APPOINTMENTS_MANAGE,
+    PERMISSIONS.PTM_MANAGE,
+    PERMISSIONS.ACHIEVEMENTS_MANAGE,
+    PERMISSIONS.MESSAGING_ACCESS,
+    PERMISSIONS.RESEARCH_MANAGE,
+    PERMISSIONS.GALLERY_MANAGE,
+    PERMISSIONS.EVENTS_MANAGE,
   ],
 
   [ROLES.TEACHER]: [
@@ -109,6 +147,12 @@ const ROLE_PERMISSIONS = {
     PERMISSIONS.QUESTIONS_CREATE,
     PERMISSIONS.QUESTIONS_GENERATE_PAPER,
     PERMISSIONS.ANNOUNCEMENTS_CREATE,
+    PERMISSIONS.LAB_MANAGE,
+    PERMISSIONS.ACHIEVEMENTS_MANAGE,
+    PERMISSIONS.MESSAGING_ACCESS,
+    PERMISSIONS.RESEARCH_MANAGE,
+    PERMISSIONS.GALLERY_MANAGE,
+    PERMISSIONS.EVENTS_MANAGE,
   ],
 
   [ROLES.STAFF]: [
@@ -117,6 +161,7 @@ const ROLE_PERMISSIONS = {
     PERMISSIONS.LEAVE_APPLY,
     PERMISSIONS.TIMETABLE_VIEW,
     PERMISSIONS.MATERIALS_VIEW,
+    PERMISSIONS.MESSAGING_ACCESS,
   ],
 
   [ROLES.ACCOUNTANT]: [
@@ -125,12 +170,56 @@ const ROLE_PERMISSIONS = {
     PERMISSIONS.FEES_COLLECT,
     PERMISSIONS.FEES_REFUND,
     PERMISSIONS.REPORTS_VIEW,
+    PERMISSIONS.LEAVE_APPLY,
+    PERMISSIONS.TIMETABLE_VIEW,
+    PERMISSIONS.EXPENSES_VIEW,
+    PERMISSIONS.EXPENSES_CREATE,
   ],
 
   [ROLES.LIBRARIAN]: [
     PERMISSIONS.STUDENTS_VIEW,
     PERMISSIONS.LIBRARY_MANAGE,
     PERMISSIONS.FEES_COLLECT,
+    PERMISSIONS.LEAVE_APPLY,
+    PERMISSIONS.TIMETABLE_VIEW,
+  ],
+
+  // The following 4 roles had NO entry in this matrix at all before Phase 3 — a real
+  // gap (hasPermission() silently returned false for everything), not an intentional
+  // restriction. Scoped to each role's actual job function and the routes it already
+  // has live access to via Staff_backend today.
+  [ROLES.TRANSPORT_MANAGER]: [
+    PERMISSIONS.STUDENTS_VIEW,
+    PERMISSIONS.TRANSPORT_MANAGE,
+    PERMISSIONS.LEAVE_APPLY,
+    PERMISSIONS.TIMETABLE_VIEW,
+  ],
+
+  [ROLES.HOSTEL_WARDEN]: [
+    PERMISSIONS.STUDENTS_VIEW,
+    PERMISSIONS.HOSTEL_MANAGE,
+    PERMISSIONS.LEAVE_APPLY,
+    PERMISSIONS.TIMETABLE_VIEW,
+  ],
+
+  [ROLES.EXAM_ADMIN]: [
+    PERMISSIONS.STUDENTS_VIEW,
+    PERMISSIONS.EXAMS_VIEW,
+    PERMISSIONS.EXAMS_CREATE,
+    PERMISSIONS.MARKS_ENTER,
+    PERMISSIONS.RESULTS_VIEW,
+    PERMISSIONS.RESULTS_PUBLISH,
+    PERMISSIONS.QUESTIONS_VIEW,
+    PERMISSIONS.LEAVE_APPLY,
+    PERMISSIONS.TIMETABLE_VIEW,
+    PERMISSIONS.REPORTS_VIEW,
+  ],
+
+  [ROLES.PLACEMENT_OFFICER]: [
+    PERMISSIONS.STUDENTS_VIEW,
+    PERMISSIONS.PLACEMENT_MANAGE,
+    PERMISSIONS.LEAVE_APPLY,
+    PERMISSIONS.TIMETABLE_VIEW,
   ],
 
   [ROLES.STUDENT]: [
@@ -166,7 +255,20 @@ const hasPermission = (userRole, requiredPermission) => {
   return permissions.includes(requiredPermission);
 };
 
+/** Same decision as hasPermission(), but checks a saved RolePermissionOverride row
+ * first — SuperAdmin's Permission Matrix page writes there (userController.js
+ * updateRolePermissions), and until this function existed nothing ever read it back
+ * for real enforcement, only for redisplaying it in that same page. A role with no
+ * override row behaves exactly like hasPermission(). */
+const hasPermissionAsync = async (prisma, userRole, requiredPermission) => {
+  if (userRole === ROLES.SUPER_ADMIN) return true;
+  const override = await prisma.rolePermissionOverride.findUnique({ where: { role: userRole } });
+  const permissions = override ? override.permissions : (ROLE_PERMISSIONS[userRole] || []);
+  return Array.isArray(permissions) && permissions.includes(requiredPermission);
+};
+
 module.exports = {
   ROLE_PERMISSIONS,
   hasPermission,
+  hasPermissionAsync,
 };

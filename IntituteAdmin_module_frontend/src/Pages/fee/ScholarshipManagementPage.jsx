@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import DataTable from '../../components/common/DataTable';
 import EmptyState from '../../components/common/EmptyState';
+import ErrorState from '../../components/common/ErrorState';
 import FormModal from '../../components/common/FormModal';
 import { useNotification } from '../../context/NotificationContext';
 import { Award, Edit3, Loader2 } from 'lucide-react';
@@ -13,6 +14,7 @@ export const ScholarshipManagementPage = () => {
   const [scholarships, setScholarships] = useState([]);
   const [allAssignments, setAllAssignments] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [targetId, setTargetId] = useState('');
@@ -20,12 +22,13 @@ export const ScholarshipManagementPage = () => {
 
   const fetchAll = () => {
     setLoading(true);
+    setError(false);
     Promise.all([feeService.getScholarships(), feeService.getAssignments()])
       .then(([scholRes, assignRes]) => {
         setScholarships(scholRes.data || []);
         setAllAssignments(assignRes.data || []);
       })
-      .catch((err) => notifyError(`Failed to load scholarships: ${err.message}`))
+      .catch((err) => { notifyError(`Failed to load scholarships: ${err.message}`); setError(true); })
       .finally(() => setLoading(false));
   };
 
@@ -77,6 +80,10 @@ export const ScholarshipManagementPage = () => {
 
   if (loading) {
     return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-indigo-600" /></div>;
+  }
+
+  if (error) {
+    return <ErrorState onRetry={fetchAll} />;
   }
 
   return (
