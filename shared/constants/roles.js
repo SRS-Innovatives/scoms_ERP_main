@@ -66,6 +66,7 @@ const PERMISSIONS = {
   // Timetable
   TIMETABLE_VIEW: 'timetable.view',
   TIMETABLE_MANAGE: 'timetable.manage',
+  TIMETABLE_SUBSTITUTE_APPROVE: 'timetable.substitute.approve',
 
   // Assignments & Materials
   ASSIGNMENTS_VIEW: 'assignments.view',

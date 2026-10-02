@@ -41,7 +41,9 @@ export const apiCall = async (endpoint, options = {}) => {
     if (res.ok) {
       return { status: res.status, data: result.data ?? result };
     }
-    throw new Error(result.message || 'API Error');
+    const apiError = new Error(result.message || 'API Error');
+    apiError.errors = result.errors;
+    throw apiError;
   } catch (err) {
     console.error(`[SCOMS API Error] ${endpoint}:`, err.message);
     throw err;

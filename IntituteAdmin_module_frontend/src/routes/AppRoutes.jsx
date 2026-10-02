@@ -76,6 +76,7 @@ import ClassTimetablePage from '../pages/timetable/ClassTimetablePage';
 import TeacherTimetablePage from '../pages/timetable/TeacherTimetablePage';
 import ExamTimetablePage from '../pages/timetable/ExamTimetablePage';
 import TimetableGeneratorPage from '../pages/timetable/TimetableGeneratorPage';
+import SubstituteRequestsPage from '../pages/timetable/SubstituteRequestsPage';
 
 // Examination
 import ExamSetupPage from '../pages/examination/ExamSetupPage';
@@ -296,6 +297,7 @@ export const AppRoutes = () => {
         <Route path="timetable/teacher" element={<TeacherTimetablePage />} />
         <Route path="timetable/exam" element={<ExamTimetablePage />} />
         <Route path="timetable/generator" element={<TimetableGeneratorPage />} />
+        <Route path="timetable/substitutes" element={<SubstituteRequestsPage />} />
 
         {/* Examination */}
         <Route path="examination/setup" element={<ExamSetupPage />} />

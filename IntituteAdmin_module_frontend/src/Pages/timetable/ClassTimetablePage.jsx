@@ -5,6 +5,7 @@ import sectionService from '../../services/sectionService';
 import subjectService from '../../services/subjectService';
 import staffService from '../../services/staffService';
 import timetableService from '../../services/timetableService';
+import { roomService, roomLabel } from '../../services/infrastructureService';
 import ErrorState from '../../components/common/ErrorState';
 
 const DAYS = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
@@ -29,14 +30,17 @@ export const ClassTimetablePage = () => {
   const [error, setError] = useState(false);
   const [saving, setSaving] = useState(false);
   const [editingCell, setEditingCell] = useState(null);
+  const [rooms, setRooms] = useState([]);
+  const [conflicts, setConflicts] = useState(null);
 
   const loadSetupData = useCallback(() => {
     setLoading(true);
     setError(false);
-    Promise.all([sectionService.getAll(), staffService.getAll()])
-      .then(([secRes, staffRes]) => {
+    Promise.all([sectionService.getAll(), staffService.getAll(), roomService.getAll({ isActive: true }).catch(() => ({ data: [] }))])
+      .then(([secRes, staffRes, roomRes]) => {
         setSections(secRes.data || []);
         setStaffList(staffRes.data || []);
+        setRooms(roomRes.data || []);
         if ((secRes.data || []).length > 0) setSectionId(secRes.data[0].id);
       })
       .catch((err) => { notifyError(`Failed to load setup data: ${err.message}`); setError(true); })
@@ -60,7 +64,7 @@ export const ClassTimetablePage = () => {
       setSubjects(subRes.data || []);
       const g = {};
       (ttRes.data.entries || []).forEach((e) => {
-        g[`${e.dayOfWeek}_${e.period}`] = { subjectId: e.subjectId || '', staffId: e.staffId || '', roomNumber: e.roomNumber || '', label: e.label || '' };
+        g[`${e.dayOfWeek}_${e.period}`] = { subjectId: e.subjectId || '', staffId: e.staffId || '', roomId: e.roomId || '', roomNumber: e.roomNumber || '', label: e.label || '' };
       });
       setGrid(g);
     } catch (err) {
@@ -75,7 +79,7 @@ export const ClassTimetablePage = () => {
     loadTimetable();
   }, [sectionId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handleSave = async () => {
+  const handleSave = async (allowConflicts = false) => {
     if (!timetable) return;
     setSaving(true);
     try {
@@ -91,13 +95,17 @@ export const ClassTimetablePage = () => {
             subjectId: cell.subjectId || undefined,
             staffId: cell.staffId || undefined,
             label: cell.label || undefined,
+            roomId: cell.roomId || undefined,
             roomNumber: cell.roomNumber || undefined,
           };
         });
-      await timetableService.saveEntries(timetable.id, entries);
-      notifySuccess('Timetable saved successfully!');
+      const res = await timetableService.saveEntries(timetable.id, entries, allowConflicts);
+      setConflicts(null);
+      setTimetable(res.data);
+      notifySuccess(res.data?.conflicts?.length ? 'Timetable saved with clashes' : 'Timetable saved successfully!');
     } catch (err) {
-      notifyError(`Failed to save timetable: ${err.message}`);
+      if (Array.isArray(err.errors) && err.errors.length > 0 && err.errors[0].type) setConflicts(err.errors);
+      else notifyError(`Failed to save timetable: ${err.message}`);
     } finally {
       setSaving(false);
     }
@@ -129,7 +137,7 @@ export const ClassTimetablePage = () => {
               <option key={s.id} value={s.id}>{s.semester?.course?.name} - {s.name}</option>
             ))}
           </select>
-          <button onClick={handleSave} disabled={saving} className="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold disabled:opacity-50">
+          <button onClick={() => handleSave()} disabled={saving} className="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold disabled:opacity-50">
             <Save className="w-4 h-4" />
             <span>{saving ? 'Saving...' : 'Save Timetable'}</span>
           </button>
@@ -188,6 +196,27 @@ export const ClassTimetablePage = () => {
         </div>
       )}
 
+      {conflicts && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200 dark:border-slate-800">
+            <h3 className="text-sm font-bold text-rose-600 mb-2">Timetable clashes found</h3>
+            <p className="text-xs text-slate-500 mb-3">These teachers or rooms are already booked in another section for the same period:</p>
+            <ul className="max-h-60 overflow-y-auto space-y-1.5 text-xs mb-4">
+              {conflicts.map((c, i) => (
+                <li key={i} className="p-2 rounded-lg bg-rose-50 dark:bg-rose-950/40 text-slate-700 dark:text-slate-300">
+                  <span className="font-semibold">{DAY_LABELS[c.dayOfWeek]} P{c.period}:</span>{' '}
+                  {c.type === 'TEACHER' ? `Teacher ${staffDisplayName(staffList.find((s) => s.id === c.staffId))}` : `Room ${c.room}`} is also in {c.otherSection || 'another section'}
+                </li>
+              ))}
+            </ul>
+            <div className="flex justify-end gap-2">
+              <button onClick={() => setConflicts(null)} className="px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 rounded-lg">Go back and fix</button>
+              <button onClick={() => handleSave(true)} disabled={saving} className="px-4 py-2 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 rounded-lg disabled:opacity-50">Save anyway</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {editingCell && (
         <CellEditorModal
           cell={grid[`${editingCell.day}_${editingCell.period}`] || {}}
@@ -195,6 +224,7 @@ export const ClassTimetablePage = () => {
           period={editingCell.period}
           subjects={subjects}
           staffList={staffList}
+          rooms={rooms}
           onClose={() => setEditingCell(null)}
           onSave={(cellData) => {
             setGrid((prev) => ({ ...prev, [`${editingCell.day}_${editingCell.period}`]: cellData }));
@@ -214,10 +244,11 @@ export const ClassTimetablePage = () => {
   );
 };
 
-const CellEditorModal = ({ cell, day, period, subjects, staffList, onClose, onSave, onClear }) => {
+const CellEditorModal = ({ cell, day, period, subjects, staffList, rooms, onClose, onSave, onClear }) => {
   const [subjectId, setSubjectId] = useState(cell.subjectId || '');
   const [staffId, setStaffId] = useState(cell.staffId || '');
-  const [roomNumber, setRoomNumber] = useState(cell.roomNumber || '');
+  const [roomId, setRoomId] = useState(cell.roomId || '');
+  const [roomNumber, setRoomNumber] = useState(cell.roomId ? '' : cell.roomNumber || '');
   const [label, setLabel] = useState(cell.label || '');
 
   return (
@@ -252,7 +283,15 @@ const CellEditorModal = ({ cell, day, period, subjects, staffList, onClose, onSa
               </div>
               <div>
                 <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Room</label>
-                <input value={roomNumber} onChange={(e) => setRoomNumber(e.target.value)} placeholder="e.g. Room 304" className="w-full p-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg" />
+                {rooms.length > 0 && (
+                  <select value={roomId} onChange={(e) => setRoomId(e.target.value)} className="w-full p-2 mb-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg">
+                    <option value="">— Type a room instead —</option>
+                    {rooms.map((r) => <option key={r.id} value={r.id}>{roomLabel(r)}</option>)}
+                  </select>
+                )}
+                {!roomId && (
+                  <input value={roomNumber} onChange={(e) => setRoomNumber(e.target.value)} placeholder="e.g. Room 304" className="w-full p-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg" />
+                )}
               </div>
             </>
           )}
@@ -261,7 +300,7 @@ const CellEditorModal = ({ cell, day, period, subjects, staffList, onClose, onSa
           <button onClick={onClear} className="px-3 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950 rounded-lg">Clear Cell</button>
           <div className="flex gap-2">
             <button onClick={onClose} className="px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 rounded-lg">Cancel</button>
-            <button onClick={() => onSave({ subjectId, staffId, roomNumber, label: subjectId ? '' : label })} className="px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg">Apply</button>
+            <button onClick={() => onSave({ subjectId, staffId, roomId, roomNumber: roomId ? rooms.find((r) => r.id === roomId)?.roomNumber || '' : roomNumber, label: subjectId ? '' : label })} className="px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg">Apply</button>
           </div>
         </div>
       </div>

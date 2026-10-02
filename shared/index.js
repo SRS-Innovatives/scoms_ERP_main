@@ -44,6 +44,7 @@ const { seedIntegrationProviders } = require('./integrations/seedIntegrationProv
 const { resolveRoom, resolveRoomsById } = require('./utils/rooms');
 const resultLifecycle = require('./exams/resultLifecycle');
 const attendanceRules = require('./attendance/attendanceRules');
+const timetableRules = require('./timetable/timetableRules');
 const {
   handleGetNotifications,
   handleGetUnreadCount,
@@ -121,4 +122,5 @@ module.exports = {
   resolveRoomsById,
   resultLifecycle,
   attendanceRules,
+  timetableRules,
 };

@@ -152,6 +152,7 @@ export const navigationConfig = [
     children: [
       { key: 'class-tt', title: 'Class Timetable', path: '/admin/timetable/class' },
       { key: 'teacher-tt', title: 'Teacher Timetable', path: '/admin/timetable/teacher' },
+      { key: 'substitute-tt', title: 'Substitute Requests', path: '/admin/timetable/substitutes' },
       { key: 'exam-tt', title: 'Exam Schedule TT', path: '/admin/timetable/exam' },
       { key: 'tt-generator', title: 'Timetable Generator UI', path: '/admin/timetable/generator' }
     ]

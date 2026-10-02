@@ -131,6 +131,13 @@ router.post('/announcements', shadowPermission(PERMISSIONS.ANNOUNCEMENTS_CREATE)
 // Timetable
 router.use('/timetable', requireModule('timetable'));
 router.get('/timetable/my', shadowPermission(PERMISSIONS.TIMETABLE_VIEW), timetableController.getMyTimetable);
+router.post('/timetable/substitutes', shadowPermission(PERMISSIONS.TIMETABLE_VIEW), timetableController.createSubstituteRequest);
+router.get('/timetable/substitutes/mine', shadowPermission(PERMISSIONS.TIMETABLE_VIEW), timetableController.getMySubstituteRequests);
+router.get('/timetable/substitutes/covering', shadowPermission(PERMISSIONS.TIMETABLE_VIEW), timetableController.getMyCoverClasses);
+router.post('/timetable/substitutes/:id/cancel', shadowPermission(PERMISSIONS.TIMETABLE_VIEW), timetableController.cancelSubstituteRequest);
+router.get('/timetable/substitutes', requirePermissionStrict(PERMISSIONS.TIMETABLE_SUBSTITUTE_APPROVE), timetableController.getPendingSubstituteRequests);
+router.get('/timetable/substitutes/:id/available', requirePermissionStrict(PERMISSIONS.TIMETABLE_SUBSTITUTE_APPROVE), timetableController.getAvailableSubstitutes);
+router.post('/timetable/substitutes/:id/review', requirePermissionStrict(PERMISSIONS.TIMETABLE_SUBSTITUTE_APPROVE), timetableController.reviewSubstituteRequest);
 
 // Library Desk
 router.use('/library', requireModule('library'));

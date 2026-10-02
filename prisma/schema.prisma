@@ -1149,6 +1149,8 @@ model Staff {
   classTeacherOf            Section[]                 @relation("SectionClassTeacher")
   attendanceSessions        AttendanceSession[]
   timetableEntries          TimetableEntry[]
+  substitutesRequested      SubstituteRequest[]       @relation("SubstituteOriginal")
+  substitutesCovering       SubstituteRequest[]       @relation("SubstituteCover")
   assignments               Assignment[]
   materials                 StudyMaterial[]
   leaveRequests             LeaveRequest[]
@@ -1353,12 +1355,45 @@ model TimetableEntry {
   roomNumber  String?
   roomId      String?
 
-  timetable Timetable @relation(fields: [timetableId], references: [id], onDelete: Cascade)
-  subject   Subject?  @relation(fields: [subjectId], references: [id])
-  staff     Staff?    @relation(fields: [staffId], references: [id])
-  room      Room?     @relation(fields: [roomId], references: [id], onDelete: SetNull)
+  timetable          Timetable           @relation(fields: [timetableId], references: [id], onDelete: Cascade)
+  subject            Subject?            @relation(fields: [subjectId], references: [id])
+  staff              Staff?              @relation(fields: [staffId], references: [id])
+  room               Room?               @relation(fields: [roomId], references: [id], onDelete: SetNull)
+  substituteRequests SubstituteRequest[]
 
   @@unique([timetableId, dayOfWeek, period])
+}
+
+enum SubstituteStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+// Date-specific cover for one weekly TimetableEntry; the weekly grid itself is never changed.
+model SubstituteRequest {
+  id                String           @id @default(uuid())
+  institutionId     String
+  timetableEntryId  String
+  date              DateTime         @db.Date
+  originalStaffId   String
+  substituteStaffId String?
+  requestedById     String
+  reason            String
+  status            SubstituteStatus @default(PENDING)
+  reviewedById      String?
+  reviewedAt        DateTime?
+  reviewRemarks     String?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  entry           TimetableEntry @relation(fields: [timetableEntryId], references: [id], onDelete: Cascade)
+  originalStaff   Staff          @relation("SubstituteOriginal", fields: [originalStaffId], references: [id])
+  substituteStaff Staff?         @relation("SubstituteCover", fields: [substituteStaffId], references: [id])
+
+  @@index([institutionId, status])
+  @@index([substituteStaffId, date])
 }
 
 enum AssignmentStatus {

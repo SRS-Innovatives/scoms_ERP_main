@@ -613,6 +613,9 @@ router.use('/timetable', requireModule('timetable'));
 router.get('/timetable', shadowPermission(PERMISSIONS.TIMETABLE_VIEW), timetableController.getTimetable);
 router.put('/timetable/:timetableId/entries', shadowPermission(PERMISSIONS.TIMETABLE_MANAGE), timetableController.saveEntries);
 router.get('/timetable/teacher/:staffId', shadowPermission(PERMISSIONS.TIMETABLE_VIEW), timetableController.getTeacherTimetable);
+router.get('/timetable/substitutes', requirePermissionStrict(PERMISSIONS.TIMETABLE_SUBSTITUTE_APPROVE), timetableController.getSubstituteRequests);
+router.get('/timetable/substitutes/:id/available', requirePermissionStrict(PERMISSIONS.TIMETABLE_SUBSTITUTE_APPROVE), timetableController.getAvailableSubstitutes);
+router.post('/timetable/substitutes/:id/review', requirePermissionStrict(PERMISSIONS.TIMETABLE_SUBSTITUTE_APPROVE), timetableController.reviewSubstituteRequest);
 
 // Examination
 router.use('/exams', requireModule('examination'));
