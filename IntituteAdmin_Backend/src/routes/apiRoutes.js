@@ -65,7 +65,7 @@ const {
   requireAuth, requireTenant, requireModule, handleForgotPassword, handleVerifyOtp, handleResetPassword,
   loginLimiter, otpLimiter,
   handleGetNotifications, handleGetUnreadCount, handleMarkNotificationRead, handleMarkAllNotificationsRead,
-  shadowPermission, PERMISSIONS,
+  shadowPermission, requirePermissionStrict, PERMISSIONS,
 } = require('../../../shared');
 
 // Standalone Auth Routes
@@ -628,5 +628,13 @@ router.post('/exam-schedules/:scheduleId/marks', shadowPermission(PERMISSIONS.MA
 router.post('/exam-schedules/:scheduleId/publish', shadowPermission(PERMISSIONS.RESULTS_PUBLISH), examController.publishResults);
 router.post('/exam-schedules/:scheduleId/unlock', shadowPermission(PERMISSIONS.RESULTS_PUBLISH), examController.unlockSchedule);
 router.post('/exam-schedules/:scheduleId/import', upload.single('file'), shadowPermission(PERMISSIONS.MARKS_ENTER), examController.parseMarksImport);
+router.get('/exam-review/queue', requireModule('examination'), requirePermissionStrict(PERMISSIONS.MARKS_VERIFY), examController.getReviewQueue);
+router.post('/exam-schedules/:scheduleId/submit', shadowPermission(PERMISSIONS.MARKS_ENTER), examController.submitMarks);
+router.post('/exam-schedules/:scheduleId/verify', requirePermissionStrict(PERMISSIONS.MARKS_VERIFY), examController.verifyMarks);
+router.post('/exam-schedules/:scheduleId/approve', requirePermissionStrict(PERMISSIONS.MARKS_APPROVE), examController.approveMarks);
+router.post('/exam-schedules/:scheduleId/return', requirePermissionStrict(PERMISSIONS.MARKS_VERIFY), examController.returnMarks);
+router.post('/exam-schedules/:scheduleId/corrections', shadowPermission(PERMISSIONS.MARKS_ENTER), examController.createCorrectionRequest);
+router.get('/exam-corrections', requireModule('examination'), requirePermissionStrict(PERMISSIONS.MARKS_APPROVE), examController.getCorrectionRequests);
+router.post('/exam-corrections/:id/review', requireModule('examination'), requirePermissionStrict(PERMISSIONS.MARKS_APPROVE), examController.reviewCorrectionRequest);
 
 module.exports = router;

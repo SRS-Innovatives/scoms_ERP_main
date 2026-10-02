@@ -37,7 +37,7 @@ const {
   requireAuth, requireTenant, requireModule, handleForgotPassword, handleVerifyOtp, handleResetPassword,
   loginLimiter, otpLimiter,
   handleGetNotifications, handleGetUnreadCount, handleMarkNotificationRead, handleMarkAllNotificationsRead,
-  shadowPermission, PERMISSIONS,
+  shadowPermission, requirePermissionStrict, PERMISSIONS,
 } = require('../../../shared');
 
 // Standalone Auth Routes
@@ -111,6 +111,13 @@ router.get('/exam-schedules/:scheduleId/roster', shadowPermission(PERMISSIONS.EX
 router.post('/exam-schedules/:scheduleId/marks', shadowPermission(PERMISSIONS.MARKS_ENTER), examController.saveMarks);
 router.post('/exam-schedules/:scheduleId/publish', shadowPermission(PERMISSIONS.RESULTS_PUBLISH), examController.publishMarks);
 router.post('/exam-schedules/:scheduleId/import', upload.single('file'), shadowPermission(PERMISSIONS.MARKS_ENTER), examController.parseMarksImport);
+router.post('/exam-schedules/:scheduleId/submit', shadowPermission(PERMISSIONS.MARKS_ENTER), examController.submitMarks);
+router.post('/exam-schedules/:scheduleId/corrections', shadowPermission(PERMISSIONS.MARKS_ENTER), examController.createCorrectionRequest);
+router.get('/exams/my-corrections', shadowPermission(PERMISSIONS.MARKS_ENTER), examController.getMyCorrectionRequests);
+router.get('/exams/review-queue', requirePermissionStrict(PERMISSIONS.MARKS_VERIFY), examController.getReviewQueue);
+router.post('/exam-schedules/:scheduleId/verify', requirePermissionStrict(PERMISSIONS.MARKS_VERIFY), examController.verifyMarks);
+router.post('/exam-schedules/:scheduleId/return', requirePermissionStrict(PERMISSIONS.MARKS_VERIFY), examController.returnMarks);
+router.post('/exam-schedules/:scheduleId/approve', requirePermissionStrict(PERMISSIONS.MARKS_APPROVE), examController.approveMarks);
 
 // Announcements
 router.use('/announcements', requireModule('communication'));

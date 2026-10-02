@@ -22,7 +22,7 @@ const requireModule = require('./middleware/requireModule');
 const resolveActiveChild = require('./middleware/resolveActiveChild');
 const blockParentWrite = require('./middleware/blockParentWrite');
 const { loginLimiter, otpLimiter, publicSubmissionLimiter } = require('./middleware/rateLimiter');
-const { requirePermission, requireRole } = require('./middleware/requirePermission');
+const { requirePermission, requirePermissionStrict, requireRole } = require('./middleware/requirePermission');
 const shadowPermission = require('./middleware/shadowPermission');
 const errorHandler = require('./middleware/errorHandler');
 const schemas = require('./validation/schemas');
@@ -42,6 +42,7 @@ const { emitEvent } = require('./events/dispatcher');
 const { EVENT_TYPES } = require('./events/eventTypes');
 const { seedIntegrationProviders } = require('./integrations/seedIntegrationProviders');
 const { resolveRoom, resolveRoomsById } = require('./utils/rooms');
+const resultLifecycle = require('./exams/resultLifecycle');
 const {
   handleGetNotifications,
   handleGetUnreadCount,
@@ -99,6 +100,7 @@ module.exports = {
   LIST_TYPES,
   getActiveList,
   requirePermission,
+  requirePermissionStrict,
   requireRole,
   shadowPermission,
   errorHandler,
@@ -116,4 +118,5 @@ module.exports = {
   seedIntegrationProviders,
   resolveRoom,
   resolveRoomsById,
+  resultLifecycle,
 };

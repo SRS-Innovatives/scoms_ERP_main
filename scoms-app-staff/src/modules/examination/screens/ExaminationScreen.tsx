@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Alert, FlatList, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { colors, spacing, typography } from '../../../constants/theme';
 import { LoadingView } from '../../../components/LoadingView';
 import { ErrorView } from '../../../components/ErrorView';
@@ -14,6 +14,7 @@ import {
   fetchExamRoster,
   fetchMySchedules,
   saveMarks,
+  submitMarks,
 } from '../services/examinationService';
 
 interface DraftMark {
@@ -26,6 +27,9 @@ function MarksEntryScreen({ schedule, onBack }: { schedule: ExamScheduleSummary;
   const [drafts, setDrafts] = useState<Record<string, DraftMark>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [status, setStatus] = useState(schedule.markStatus ?? 'DRAFT');
+  const queryClient = useQueryClient();
 
   React.useEffect(() => {
     fetchExamRoster(schedule.id)
@@ -69,6 +73,21 @@ function MarksEntryScreen({ schedule, onBack }: { schedule: ExamScheduleSummary;
     }
   };
 
+  const handleSubmit = async () => {
+    setSubmitting(true);
+    try {
+      await saveMarks(schedule.id, buildRows());
+      await submitMarks(schedule.id);
+      setStatus('SUBMITTED');
+      queryClient.invalidateQueries({ queryKey: ['staff', 'exams', 'mySchedules'] });
+      Alert.alert('Submitted', 'Marks submitted for verification.');
+    } catch (err: any) {
+      Alert.alert('Error', err?.response?.data?.message || 'Could not submit marks.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   if (loading) return <LoadingView />;
 
   return (
@@ -81,7 +100,12 @@ function MarksEntryScreen({ schedule, onBack }: { schedule: ExamScheduleSummary;
           ← Back
         </Text>
       </View>
-      <Text style={styles.meta}>Max marks: {schedule.maxMarks}</Text>
+      <Text style={styles.meta}>
+        Max marks: {schedule.maxMarks} · Stage: {status}
+      </Text>
+      {status === 'DRAFT' && schedule.reviewRemarks ? (
+        <Text style={styles.meta}>Returned: {schedule.reviewRemarks}</Text>
+      ) : null}
 
       <FlatList
         contentContainerStyle={styles.content}
@@ -124,6 +148,9 @@ function MarksEntryScreen({ schedule, onBack }: { schedule: ExamScheduleSummary;
         // ever offers Save, never Publish (see roleNavigation.ts for why).
         <View style={styles.actions}>
           <Button label="Save Marks" onPress={handleSave} loading={saving} style={styles.actionButton} />
+          {status === 'DRAFT' ? (
+            <Button label="Submit for Verification" onPress={handleSubmit} loading={submitting} style={styles.actionButton} />
+          ) : null}
         </View>
       )}
     </View>
@@ -159,7 +186,7 @@ export function ExaminationScreen() {
             <Text style={styles.meta}>{new Date(item.examDate).toLocaleDateString()}</Text>
             <Text style={styles.meta}>
               {item._count.studentMarks} marks entered
-              {item.isPublished ? ' · Published' : ''}
+              {item.isPublished ? ' · Published' : ` · ${item.markStatus ?? 'DRAFT'}`}
             </Text>
           </Card>
         </TouchableOpacity>

@@ -99,9 +99,10 @@ const updateSettings = async (req, res, next) => {
     const {
       smtpHost, smtpPort, smtpFromEmail, smsProvider, smsSenderId, smsDltEntityId,
       staffAttendanceSmsEnabled, idCardOrientation, idCardTemplate,
-      paymentGatewayProvider, paymentKeyId,
+      paymentGatewayProvider, paymentKeyId, examApprovalRequired,
     } = req.body;
     const smsToggle = staffAttendanceSmsEnabled === undefined ? undefined : Boolean(staffAttendanceSmsEnabled);
+    const examApprovalToggle = examApprovalRequired === undefined ? undefined : examApprovalRequired === true || examApprovalRequired === 'true';
 
     if (idCardOrientation !== undefined && !ID_CARD_ORIENTATIONS.includes(idCardOrientation)) {
       throw new ValidationError(`idCardOrientation must be one of: ${ID_CARD_ORIENTATIONS.join(', ')}`);
@@ -118,10 +119,12 @@ const updateSettings = async (req, res, next) => {
         idCardOrientation: idCardOrientation || 'VERTICAL',
         idCardTemplate: idCardTemplate || 'CLASSIC',
         paymentGatewayProvider, paymentKeyId,
+        examApprovalRequired: examApprovalToggle ?? false,
       },
       update: {
         smtpHost, smtpPort, smtpFromEmail, smsProvider, smsSenderId, smsDltEntityId,
         ...(smsToggle !== undefined && { staffAttendanceSmsEnabled: smsToggle }),
+        ...(examApprovalToggle !== undefined && { examApprovalRequired: examApprovalToggle }),
         ...(idCardOrientation !== undefined && { idCardOrientation }),
         ...(idCardTemplate !== undefined && { idCardTemplate }),
         paymentGatewayProvider, paymentKeyId,

@@ -79,6 +79,8 @@ const PERMISSIONS = {
   EXAMS_VIEW: 'exams.view',
   EXAMS_CREATE: 'exams.create',
   MARKS_ENTER: 'marks.enter',
+  MARKS_VERIFY: 'marks.verify',
+  MARKS_APPROVE: 'marks.approve',
   RESULTS_PUBLISH: 'results.publish',
   RESULTS_VIEW: 'results.view',
 

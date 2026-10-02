@@ -1027,6 +1027,7 @@ model Student {
   course              Course?                  @relation(fields: [courseId], references: [id])
   section             Section?                 @relation(fields: [sectionId], references: [id])
   batch               Batch?                   @relation(fields: [batchId], references: [id], onDelete: SetNull)
+  markCorrections     MarkCorrectionRequest[]
   parents             ParentStudent[]
   attendanceRecords   AttendanceRecord[]
   leaveRequests       LeaveRequest[]
@@ -1467,11 +1468,66 @@ model ExamSchedule {
   isPublished Boolean   @default(false)
   publishedAt DateTime?
 
-  exam         Exam          @relation(fields: [examId], references: [id], onDelete: Cascade)
-  subject      Subject       @relation(fields: [subjectId], references: [id])
-  course       Course        @relation(fields: [courseId], references: [id])
-  room         Room?         @relation(fields: [roomId], references: [id], onDelete: SetNull)
-  studentMarks StudentMark[]
+  // Result lifecycle: DRAFT -> SUBMITTED -> VERIFIED -> APPROVED -> (isPublished).
+  // Only enforced for publishing when InstitutionSettings.examApprovalRequired is on;
+  // otherwise informational and the legacy direct-publish flow is unchanged.
+  markStatus    ExamMarkStatus @default(DRAFT)
+  submittedById String? // User.id
+  submittedAt   DateTime?
+  verifiedById  String?
+  verifiedAt    DateTime?
+  approvedById  String?
+  approvedAt    DateTime?
+  reviewRemarks String? // last return/rejection reason, shown to the teacher
+
+  exam               Exam                    @relation(fields: [examId], references: [id], onDelete: Cascade)
+  subject            Subject                 @relation(fields: [subjectId], references: [id])
+  course             Course                  @relation(fields: [courseId], references: [id])
+  room               Room?                   @relation(fields: [roomId], references: [id], onDelete: SetNull)
+  studentMarks       StudentMark[]
+  correctionRequests MarkCorrectionRequest[]
+
+  @@index([markStatus])
+}
+
+enum ExamMarkStatus {
+  DRAFT
+  SUBMITTED
+  VERIFIED
+  APPROVED
+}
+
+/// A request to change one student's mark after it has been locked (submitted for review or
+/// published). Approving it rewrites the StudentMark and is the correction audit trail.
+model MarkCorrectionRequest {
+  id              String                  @id @default(uuid())
+  institutionId   String
+  examScheduleId  String
+  studentId       String
+  requestedById   String // User.id
+  oldMarks        Float?
+  oldIsAbsent     Boolean?
+  newMarks        Float?
+  newIsAbsent     Boolean                 @default(false)
+  reason          String
+  status          CorrectionRequestStatus @default(PENDING)
+  reviewedById    String?
+  reviewedAt      DateTime?
+  reviewRemarks   String?
+  createdAt       DateTime                @default(now())
+  updatedAt       DateTime                @updatedAt
+
+  examSchedule ExamSchedule @relation(fields: [examScheduleId], references: [id], onDelete: Cascade)
+  student      Student      @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([institutionId, status])
+  @@index([examScheduleId])
+}
+
+enum CorrectionRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
 }
 
 model StudentMark {
@@ -2398,6 +2454,7 @@ model InstitutionSettings {
   staffAttendanceSmsEnabled Boolean  @default(true) // lets the Institute Admin turn off the auto-SMS-to-parent feature staff trigger by marking a student absent
   idCardOrientation         String   @default("VERTICAL") // VERTICAL | HORIZONTAL — the institution's chosen ID card layout, applied everywhere a student/staff ID card renders
   idCardTemplate            String   @default("CLASSIC") // CLASSIC | MODERN | MINIMAL — the institution's chosen visual style
+  examApprovalRequired      Boolean  @default(false) // on = marks must be SUBMITTED -> VERIFIED -> APPROVED before they can be published
   paymentGatewayProvider    String?
   paymentKeyId              String? // public key/merchant id only — secrets stay server-side (.env), never stored here
   updatedAt                 DateTime @updatedAt

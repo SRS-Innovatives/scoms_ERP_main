@@ -6,6 +6,8 @@ export interface ExamScheduleSummary {
   examDate: string;
   maxMarks: number;
   isPublished: boolean;
+  markStatus?: 'DRAFT' | 'SUBMITTED' | 'VERIFIED' | 'APPROVED';
+  reviewRemarks?: string | null;
   subject: { name: string; code: string };
   exam: { name: string; examType: string };
   _count: { studentMarks: number };
@@ -51,6 +53,10 @@ export interface MarkRow {
 
 export async function saveMarks(scheduleId: string, marks: MarkRow[]) {
   await apiClient.post(`/exam-schedules/${scheduleId}/marks`, { marks });
+}
+
+export async function submitMarks(scheduleId: string) {
+  await apiClient.post(`/exam-schedules/${scheduleId}/submit`);
 }
 
 export async function publishMarks(scheduleId: string) {
