@@ -1035,6 +1035,7 @@ model Student {
   submissions           AssignmentSubmission[]
   studentMarks          StudentMark[]
   feeAssignments        StudentFeeAssignment[]
+  concessions           ConcessionApplication[]
   feePayments           FeePayment[]
   feeReceipts           FeeReceipt[]
   feeChallans           FeeChallan[]
@@ -1701,13 +1702,66 @@ model StudentFeeAssignment {
   // AdmissionCustomField, entityType FEE_ASSIGNMENT), e.g. "Sponsor Name".
   customFields Json?
 
-  feeStructure FeeStructure     @relation(fields: [feeStructureId], references: [id])
-  student      Student          @relation(fields: [studentId], references: [id])
+  feeStructure FeeStructure            @relation(fields: [feeStructureId], references: [id])
+  student      Student                 @relation(fields: [studentId], references: [id])
   payments     FeePayment[]
   installments FeeInstallment[]
   items        StudentFeeItem[]
+  concessions  ConcessionApplication[]
 
   @@unique([feeStructureId, studentId])
+}
+
+/// Reusable scholarship / concession rule. Approved applications add their amount to
+/// StudentFeeAssignment.discountAmount, the same field every payment path already honours.
+model ConcessionScheme {
+  id            String   @id @default(uuid())
+  institutionId String
+  code          String
+  name          String
+  type          String   @default("SCHOLARSHIP") // SCHOLARSHIP, CONCESSION, WAIVER
+  valueType     String   @default("PERCENT") // PERCENT, FIXED
+  value         Float
+  maxAmount     Float? // cap for PERCENT schemes
+  description   String?
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  applications ConcessionApplication[]
+
+  @@unique([institutionId, code])
+}
+
+enum ConcessionStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  REVOKED
+}
+
+model ConcessionApplication {
+  id              String           @id @default(uuid())
+  institutionId   String
+  schemeId        String
+  studentId       String
+  feeAssignmentId String
+  requestedById   String // User.id
+  amount          Float
+  reason          String
+  referenceNo     String?
+  status          ConcessionStatus @default(PENDING)
+  reviewedById    String?
+  reviewedAt      DateTime?
+  reviewRemarks   String?
+  createdAt       DateTime         @default(now())
+
+  scheme        ConcessionScheme     @relation(fields: [schemeId], references: [id])
+  student       Student              @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  feeAssignment StudentFeeAssignment @relation(fields: [feeAssignmentId], references: [id], onDelete: Cascade)
+
+  @@index([institutionId, status])
+  @@index([feeAssignmentId])
 }
 
 /// The per-student, per-fee-head breakdown — snapshotted from FeeStructureItem at

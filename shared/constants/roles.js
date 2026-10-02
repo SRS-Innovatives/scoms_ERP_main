@@ -95,6 +95,7 @@ const PERMISSIONS = {
   FEES_SETUP: 'fees.setup',
   FEES_COLLECT: 'fees.collect',
   FEES_REFUND: 'fees.refund',
+  FEES_CONCESSION_APPROVE: 'fees.concession.approve',
   PAYMENTS_ONLINE: 'payments.online',
 
   // Campus Services

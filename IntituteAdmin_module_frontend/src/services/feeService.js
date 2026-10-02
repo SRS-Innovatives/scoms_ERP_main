@@ -26,6 +26,14 @@ const createChallan = (payload) => apiCall('/fees/challans', { method: 'POST', b
 
 const getScholarships = () => apiCall('/fees/scholarships');
 const applyScholarship = (assignmentId, payload) => apiCall(`/fees/assignments/${assignmentId}/scholarship`, { method: 'PATCH', body: payload });
+const getConcessionSchemes = () => apiCall('/fees/concession-schemes');
+const createConcessionScheme = (payload) => apiCall('/fees/concession-schemes', { method: 'POST', body: payload });
+const updateConcessionScheme = (id, payload) => apiCall(`/fees/concession-schemes/${id}`, { method: 'PATCH', body: payload });
+const deleteConcessionScheme = (id) => apiCall(`/fees/concession-schemes/${id}`, { method: 'DELETE' });
+const getConcessions = (status) => apiCall(`/fees/concessions${status ? `?status=${status}` : ''}`);
+const requestConcession = (payload) => apiCall('/fees/concessions', { method: 'POST', body: payload });
+const reviewConcession = (id, decision, remarks) => apiCall(`/fees/concessions/${id}/review`, { method: 'POST', body: { decision, remarks } });
+const revokeConcession = (id, remarks) => apiCall(`/fees/concessions/${id}/revoke`, { method: 'POST', body: { remarks } });
 
 const getRefunds = () => apiCall('/fees/refunds');
 const createRefund = (payload) => apiCall('/fees/refunds', { method: 'POST', body: payload });
@@ -48,6 +56,8 @@ export const feeService = {
   getReceipt,
   getChallans, createChallan,
   getScholarships, applyScholarship,
+  getConcessionSchemes, createConcessionScheme, updateConcessionScheme, deleteConcessionScheme,
+  getConcessions, requestConcession, reviewConcession, revokeConcession,
   getRefunds, createRefund, processRefund,
   getPendingFees, getDashboard, getReports, getDayBook,
 };

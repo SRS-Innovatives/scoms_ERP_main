@@ -12,6 +12,7 @@ const infrastructureController = require('../controllers/infrastructureControlle
 const staffController = require('../controllers/staffController');
 const studentController = require('../controllers/studentController');
 const feeController = require('../controllers/feeController');
+const concessionController = require('../controllers/concessionController');
 const feeEngineController = require('../controllers/feeEngineController');
 const dashboardController = require('../controllers/dashboardController');
 const announcementController = require('../controllers/announcementController');
@@ -283,6 +284,14 @@ router.get('/fees/challans', shadowPermission(PERMISSIONS.FEES_VIEW), feeControl
 router.post('/fees/challans', shadowPermission(PERMISSIONS.FEES_COLLECT), feeController.createChallan);
 router.get('/fees/scholarships', shadowPermission(PERMISSIONS.FEES_VIEW), feeController.getScholarships);
 router.patch('/fees/assignments/:id/scholarship', shadowPermission(PERMISSIONS.FEES_SETUP), feeController.applyScholarship);
+router.get('/fees/concession-schemes', shadowPermission(PERMISSIONS.FEES_VIEW), concessionController.getSchemes);
+router.post('/fees/concession-schemes', shadowPermission(PERMISSIONS.FEES_SETUP), concessionController.createScheme);
+router.patch('/fees/concession-schemes/:id', shadowPermission(PERMISSIONS.FEES_SETUP), concessionController.updateScheme);
+router.delete('/fees/concession-schemes/:id', shadowPermission(PERMISSIONS.FEES_SETUP), concessionController.deleteScheme);
+router.get('/fees/concessions', shadowPermission(PERMISSIONS.FEES_VIEW), concessionController.getApplications);
+router.post('/fees/concessions', shadowPermission(PERMISSIONS.FEES_SETUP), concessionController.createApplication);
+router.post('/fees/concessions/:id/review', requirePermissionStrict(PERMISSIONS.FEES_CONCESSION_APPROVE), concessionController.reviewApplication);
+router.post('/fees/concessions/:id/revoke', requirePermissionStrict(PERMISSIONS.FEES_CONCESSION_APPROVE), concessionController.revokeApplication);
 router.get('/fees/refunds', shadowPermission(PERMISSIONS.FEES_VIEW), feeController.getRefunds);
 router.post('/fees/refunds', shadowPermission(PERMISSIONS.FEES_REFUND), feeController.createRefund);
 router.patch('/fees/refunds/:id', shadowPermission(PERMISSIONS.FEES_REFUND), feeController.processRefund);
