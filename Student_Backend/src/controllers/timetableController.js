@@ -17,7 +17,7 @@ const getTimetable = async (req, res, next) => {
         entries: {
           include: {
             subject: { select: { name: true, code: true } },
-            staff: { select: { employeeCode: true, user: { select: { email: true } } } },
+            staff: { select: { firstName: true, lastName: true, employeeCode: true, user: { select: { email: true } } } },
           },
           orderBy: [{ dayOfWeek: 'asc' }, { period: 'asc' }],
         },

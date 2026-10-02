@@ -13,6 +13,22 @@ const {
   ValidationError,
 } = require('../../../shared');
 
+/** Academic-year picker for exam creation — mobile-only endpoint (see
+ * scoms-app-staff's examSetup module); nothing on web changes. Newest year first,
+ * with the institution's current year flagged so the picker can pre-select it. */
+const getAcademicYears = async (req, res, next) => {
+  try {
+    const years = await prisma.academicYear.findMany({
+      where: { institutionId: req.institutionId },
+      select: { id: true, yearName: true, isCurrent: true },
+      orderBy: { startDate: 'desc' },
+    });
+    return sendSuccess(res, years, 'Academic years retrieved successfully');
+  } catch (err) {
+    next(err);
+  }
+};
+
 const getExams = async (req, res, next) => {
   try {
     const exams = await prisma.exam.findMany({
@@ -120,4 +136,4 @@ const deleteSchedule = async (req, res, next) => {
   }
 };
 
-module.exports = { getExams, createExam, updateExamStatus, createSchedule, deleteSchedule };
+module.exports = { getAcademicYears, getExams, createExam, updateExamStatus, createSchedule, deleteSchedule };

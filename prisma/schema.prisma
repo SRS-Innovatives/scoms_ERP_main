@@ -338,6 +338,7 @@ model User {
   reportRequestsHandled ReportRequest[]        @relation("ReportRequestAssignedTo")
   notifications         Notification[]
   knowledgeBaseArticles KnowledgeBaseArticle[]
+  deviceTokens          DeviceToken[]
 
   @@unique([email])
   @@unique([mobile])
@@ -353,6 +354,29 @@ model RefreshToken {
   createdAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// One row per (user, device) — a device re-registering the same token just updates
+// lastSeenAt; a token moving to a different account (phone reused/re-logged-in) is
+// re-owned by upserting on the unique `token`, never left pointing at the old user.
+model DeviceToken {
+  id            String   @id @default(uuid())
+  userId        String
+  institutionId String? // denormalized from User for fast "notify everyone in institution X" push fan-out
+  token         String   @unique
+  platform      DevicePlatform
+  createdAt     DateTime @default(now())
+  lastSeenAt    DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([institutionId])
+}
+
+enum DevicePlatform {
+  ANDROID
+  IOS
 }
 
 // ------------------------------------------------------

@@ -204,6 +204,7 @@ router.get('/academic-calendar', requireModule('academic_calendar'), academicCal
 
 // Exam Setup (Exam Admin — create/schedule; marks entry & publishing already above)
 router.use('/exam-setup', requireModule('examination'));
+router.get('/exam-setup/academic-years', shadowPermission(PERMISSIONS.EXAMS_VIEW), examAdminController.getAcademicYears);
 router.get('/exam-setup/exams', shadowPermission(PERMISSIONS.EXAMS_VIEW), examAdminController.getExams);
 router.post('/exam-setup/exams', shadowPermission(PERMISSIONS.EXAMS_CREATE), examAdminController.createExam);
 router.patch('/exam-setup/exams/:id/status', shadowPermission(PERMISSIONS.EXAMS_CREATE), examAdminController.updateExamStatus);
@@ -248,6 +249,7 @@ router.post('/transport/trips/complete', shadowPermission(PERMISSIONS.TRANSPORT_
 router.use('/hostel', requireModule('hostel'));
 router.get('/hostel/hostels', shadowPermission(PERMISSIONS.HOSTEL_MANAGE), hostelController.getHostels);
 router.post('/hostel/hostels', shadowPermission(PERMISSIONS.HOSTEL_MANAGE), hostelController.createHostel);
+router.get('/hostel/students', shadowPermission(PERMISSIONS.HOSTEL_MANAGE), hostelController.searchStudents);
 router.get('/hostel/beds', shadowPermission(PERMISSIONS.HOSTEL_MANAGE), hostelController.getBeds);
 router.post('/hostel/beds', shadowPermission(PERMISSIONS.HOSTEL_MANAGE), hostelController.createBed);
 router.post('/hostel/beds/allocate', shadowPermission(PERMISSIONS.HOSTEL_MANAGE), hostelController.allocateBed);

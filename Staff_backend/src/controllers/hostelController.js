@@ -67,6 +67,38 @@ const createHostel = async (req, res, next) => {
   }
 };
 
+/** Student picker for bed allocation — only students who don't already have a bed
+ * (HostelBed.studentId is unique), so the Warden never sees a student they'd
+ * immediately get a "already has a bed allocated" error for. Mobile-only endpoint,
+ * added for the mobile allocate-bed flow (see scoms-app-staff's hostel module);
+ * nothing on web changes. */
+const searchStudents = async (req, res, next) => {
+  try {
+    const { q } = req.query;
+    const students = await prisma.student.findMany({
+      where: {
+        institutionId: req.institutionId,
+        status: 'ACTIVE',
+        hostelBed: null,
+        ...(q && {
+          OR: [
+            { firstName: { contains: q, mode: 'insensitive' } },
+            { lastName: { contains: q, mode: 'insensitive' } },
+            { rollNumber: { contains: q, mode: 'insensitive' } },
+            { admissionNumber: { contains: q, mode: 'insensitive' } },
+          ],
+        }),
+      },
+      select: { id: true, firstName: true, lastName: true, rollNumber: true, admissionNumber: true },
+      take: 20,
+      orderBy: { rollNumber: 'asc' },
+    });
+    return sendSuccess(res, students, 'Students retrieved successfully');
+  } catch (err) {
+    next(err);
+  }
+};
+
 // ============================================================
 // Beds — room/bed inventory + allocation
 // ============================================================
@@ -278,6 +310,7 @@ const checkOutVisitor = async (req, res, next) => {
 module.exports = {
   getHostels,
   createHostel,
+  searchStudents,
   getBeds,
   createBed,
   allocateBed,
