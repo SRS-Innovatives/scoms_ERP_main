@@ -84,6 +84,10 @@ router.get('/attendance/history', shadowPermission(PERMISSIONS.ATTENDANCE_VIEW),
 router.get('/attendance/monthly-grid', shadowPermission(PERMISSIONS.ATTENDANCE_VIEW), attendanceController.getMonthlyGrid);
 router.post('/attendance/mark', shadowPermission(PERMISSIONS.ATTENDANCE_MARK), attendanceController.markAttendance);
 router.patch('/attendance/:sessionId', shadowPermission(PERMISSIONS.ATTENDANCE_UPDATE), attendanceController.updateAttendance);
+router.post('/attendance/:sessionId/corrections', shadowPermission(PERMISSIONS.ATTENDANCE_UPDATE), attendanceController.createCorrectionRequest);
+router.get('/attendance-corrections/mine', requireModule('attendance'), shadowPermission(PERMISSIONS.ATTENDANCE_VIEW), attendanceController.getMyCorrectionRequests);
+router.get('/attendance-corrections', requireModule('attendance'), requirePermissionStrict(PERMISSIONS.ATTENDANCE_APPROVE), attendanceController.getPendingCorrections);
+router.post('/attendance-corrections/:id/review', requireModule('attendance'), requirePermissionStrict(PERMISSIONS.ATTENDANCE_APPROVE), attendanceController.reviewCorrectionRequest);
 
 // Assignment / Homework Routes
 router.use('/assignments', requireModule('homework'));

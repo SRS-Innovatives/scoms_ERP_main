@@ -56,6 +56,7 @@ const PERMISSIONS = {
   ATTENDANCE_VIEW: 'attendance.view',
   ATTENDANCE_MARK: 'attendance.mark',
   ATTENDANCE_UPDATE: 'attendance.update',
+  ATTENDANCE_APPROVE: 'attendance.approve',
 
   // Leave Management
   LEAVE_APPLY: 'leave.apply',

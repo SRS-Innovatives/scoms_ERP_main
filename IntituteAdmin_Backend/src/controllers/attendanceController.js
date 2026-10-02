@@ -2,7 +2,9 @@
  * Institute Admin Attendance Oversight Controller — read-only visibility across the
  * whole institution (recording itself happens on the Staff side, per subject/section).
  */
-const { prisma, sendSuccess, sendSMSNotification, ValidationError } = require('../../../shared');
+const { prisma, sendSuccess, sendSMSNotification, ValidationError, attendanceRules } = require('../../../shared');
+
+const { isAttended } = attendanceRules;
 
 const startOfDay = (d) => { const x = new Date(d); x.setHours(0, 0, 0, 0); return x; };
 const endOfDay = (d) => { const x = new Date(d); x.setHours(23, 59, 59, 999); return x; };
@@ -122,7 +124,7 @@ const getReports = async (req, res, next) => {
       const key = r.session.date.toISOString().slice(0, 10);
       if (!byDate[key]) byDate[key] = { date: key, present: 0, absent: 0, total: 0 };
       byDate[key].total++;
-      if (r.status === 'PRESENT' || r.status === 'LATE') byDate[key].present++;
+      if (isAttended(r.status)) byDate[key].present++;
       else if (r.status === 'ABSENT') byDate[key].absent++;
     });
 
@@ -131,7 +133,7 @@ const getReports = async (req, res, next) => {
       .map((d) => ({ ...d, rate: d.total > 0 ? Number(((d.present / d.total) * 100).toFixed(1)) : 0 }));
 
     const overallTotal = records.length;
-    const overallPresent = records.filter((r) => r.status === 'PRESENT' || r.status === 'LATE').length;
+    const overallPresent = records.filter((r) => isAttended(r.status)).length;
 
     return sendSuccess(res, {
       trend,
@@ -146,7 +148,7 @@ const getReports = async (req, res, next) => {
 // Priority order when a student has more than one session/period recorded on the same
 // day (e.g. period-wise attendance) — the worst status of the day wins, so a student
 // absent for even one period shows as ABSENT for that day rather than being averaged away.
-const DAY_STATUS_PRIORITY = ['ABSENT', 'HALF_DAY', 'LATE', 'LEAVE', 'PRESENT'];
+const DAY_STATUS_PRIORITY = ['ABSENT', 'HALF_DAY', 'LATE', 'LEAVE', 'ON_DUTY', 'PRESENT'];
 const collapseDayStatus = (statuses) => {
   for (const s of DAY_STATUS_PRIORITY) if (statuses.includes(s)) return s;
   return null;
@@ -202,7 +204,7 @@ const getConsolidatedAttendanceReport = async (req, res, next) => {
         if (!statuses || statuses.length === 0) return null; // no session recorded that day at all
         const dayStatus = collapseDayStatus(statuses);
         markedDays += 1;
-        if (dayStatus === 'PRESENT' || dayStatus === 'LATE') presentDays += 1;
+        if (isAttended(dayStatus)) presentDays += 1;
         return dayStatus;
       });
       return {
@@ -253,7 +255,7 @@ const getDateWiseAttendanceReport = async (req, res, next) => {
       byStudent[r.studentId].push(r.status);
     });
 
-    const summary = { PRESENT: 0, ABSENT: 0, LATE: 0, LEAVE: 0, HALF_DAY: 0, NOT_MARKED: 0 };
+    const summary = { PRESENT: 0, ABSENT: 0, LATE: 0, LEAVE: 0, HALF_DAY: 0, ON_DUTY: 0, NOT_MARKED: 0 };
     const rows = students.map((student) => {
       const statuses = byStudent[student.id];
       const status = statuses && statuses.length > 0 ? collapseDayStatus(statuses) : 'NOT_MARKED';
@@ -270,7 +272,7 @@ const getDateWiseAttendanceReport = async (req, res, next) => {
     });
 
     const markedCount = students.length - summary.NOT_MARKED;
-    const presentCount = summary.PRESENT + summary.LATE;
+    const presentCount = summary.PRESENT + summary.LATE + summary.ON_DUTY;
 
     return sendSuccess(res, {
       date,
@@ -284,7 +286,33 @@ const getDateWiseAttendanceReport = async (req, res, next) => {
   }
 };
 
+const getCorrectionRequests = async (req, res, next) => {
+  try {
+    const requests = await attendanceRules.listCorrectionRequests({ institutionId: req.institutionId, status: req.query.status });
+    return sendSuccess(res, requests, 'Correction requests retrieved');
+  } catch (err) {
+    next(err);
+  }
+};
+
+const reviewCorrectionRequest = async (req, res, next) => {
+  try {
+    const result = await attendanceRules.reviewCorrectionRequest({
+      requestId: req.params.id,
+      institutionId: req.institutionId,
+      userId: req.user.id,
+      decision: req.body.decision,
+      remarks: req.body.remarks,
+    });
+    return sendSuccess(res, result, req.body.decision === 'APPROVE' ? 'Correction applied' : 'Correction rejected');
+  } catch (err) {
+    next(err);
+  }
+};
+
 module.exports = {
+  getCorrectionRequests,
+  reviewCorrectionRequest,
   getDailyRegister,
   getAbsentees,
   notifyAbsentees,

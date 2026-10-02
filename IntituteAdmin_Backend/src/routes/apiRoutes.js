@@ -566,6 +566,8 @@ router.get('/attendance/absentees', shadowPermission(PERMISSIONS.ATTENDANCE_VIEW
 router.post('/attendance/absentees/notify', shadowPermission(PERMISSIONS.NOTIFICATIONS_SEND), attendanceController.notifyAbsentees);
 router.get('/attendance/consolidated-report', shadowPermission(PERMISSIONS.ATTENDANCE_VIEW), attendanceController.getConsolidatedAttendanceReport);
 router.get('/attendance/date-wise-report', shadowPermission(PERMISSIONS.ATTENDANCE_VIEW), attendanceController.getDateWiseAttendanceReport);
+router.get('/attendance/corrections', requirePermissionStrict(PERMISSIONS.ATTENDANCE_APPROVE), attendanceController.getCorrectionRequests);
+router.post('/attendance/corrections/:id/review', requirePermissionStrict(PERMISSIONS.ATTENDANCE_APPROVE), attendanceController.reviewCorrectionRequest);
 
 // Dynamic Report Builder (Phase 8) — registered before the /reports/:code/... wildcard
 // block below so these specific literal paths always win, regardless of what report

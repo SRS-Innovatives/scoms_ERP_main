@@ -365,13 +365,13 @@ model RefreshToken {
 // lastSeenAt; a token moving to a different account (phone reused/re-logged-in) is
 // re-owned by upserting on the unique `token`, never left pointing at the old user.
 model DeviceToken {
-  id            String   @id @default(uuid())
+  id            String         @id @default(uuid())
   userId        String
   institutionId String? // denormalized from User for fast "notify everyone in institution X" push fan-out
-  token         String   @unique
+  token         String         @unique
   platform      DevicePlatform
-  createdAt     DateTime @default(now())
-  lastSeenAt    DateTime @default(now())
+  createdAt     DateTime       @default(now())
+  lastSeenAt    DateTime       @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -770,9 +770,9 @@ model Room {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  institution      Institution     @relation(fields: [institutionId], references: [id], onDelete: Cascade)
-  building         Building        @relation(fields: [buildingId], references: [id], onDelete: Cascade)
-  floor            Floor?          @relation(fields: [floorId], references: [id], onDelete: SetNull)
+  institution      Institution      @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  building         Building         @relation(fields: [buildingId], references: [id], onDelete: Cascade)
+  floor            Floor?           @relation(fields: [floorId], references: [id], onDelete: SetNull)
   timetableEntries TimetableEntry[]
   examSchedules    ExamSchedule[]
   hostelBeds       HostelBed[]
@@ -1021,46 +1021,47 @@ model Student {
   customFields Json?
 
   // Relations
-  user                User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  institution         Institution              @relation(fields: [institutionId], references: [id])
-  department          Department?              @relation(fields: [departmentId], references: [id])
-  course              Course?                  @relation(fields: [courseId], references: [id])
-  section             Section?                 @relation(fields: [sectionId], references: [id])
-  batch               Batch?                   @relation(fields: [batchId], references: [id], onDelete: SetNull)
-  markCorrections     MarkCorrectionRequest[]
-  parents             ParentStudent[]
-  attendanceRecords   AttendanceRecord[]
-  leaveRequests       LeaveRequest[]
-  submissions         AssignmentSubmission[]
-  studentMarks        StudentMark[]
-  feeAssignments      StudentFeeAssignment[]
-  feePayments         FeePayment[]
-  feeReceipts         FeeReceipt[]
-  feeChallans         FeeChallan[]
-  feeRefunds          FeeRefund[]
-  bookIssues          BookIssue[]
-  libraryMember       LibraryMember?
-  documents           StudentDocument[]
-  exitRecords         StudentExitRecord[]
-  transport           StudentTransportMapping?
-  hostelBed           HostelBed?
-  hostelVisitorLogs   HostelVisitorLog[]
-  certificateRequests CertificateRequest[]
-  certificates        Certificate[]
-  grievances          Grievance[]
-  resume              StudentResume?
-  eventRegistrations  EventRegistration[]
-  clubMemberships     ClubMember[]
-  achievements        StudentAchievement[]
-  courseFeedback      CourseFeedback[]
-  appointments        Appointment[]
-  jobApplications     JobApplication[]
-  parentMeetingNotes  ParentMeetingNote[]
-  equipmentIssues     EquipmentIssue[]
-  alumniRecord        AlumniRecord?
-  degreeRecords       DegreeRecord[]
-  disciplineRecords   DisciplineRecord[]
-  healthRecords       HealthRecord[]
+  user                  User                          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  institution           Institution                   @relation(fields: [institutionId], references: [id])
+  department            Department?                   @relation(fields: [departmentId], references: [id])
+  course                Course?                       @relation(fields: [courseId], references: [id])
+  section               Section?                      @relation(fields: [sectionId], references: [id])
+  batch                 Batch?                        @relation(fields: [batchId], references: [id], onDelete: SetNull)
+  markCorrections       MarkCorrectionRequest[]
+  attendanceCorrections AttendanceCorrectionRequest[]
+  parents               ParentStudent[]
+  attendanceRecords     AttendanceRecord[]
+  leaveRequests         LeaveRequest[]
+  submissions           AssignmentSubmission[]
+  studentMarks          StudentMark[]
+  feeAssignments        StudentFeeAssignment[]
+  feePayments           FeePayment[]
+  feeReceipts           FeeReceipt[]
+  feeChallans           FeeChallan[]
+  feeRefunds            FeeRefund[]
+  bookIssues            BookIssue[]
+  libraryMember         LibraryMember?
+  documents             StudentDocument[]
+  exitRecords           StudentExitRecord[]
+  transport             StudentTransportMapping?
+  hostelBed             HostelBed?
+  hostelVisitorLogs     HostelVisitorLog[]
+  certificateRequests   CertificateRequest[]
+  certificates          Certificate[]
+  grievances            Grievance[]
+  resume                StudentResume?
+  eventRegistrations    EventRegistration[]
+  clubMemberships       ClubMember[]
+  achievements          StudentAchievement[]
+  courseFeedback        CourseFeedback[]
+  appointments          Appointment[]
+  jobApplications       JobApplication[]
+  parentMeetingNotes    ParentMeetingNote[]
+  equipmentIssues       EquipmentIssue[]
+  alumniRecord          AlumniRecord?
+  degreeRecords         DegreeRecord[]
+  disciplineRecords     DisciplineRecord[]
+  healthRecords         HealthRecord[]
 
   @@unique([institutionId, admissionNumber])
   @@unique([sectionId, rollNumber]) // roll numbers are assigned per-class; NULLs (no section/no roll yet) never collide
@@ -1235,6 +1236,29 @@ enum AttendanceStatus {
   LATE
   LEAVE
   HALF_DAY
+  ON_DUTY // counted as attended
+}
+
+model AttendanceCorrectionRequest {
+  id            String                  @id @default(uuid())
+  institutionId String
+  sessionId     String
+  studentId     String
+  requestedById String // User.id
+  oldStatus     AttendanceStatus?
+  newStatus     AttendanceStatus
+  reason        String
+  status        CorrectionRequestStatus @default(PENDING)
+  reviewedById  String?
+  reviewedAt    DateTime?
+  reviewRemarks String?
+  createdAt     DateTime                @default(now())
+
+  session AttendanceSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  student Student           @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([institutionId, status])
+  @@index([sessionId])
 }
 
 model AttendanceSession {
@@ -1247,11 +1271,12 @@ model AttendanceSession {
   periodNumber  Int?     @default(1)
   createdAt     DateTime @default(now())
 
-  institution Institution        @relation(fields: [institutionId], references: [id])
-  section     Section            @relation(fields: [sectionId], references: [id])
-  subject     Subject?           @relation(fields: [subjectId], references: [id])
-  takenBy     Staff              @relation(fields: [takenById], references: [id])
+  institution Institution                   @relation(fields: [institutionId], references: [id])
+  section     Section                       @relation(fields: [sectionId], references: [id])
+  subject     Subject?                      @relation(fields: [subjectId], references: [id])
+  takenBy     Staff                         @relation(fields: [takenById], references: [id])
   records     AttendanceRecord[]
+  corrections AttendanceCorrectionRequest[]
 
   @@unique([institutionId, sectionId, date, periodNumber])
 }
@@ -1500,22 +1525,22 @@ enum ExamMarkStatus {
 /// A request to change one student's mark after it has been locked (submitted for review or
 /// published). Approving it rewrites the StudentMark and is the correction audit trail.
 model MarkCorrectionRequest {
-  id              String                  @id @default(uuid())
-  institutionId   String
-  examScheduleId  String
-  studentId       String
-  requestedById   String // User.id
-  oldMarks        Float?
-  oldIsAbsent     Boolean?
-  newMarks        Float?
-  newIsAbsent     Boolean                 @default(false)
-  reason          String
-  status          CorrectionRequestStatus @default(PENDING)
-  reviewedById    String?
-  reviewedAt      DateTime?
-  reviewRemarks   String?
-  createdAt       DateTime                @default(now())
-  updatedAt       DateTime                @updatedAt
+  id             String                  @id @default(uuid())
+  institutionId  String
+  examScheduleId String
+  studentId      String
+  requestedById  String // User.id
+  oldMarks       Float?
+  oldIsAbsent    Boolean?
+  newMarks       Float?
+  newIsAbsent    Boolean                 @default(false)
+  reason         String
+  status         CorrectionRequestStatus @default(PENDING)
+  reviewedById   String?
+  reviewedAt     DateTime?
+  reviewRemarks  String?
+  createdAt      DateTime                @default(now())
+  updatedAt      DateTime                @updatedAt
 
   examSchedule ExamSchedule @relation(fields: [examScheduleId], references: [id], onDelete: Cascade)
   student      Student      @relation(fields: [studentId], references: [id], onDelete: Cascade)
@@ -2455,6 +2480,7 @@ model InstitutionSettings {
   idCardOrientation         String   @default("VERTICAL") // VERTICAL | HORIZONTAL — the institution's chosen ID card layout, applied everywhere a student/staff ID card renders
   idCardTemplate            String   @default("CLASSIC") // CLASSIC | MODERN | MINIMAL — the institution's chosen visual style
   examApprovalRequired      Boolean  @default(false) // on = marks must be SUBMITTED -> VERIFIED -> APPROVED before they can be published
+  attendanceLockDays        Int? // null = never lock; N = sessions older than N days need an approved correction request
   paymentGatewayProvider    String?
   paymentKeyId              String? // public key/merchant id only — secrets stay server-side (.env), never stored here
   updatedAt                 DateTime @updatedAt

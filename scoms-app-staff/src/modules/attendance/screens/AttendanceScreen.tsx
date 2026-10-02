@@ -23,8 +23,19 @@ const TODAY = new Date().toISOString().slice(0, 10);
 // API's own `status` field on a roster row means something else entirely (see
 // attendanceService.ts).
 interface RosterDraftItem extends RosterStudent {
-  attendanceStatus: 'PRESENT' | 'ABSENT';
+  attendanceStatus: 'PRESENT' | 'ABSENT' | 'ON_DUTY';
 }
+
+const NEXT_STATUS: Record<RosterDraftItem['attendanceStatus'], RosterDraftItem['attendanceStatus']> = {
+  PRESENT: 'ABSENT',
+  ABSENT: 'ON_DUTY',
+  ON_DUTY: 'PRESENT',
+};
+const STATUS_LABEL: Record<RosterDraftItem['attendanceStatus'], string> = {
+  PRESENT: 'PRESENT',
+  ABSENT: 'ABSENT',
+  ON_DUTY: 'ON DUTY',
+};
 
 export function AttendanceScreen() {
   const [selectedClass, setSelectedClass] = useState<ClassAssignment | null>(null);
@@ -52,7 +63,7 @@ export function AttendanceScreen() {
     setRoster((prev) =>
       prev.map((s) =>
         s.id === studentId
-          ? { ...s, attendanceStatus: s.attendanceStatus === 'PRESENT' ? 'ABSENT' : 'PRESENT' }
+          ? { ...s, attendanceStatus: NEXT_STATUS[s.attendanceStatus] }
           : s,
       ),
     );
@@ -101,8 +112,14 @@ export function AttendanceScreen() {
                 <TouchableOpacity onPress={() => toggleStatus(item.id)}>
                   <Card style={styles.studentRow}>
                     <Text style={styles.studentName}>{item.rollNumber} · {item.firstName} {item.lastName}</Text>
-                    <Text style={[styles.statusBadge, item.attendanceStatus === 'ABSENT' && styles.absentBadge]}>
-                      {item.attendanceStatus}
+                    <Text
+                      style={[
+                        styles.statusBadge,
+                        item.attendanceStatus === 'ABSENT' && styles.absentBadge,
+                        item.attendanceStatus === 'ON_DUTY' && styles.onDutyBadge,
+                      ]}
+                    >
+                      {STATUS_LABEL[item.attendanceStatus]}
                     </Text>
                   </Card>
                 </TouchableOpacity>
@@ -151,5 +168,6 @@ const styles = StyleSheet.create({
   studentName: { ...typography.body, color: colors.textPrimary },
   statusBadge: { ...typography.caption, color: colors.success, fontWeight: '700' },
   absentBadge: { color: colors.danger },
+  onDutyBadge: { color: colors.primary },
   submit: { margin: spacing.md },
 });

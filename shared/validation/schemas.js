@@ -84,7 +84,7 @@ const markAttendanceSchema = z.object({
   records: z.array(
     z.object({
       studentId: z.string().min(1),
-      status: z.enum(['PRESENT', 'ABSENT', 'LATE', 'LEAVE', 'HALF_DAY']),
+      status: z.enum(['PRESENT', 'ABSENT', 'LATE', 'LEAVE', 'HALF_DAY', 'ON_DUTY']),
       remarks: z.string().optional(),
     })
   ),

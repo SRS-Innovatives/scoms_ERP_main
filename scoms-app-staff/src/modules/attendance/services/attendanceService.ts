@@ -63,7 +63,7 @@ export interface MarkAttendancePayload {
   sectionId: string;
   subjectId: string;
   date: string;
-  records: { studentId: string; status: 'PRESENT' | 'ABSENT' | 'LATE' }[];
+  records: { studentId: string; status: 'PRESENT' | 'ABSENT' | 'LATE' | 'ON_DUTY' }[];
 }
 
 // The backend independently re-verifies this staff member is actually assigned to

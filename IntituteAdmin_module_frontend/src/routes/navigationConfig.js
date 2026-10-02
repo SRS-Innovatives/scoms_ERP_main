@@ -141,6 +141,7 @@ export const navigationConfig = [
       { key: 'subject-att', title: 'Subject-wise Attendance', path: '/admin/attendance/subject' },
       { key: 'biometric', title: 'Biometric Sync', path: '/admin/attendance/biometric' },
       { key: 'absent-list', title: 'Absentee List & SMS', path: '/admin/attendance/absentee' },
+      { key: 'att-corrections', title: 'Lock & Corrections', path: '/admin/attendance/corrections' },
       { key: 'att-reports', title: 'Attendance Reports', path: '/admin/attendance/reports' }
     ]
   },

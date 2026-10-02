@@ -10,7 +10,11 @@ const {
   sendSMSNotification,
   pushNotificationToMany,
   logger,
+  BusinessRuleError,
+  attendanceRules,
 } = require('../../../shared');
+
+const { isAttended, assertDateEditable } = attendanceRules;
 
 /** Whether the Institute Admin currently allows staff-triggered absence SMS — the "Take
  * Attendance" screen reads this to tell staff the truth about what pressing Save will do. */
@@ -81,7 +85,7 @@ const getRoster = async (req, res, next) => {
     records.forEach((r) => {
       if (!statsByStudent[r.studentId]) statsByStudent[r.studentId] = { total: 0, present: 0 };
       statsByStudent[r.studentId].total += 1;
-      if (r.status === 'PRESENT' || r.status === 'LATE') statsByStudent[r.studentId].present += 1;
+      if (isAttended(r.status)) statsByStudent[r.studentId].present += 1;
     });
 
     const withStats = students.map((s) => ({
@@ -112,7 +116,8 @@ const getSession = async (req, res, next) => {
       },
       include: { records: true, subject: { select: { name: true } } },
     });
-    return sendSuccess(res, session, session ? 'Existing session found' : 'No session recorded yet');
+    const locked = session ? attendanceRules.isDateLocked(session.date, await attendanceRules.getLockDays(req.institutionId)) : false;
+    return sendSuccess(res, session && { ...session, locked }, session ? 'Existing session found' : 'No session recorded yet');
   } catch (err) {
     next(err);
   }
@@ -122,6 +127,7 @@ const markAttendance = async (req, res, next) => {
   try {
     const { sectionId, subjectId, date, periodNumber = 1, records } = req.body;
     const sessionDate = new Date(date);
+    await assertDateEditable(sessionDate, req.institutionId);
 
     // Prevent duplicate attendance recording for same section, subject, date, period
     const existingSession = await prisma.attendanceSession.findFirst({
@@ -176,6 +182,7 @@ const updateAttendance = async (req, res, next) => {
       where: { id: sessionId, institutionId: req.institutionId },
     });
     if (!session) throw new NotFoundError('Attendance session not found');
+    await assertDateEditable(session.date, req.institutionId);
 
     await prisma.$transaction(
       records.map((rec) =>
@@ -222,7 +229,7 @@ const getHistory = async (req, res, next) => {
       section: s.section?.name,
       subject: s.subject?.name,
       totalStudents: s.records.length,
-      presentCount: s.records.filter((r) => r.status === 'PRESENT' || r.status === 'LATE').length,
+      presentCount: s.records.filter((r) => isAttended(r.status)).length,
       absentCount: s.records.filter((r) => r.status === 'ABSENT').length,
     }));
 
@@ -339,7 +346,69 @@ const notifyAbsentParents = async (records, institutionId, staffId) => {
   }
 };
 
+/** Raise a correction for a locked session — only the staff member who took it, or who teaches that section. */
+const createCorrectionRequest = async (req, res, next) => {
+  try {
+    const { sessionId } = req.params;
+    const session = await prisma.attendanceSession.findFirst({ where: { id: sessionId, institutionId: req.institutionId } });
+    if (!session) throw new NotFoundError('Attendance session not found');
+    if (session.takenById !== req.user.staffId) {
+      const teaches = await prisma.subjectTeacherMapping.findFirst({ where: { staffId: req.user.staffId, sectionId: session.sectionId } });
+      if (!teaches) throw new BusinessRuleError('You can only request corrections for classes you teach');
+    }
+    const { studentId, newStatus, reason } = req.body;
+    const request = await attendanceRules.createCorrectionRequest({
+      sessionId,
+      institutionId: req.institutionId,
+      userId: req.user.id,
+      studentId,
+      newStatus,
+      reason,
+    });
+    return sendSuccess(res, request, 'Correction request raised', 201);
+  } catch (err) {
+    next(err);
+  }
+};
+
+const getMyCorrectionRequests = async (req, res, next) => {
+  try {
+    const requests = await attendanceRules.listCorrectionRequests({ institutionId: req.institutionId, requestedById: req.user.id });
+    return sendSuccess(res, requests, 'Correction requests retrieved');
+  } catch (err) {
+    next(err);
+  }
+};
+
+const getPendingCorrections = async (req, res, next) => {
+  try {
+    const requests = await attendanceRules.listCorrectionRequests({ institutionId: req.institutionId, status: req.query.status || 'PENDING' });
+    return sendSuccess(res, requests, 'Correction requests retrieved');
+  } catch (err) {
+    next(err);
+  }
+};
+
+const reviewCorrectionRequest = async (req, res, next) => {
+  try {
+    const result = await attendanceRules.reviewCorrectionRequest({
+      requestId: req.params.id,
+      institutionId: req.institutionId,
+      userId: req.user.id,
+      decision: req.body.decision,
+      remarks: req.body.remarks,
+    });
+    return sendSuccess(res, result, req.body.decision === 'APPROVE' ? 'Correction applied' : 'Correction rejected');
+  } catch (err) {
+    next(err);
+  }
+};
+
 module.exports = {
+  createCorrectionRequest,
+  getMyCorrectionRequests,
+  getPendingCorrections,
+  reviewCorrectionRequest,
   getSmsStatus,
   getMyClasses,
   getRoster,

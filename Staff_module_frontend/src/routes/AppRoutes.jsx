@@ -26,6 +26,7 @@ import ClassStrengthPage from '../pages/classes/ClassStrengthPage';
 // Attendance
 import TakeAttendancePage from '../pages/attendance/TakeAttendancePage';
 import EditAttendancePage from '../pages/attendance/EditAttendancePage';
+import AttendanceCorrectionsPage from '../pages/attendance/AttendanceCorrectionsPage';
 import SubjectAttendancePage from '../pages/attendance/SubjectAttendancePage';
 import MonthlyAttendancePage from '../pages/attendance/MonthlyAttendancePage';
 import AbsentStudentsPage from '../pages/attendance/AbsentStudentsPage';
@@ -180,6 +181,7 @@ export const AppRoutes = () => {
             {/* Attendance */}
             <Route path="attendance/take" element={<TakeAttendancePage />} />
             <Route path="attendance/edit" element={<EditAttendancePage />} />
+            <Route path="attendance/corrections" element={<AttendanceCorrectionsPage />} />
             <Route path="attendance/subject" element={<SubjectAttendancePage />} />
             <Route path="attendance/monthly" element={<MonthlyAttendancePage />} />
             <Route path="attendance/absent" element={<AbsentStudentsPage />} />

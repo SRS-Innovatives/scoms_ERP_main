@@ -16,6 +16,7 @@ const STATUS_STYLE = {
   LATE: { label: 'L', bg: '#fef9c3', color: '#a16207' },
   HALF_DAY: { label: 'H', bg: '#fed7aa', color: '#c2410c' },
   LEAVE: { label: 'LV', bg: '#e0e7ff', color: '#4338ca' },
+  ON_DUTY: { label: 'OD', bg: '#cffafe', color: '#0e7490' },
 };
 
 const sectionLabel = (s) => `${s.semester?.course?.name || ''} — ${s.semester?.name || ''} — ${s.name}`;

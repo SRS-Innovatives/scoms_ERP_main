@@ -43,6 +43,7 @@ const { EVENT_TYPES } = require('./events/eventTypes');
 const { seedIntegrationProviders } = require('./integrations/seedIntegrationProviders');
 const { resolveRoom, resolveRoomsById } = require('./utils/rooms');
 const resultLifecycle = require('./exams/resultLifecycle');
+const attendanceRules = require('./attendance/attendanceRules');
 const {
   handleGetNotifications,
   handleGetUnreadCount,
@@ -119,4 +120,5 @@ module.exports = {
   resolveRoom,
   resolveRoomsById,
   resultLifecycle,
+  attendanceRules,
 };

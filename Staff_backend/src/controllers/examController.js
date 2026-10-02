@@ -11,6 +11,7 @@ const {
   getGradeScale,
   resolveGrade,
   resultLifecycle,
+  attendanceRules,
 } = require('../../../shared');
 const ExcelJS = require('exceljs');
 
@@ -439,7 +440,7 @@ const getStudentPerformanceSummary = async (req, res, next) => {
     attendanceRecords.forEach((r) => {
       if (!attStats[r.studentId]) attStats[r.studentId] = { total: 0, present: 0 };
       attStats[r.studentId].total += 1;
-      if (r.status === 'PRESENT' || r.status === 'LATE') attStats[r.studentId].present += 1;
+      if (attendanceRules.isAttended(r.status)) attStats[r.studentId].present += 1;
     });
 
     const markStats = {};

@@ -11,6 +11,11 @@ export const attendanceService = {
   getMonthlyGrid: async (sectionId, month, year) => apiCall(`/attendance/monthly-grid?sectionId=${sectionId}&month=${month}&year=${year}`),
   markAttendance: async (payload) => apiCall('/attendance/mark', { method: 'POST', body: payload }),
   updateAttendance: async (sessionId, records) => apiCall(`/attendance/${sessionId}`, { method: 'PATCH', body: { records } }),
+  requestCorrection: async (sessionId, payload) => apiCall(`/attendance/${sessionId}/corrections`, { method: 'POST', body: payload }),
+  getMyCorrections: async () => apiCall('/attendance-corrections/mine'),
+  getPendingCorrections: async () => apiCall('/attendance-corrections'),
+  reviewCorrection: async (id, decision, remarks) =>
+    apiCall(`/attendance-corrections/${id}/review`, { method: 'POST', body: { decision, remarks } }),
 };
 
 export default attendanceService;

@@ -65,6 +65,7 @@ import PayrollPage from '../pages/staff/PayrollPage';
 
 // Attendance
 import DailyAttendancePage from '../pages/attendance/DailyAttendancePage';
+import AttendanceCorrectionsPage from '../pages/attendance/AttendanceCorrectionsPage';
 import SubjectAttendancePage from '../pages/attendance/SubjectAttendancePage';
 import BiometricImportPage from '../pages/attendance/BiometricImportPage';
 import AbsentStudentsPage from '../pages/attendance/AbsentStudentsPage';
@@ -284,6 +285,7 @@ export const AppRoutes = () => {
 
         {/* Attendance */}
         <Route path="attendance/daily" element={<DailyAttendancePage />} />
+        <Route path="attendance/corrections" element={<AttendanceCorrectionsPage />} />
         <Route path="attendance/subject" element={<SubjectAttendancePage />} />
         <Route path="attendance/biometric" element={<BiometricImportPage />} />
         <Route path="attendance/absentee" element={<AbsentStudentsPage />} />

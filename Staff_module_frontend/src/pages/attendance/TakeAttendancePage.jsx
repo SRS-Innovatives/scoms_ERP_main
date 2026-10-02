@@ -5,7 +5,7 @@ import { useNotification } from '../../context/NotificationContext';
 import { Calendar, Clock, BookOpen, Save, Loader2 } from 'lucide-react';
 import ErrorState from '../../components/common/ErrorState';
 
-const UI_TO_STATUS = { Present: 'PRESENT', Absent: 'ABSENT', Late: 'LATE', 'On Duty': 'LEAVE' };
+const UI_TO_STATUS = { Present: 'PRESENT', Absent: 'ABSENT', Late: 'LATE', 'On Duty': 'ON_DUTY' };
 
 export const TakeAttendancePage = () => {
   const { success, error: showError } = useNotification();
