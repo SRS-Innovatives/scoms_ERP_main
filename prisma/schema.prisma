@@ -3744,6 +3744,7 @@ enum PreAdmissionStatus {
   NEW
   UNDER_REVIEW
   SHORTLISTED
+  DOCUMENTS_VERIFIED
   ENROLLED
   REJECTED
   CONVERTED
@@ -3761,44 +3762,47 @@ enum PreAdmissionStatus {
 /// issued) → CONVERTED (an "Admit" action turns it into a real Student record) — or
 /// REJECTED at any point before that.
 model PreAdmissionApplication {
-  id                 String             @id @default(uuid())
-  institutionId      String
-  applicationNumber  String // e.g. "DPIS/PADM/2026/00001" — auto-generated, always set, this institution's own tracking number
-  referenceNumber    String? // optional external reference the institution's own website/CRM may already use
-  receiptNumber      String? // set once "Generate Receipt" is used — an application/registration fee receipt
-  studentFirstName   String
-  studentLastName    String?
-  dob                DateTime?
-  gender             String?
-  classAppliedFor    String? // school-style ("Class 5")
-  courseApplied      String? // college-style ("B.Tech CSE") — a form only fills whichever applies to that institution
-  academicYear       String?
-  parentName         String?
-  parentPhone        String
-  parentEmail        String?
-  address            String?
-  city               String?
-  state              String?
-  pincode            String?
-  previousSchool     String?
-  previousClass      String?
-  source             String             @default("WEBSITE") // WEBSITE, API, MANUAL
-  submittedFromIp    String?
-  rawPayload         Json? // the full submitted body, kept as-is for audit/debugging
-  customFields       Json? // only the values matching APPROVED AdmissionCustomField keys at submission time — this is what actually carries through to the Student on Admit
+  id                    String             @id @default(uuid())
+  institutionId         String
+  applicationNumber     String // e.g. "DPIS/PADM/2026/00001" — auto-generated, always set, this institution's own tracking number
+  referenceNumber       String? // optional external reference the institution's own website/CRM may already use
+  receiptNumber         String? // set once "Generate Receipt" is used — an application/registration fee receipt
+  studentFirstName      String
+  studentLastName       String?
+  dob                   DateTime?
+  gender                String?
+  classAppliedFor       String? // school-style ("Class 5")
+  courseApplied         String? // college-style ("B.Tech CSE") — a form only fills whichever applies to that institution
+  academicYear          String?
+  parentName            String?
+  parentPhone           String
+  parentEmail           String?
+  address               String?
+  city                  String?
+  state                 String?
+  pincode               String?
+  previousSchool        String?
+  previousClass         String?
+  source                String             @default("WEBSITE") // WEBSITE, API, MANUAL
+  submittedFromIp       String?
+  rawPayload            Json? // the full submitted body, kept as-is for audit/debugging
+  customFields          Json? // only the values matching APPROVED AdmissionCustomField keys at submission time — this is what actually carries through to the Student on Admit
   // Application fee — only meaningful when the institution has set Institution.preAdmissionFeeAmount;
   // feeAmount is snapshotted at submission time so a later fee-amount change never rewrites history.
-  feeAmount          Float?
-  feePaid            Boolean            @default(false)
-  feePaymentId       String? // the real Razorpay payment id once verified (see shared/utils/paymentGateway)
-  feePaidAt          DateTime?
-  status             PreAdmissionStatus @default(NEW)
-  enrolledAt         DateTime? // when the applicant was accepted/enrolled (the "Enroll" action)
-  reviewNotes        String?
-  reviewedById       String?
-  convertedStudentId String?
-  createdAt          DateTime           @default(now())
-  updatedAt          DateTime           @updatedAt
+  feeAmount             Float?
+  feePaid               Boolean            @default(false)
+  feePaymentId          String? // the real Razorpay payment id once verified (see shared/utils/paymentGateway)
+  feePaidAt             DateTime?
+  status                PreAdmissionStatus @default(NEW)
+  enrolledAt            DateTime? // when the applicant was accepted/enrolled (the "Enroll" action)
+  documentChecklist     Json? // [{ name, verified }] - set by the "Verify Documents" action
+  documentsVerifiedAt   DateTime?
+  documentsVerifiedById String? // User.id
+  reviewNotes           String?
+  reviewedById          String?
+  convertedStudentId    String?
+  createdAt             DateTime           @default(now())
+  updatedAt             DateTime           @updatedAt
 
   institution Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
   reviewedBy  Staff?      @relation(fields: [reviewedById], references: [id])

@@ -463,6 +463,7 @@ router.get('/pre-admission/applications/:id', preAdmissionController.getApplicat
 router.patch('/pre-admission/applications/:id/status', preAdmissionController.updateStatus);
 router.post('/pre-admission/applications/:id/receipt', preAdmissionController.generateReceipt);
 router.post('/pre-admission/applications/:id/admit', preAdmissionController.admitApplication);
+router.patch('/pre-admission/applications/:id/documents', preAdmissionController.verifyDocuments);
 router.delete('/pre-admission/applications/:id', preAdmissionController.deleteApplication);
 router.get('/pre-admission/settings/api-key', preAdmissionController.getApiKeySettings);
 router.post('/pre-admission/settings/api-key/regenerate', preAdmissionController.regenerateApiKey);

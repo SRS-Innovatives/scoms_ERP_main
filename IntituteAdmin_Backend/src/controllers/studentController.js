@@ -87,7 +87,7 @@ const admitStudentWithinTx = async (tx, institutionId, actingUserId, data) => {
     firstName, lastName, dob, gender, bloodGroup, email, phone,
     address, city, state, pincode,
     fatherName, motherName, guardianName, parentPhone, parentEmail,
-    departmentId, courseId, semesterId, sectionId, rollNumber, registerNumber, password,
+    sectionId, rollNumber, registerNumber, password,
     // Identity & personal
     religion, nationality, motherTongue, aadhaarNumber, category, subCaste, alternatePhone,
     // Contact
@@ -116,12 +116,23 @@ const admitStudentWithinTx = async (tx, institutionId, actingUserId, data) => {
     throw new ValidationError('Student photo must be a PNG or JPEG image');
   }
 
-  // 1. Validate Academic setup belongs to Tenant
+  // 1. Validate Academic setup belongs to Tenant. Blank course/semester/department/batch
+  //    are filled from the chosen section; values the caller sent are kept as-is.
+  let { departmentId, courseId, semesterId, batchId } = data;
   if (sectionId) {
     const section = await tx.section.findFirst({
-      where: { id: sectionId, semester: { course: { institutionId } } }
+      where: { id: sectionId, semester: { course: { institutionId } } },
+      select: { semester: { select: { id: true, batchId: true, course: { select: { id: true, departmentId: true } } } } },
     });
     if (!section) throw new NotFoundError('Invalid section or access denied');
+    semesterId = semesterId || section.semester.id;
+    courseId = courseId || section.semester.course.id;
+    departmentId = departmentId || section.semester.course.departmentId;
+    batchId = batchId || section.semester.batchId || undefined;
+  }
+  if (batchId) {
+    const batch = await tx.batch.findFirst({ where: { id: batchId, institutionId }, select: { id: true } });
+    if (!batch) throw new NotFoundError('Invalid batch or access denied');
   }
 
   // 2. Generate admission number (sequential, tenant-scoped, embeds this institution's own
@@ -171,6 +182,7 @@ const admitStudentWithinTx = async (tx, institutionId, actingUserId, data) => {
       courseId,
       semesterId,
       sectionId,
+      batchId,
       // Identity & personal
       religion,
       nationality,
@@ -268,6 +280,29 @@ const admitStudentWithinTx = async (tx, institutionId, actingUserId, data) => {
   return { student, user };
 };
 
+/** Fire-and-forget welcome email/SMS with the student's login credentials. */
+const sendStudentCredentials = ({ institutionId, firstName, lastName, email, phone, password, admissionNumber }) => {
+  const studentPlainPassword = password || 'Student@123';
+  if (email) {
+    sendEmailNotification({
+      to: email,
+      subject: 'Welcome to SCOMS - Your Student Account Credentials',
+      text: `Dear ${firstName} ${lastName},\n\nWelcome to SCOMS! Your student account has been successfully created. Here are your login credentials:\n\nLogin URL: http://localhost:5176/login\nAdmission Number: ${admissionNumber}\nEmail: ${email}\nTemporary Password: ${studentPlainPassword}\n\nPlease change your password after logging in.\n\nBest Regards,\nInstitution Administration`,
+      html: `<p>Dear ${firstName} ${lastName},</p><p>Welcome to SCOMS! Your student account has been successfully created. Here are your login credentials:</p><ul><li><b>Login URL:</b> <a href="http://localhost:5176/login">http://localhost:5176/login</a></li><li><b>Admission Number:</b> ${admissionNumber}</li><li><b>Email:</b> ${email}</li><li><b>Temporary Password:</b> ${studentPlainPassword}</li></ul><p>Please change your password after logging in.</p><p>Best Regards,<br>Institution Administration</p>`,
+      institutionId,
+      purpose: 'WELCOME_CREDENTIALS'
+    }).catch(err => console.error('Error sending student welcome email:', err));
+  }
+  if (phone) {
+    sendSMSNotification({
+      to: phone,
+      message: `Welcome to SCOMS! Your student account is active. Login at http://localhost:5176/login. User: ${admissionNumber}, Temp Pass: ${studentPlainPassword}`,
+      institutionId,
+      purpose: 'WELCOME_CREDENTIALS'
+    }).catch(err => console.error('Error sending student welcome SMS:', err));
+  }
+};
+
 const createStudentAdmission = async (req, res, next) => {
   try {
     // admitStudentWithinTx destructures exactly the fields it persists (and ignores
@@ -279,26 +314,11 @@ const createStudentAdmission = async (req, res, next) => {
       admitStudentWithinTx(tx, req.institutionId, req.user.id, req.body)
     );
 
-    // Send email & SMS notifications to student with credentials
-    const studentPlainPassword = password || 'Student@123';
-    if (email) {
-      sendEmailNotification({
-        to: email,
-        subject: 'Welcome to SCOMS - Your Student Account Credentials',
-        text: `Dear ${firstName} ${lastName},\n\nWelcome to SCOMS! Your student account has been successfully created. Here are your login credentials:\n\nLogin URL: http://localhost:5176/login\nAdmission Number: ${result.student.admissionNumber}\nEmail: ${email}\nTemporary Password: ${studentPlainPassword}\n\nPlease change your password after logging in.\n\nBest Regards,\nInstitution Administration`,
-        html: `<p>Dear ${firstName} ${lastName},</p><p>Welcome to SCOMS! Your student account has been successfully created. Here are your login credentials:</p><ul><li><b>Login URL:</b> <a href="http://localhost:5176/login">http://localhost:5176/login</a></li><li><b>Admission Number:</b> ${result.student.admissionNumber}</li><li><b>Email:</b> ${email}</li><li><b>Temporary Password:</b> ${studentPlainPassword}</li></ul><p>Please change your password after logging in.</p><p>Best Regards,<br>Institution Administration</p>`,
-        institutionId: req.institutionId,
-        purpose: 'WELCOME_CREDENTIALS'
-      }).catch(err => console.error('Error sending student welcome email:', err));
-    }
-    if (phone) {
-      sendSMSNotification({
-        to: phone,
-        message: `Welcome to SCOMS! Your student account is active. Login at http://localhost:5176/login. User: ${result.student.admissionNumber}, Temp Pass: ${studentPlainPassword}`,
-        institutionId: req.institutionId,
-        purpose: 'WELCOME_CREDENTIALS'
-      }).catch(err => console.error('Error sending student welcome SMS:', err));
-    }
+    sendStudentCredentials({
+      institutionId: req.institutionId,
+      firstName, lastName, email, phone, password,
+      admissionNumber: result.student.admissionNumber,
+    });
 
     prisma.user.findMany({ where: { institutionId: req.institutionId, role: ROLES.INSTITUTE_ADMIN, status: 'ACTIVE' }, select: { id: true } })
       .then((admins) => pushNotificationToMany({
@@ -575,4 +595,5 @@ module.exports = {
   bulkStudentAdmission,
   getBulkAdmissionTemplate,
   admitStudentWithinTx,
+  sendStudentCredentials,
 };

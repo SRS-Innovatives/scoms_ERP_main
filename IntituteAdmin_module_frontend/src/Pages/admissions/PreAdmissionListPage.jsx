@@ -9,7 +9,7 @@ import preAdmissionService from '../../services/preAdmissionService';
 import apiCall from '../../services/api';
 import {
   UserPlus, MessageSquare, Eye, Receipt, CheckCircle2, GraduationCap,
-  Trash2, X, Loader2, FileText,
+  Trash2, X, Loader2, FileText, FileCheck,
 } from 'lucide-react';
 
 const emptyForm = {
@@ -18,12 +18,15 @@ const emptyForm = {
   previousSchool: '', previousClass: '', referenceNumber: '',
 };
 
-const STATUSES = ['NEW', 'UNDER_REVIEW', 'SHORTLISTED', 'ENROLLED', 'REJECTED', 'CONVERTED'];
+const STATUSES = ['NEW', 'UNDER_REVIEW', 'SHORTLISTED', 'DOCUMENTS_VERIFIED', 'ENROLLED', 'REJECTED', 'CONVERTED'];
+
+const DEFAULT_DOCUMENTS = ['Birth Certificate', 'Transfer Certificate', 'Previous Mark Sheet', 'Aadhaar Card', 'Passport Photo', 'Community Certificate'];
 
 const STATUS_STYLES = {
   NEW: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-400',
   UNDER_REVIEW: 'bg-sky-100 text-sky-700 dark:bg-sky-500/15 dark:text-sky-400',
   SHORTLISTED: 'bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400',
+  DOCUMENTS_VERIFIED: 'bg-teal-100 text-teal-700 dark:bg-teal-500/15 dark:text-teal-400',
   ENROLLED: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400',
   REJECTED: 'bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-400',
   CONVERTED: 'bg-violet-100 text-violet-700 dark:bg-violet-500/15 dark:text-violet-400',
@@ -37,12 +40,13 @@ const AdmitModal = ({ isOpen, application, onClose, onAdmitted }) => {
   const [courses, setCourses] = useState([]);
   const [semesters, setSemesters] = useState([]);
   const [sections, setSections] = useState([]);
-  const [form, setForm] = useState({ email: '', departmentId: '', courseId: '', semesterId: '', sectionId: '', rollNumber: '' });
+  const emptyAdmitForm = { email: '', departmentId: '', courseId: '', semesterId: '', sectionId: '', rollNumber: '', assignFees: true, autoRollNumber: true, sendCredentials: true };
+  const [form, setForm] = useState(emptyAdmitForm);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     if (!isOpen) return;
-    setForm({ email: '', departmentId: '', courseId: '', semesterId: '', sectionId: '', rollNumber: '' });
+    setForm(emptyAdmitForm);
     apiCall('/setup/departments').then((res) => setDepartments(res.data || [])).catch(() => {});
   }, [isOpen]);
 
@@ -69,9 +73,23 @@ const AdmitModal = ({ isOpen, application, onClose, onAdmitted }) => {
     setSubmitting(true);
     try {
       const res = await preAdmissionService.admit(application.id, {
-        email: form.email, courseId: form.courseId || undefined, sectionId: form.sectionId, rollNumber: form.rollNumber || undefined,
+        email: form.email,
+        departmentId: form.departmentId || undefined,
+        courseId: form.courseId || undefined,
+        semesterId: form.semesterId || undefined,
+        sectionId: form.sectionId,
+        rollNumber: form.rollNumber || undefined,
+        assignFees: form.assignFees,
+        autoRollNumber: form.autoRollNumber,
+        sendCredentials: form.sendCredentials,
       });
-      notifySuccess(`${application.studentFirstName} admitted successfully as ${res.data.student.admissionNumber}`);
+      const p = res.data.provisioning || {};
+      const extras = [
+        p.rollNumber && `roll no. ${p.rollNumber}`,
+        form.assignFees && `${(p.feesAssigned || []).length} fee structure(s) assigned`,
+        p.credentialsSent && 'login credentials sent',
+      ].filter(Boolean).join(', ');
+      notifySuccess(`${application.studentFirstName} admitted as ${res.data.student.admissionNumber}${extras ? ` — ${extras}` : ''}`);
       onAdmitted();
       onClose();
     } catch (err) {
@@ -140,7 +158,20 @@ const AdmitModal = ({ isOpen, application, onClose, onAdmitted }) => {
           <div>
             <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Roll Number (optional)</label>
             <input value={form.rollNumber} onChange={(e) => setForm((p) => ({ ...p, rollNumber: e.target.value }))}
+              placeholder={form.autoRollNumber ? 'Leave blank to auto-assign the next number' : ''}
               className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white font-medium" />
+          </div>
+          <div className="space-y-2 p-3 rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
+            {[
+              ['autoRollNumber', 'Auto-assign the next roll number in this section'],
+              ['assignFees', 'Assign matching published fee structures (current academic year)'],
+              ['sendCredentials', 'Email / SMS login credentials to the student'],
+            ].map(([key, label]) => (
+              <label key={key} className="flex items-center gap-2 text-slate-700 dark:text-slate-300">
+                <input type="checkbox" checked={form[key]} onChange={(e) => setForm((p) => ({ ...p, [key]: e.target.checked }))} className="accent-emerald-600" />
+                {label}
+              </label>
+            ))}
           </div>
 
           <div className="flex items-center justify-end gap-2 pt-4 border-t border-slate-100 dark:border-slate-800">
@@ -204,6 +235,37 @@ export const PreAdmissionListPage = () => {
   const [viewApp, setViewApp] = useState(null);
   const [admitApp, setAdmitApp] = useState(null);
   const [smsModalOpen, setSmsModalOpen] = useState(false);
+  const [docsApp, setDocsApp] = useState(null);
+  const [docsForm, setDocsForm] = useState({});
+  const [savingDocs, setSavingDocs] = useState(false);
+
+  const docNames = docsApp
+    ? [...new Set([...DEFAULT_DOCUMENTS, ...((docsApp.documentChecklist || []).map((d) => d.name))])]
+    : [];
+
+  const openDocs = (row) => {
+    const verified = Object.fromEntries((row.documentChecklist || []).map((d) => [d.name, d.verified]));
+    setDocsForm({ ...Object.fromEntries(DEFAULT_DOCUMENTS.map((n) => [n, false])), ...verified, reviewNotes: row.reviewNotes || '' });
+    setDocsApp(row);
+  };
+
+  const handleSaveDocs = async (e) => {
+    e.preventDefault();
+    setSavingDocs(true);
+    try {
+      const res = await preAdmissionService.verifyDocuments(docsApp.id, {
+        checklist: docNames.map((name) => ({ name, verified: Boolean(docsForm[name]) })),
+        reviewNotes: docsForm.reviewNotes,
+      });
+      notifySuccess(res.data.documentsVerifiedAt ? 'All documents verified' : 'Document checklist saved');
+      setDocsApp(null);
+      fetchAll();
+    } catch (error) {
+      notifyError(`Failed to save documents: ${error.message}`);
+    } finally {
+      setSavingDocs(false);
+    }
+  };
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
@@ -310,6 +372,19 @@ export const PreAdmissionListPage = () => {
           title="Mark Enrolled"
         >
           <CheckCircle2 className="w-4 h-4" />
+        </button>
+      ),
+    },
+    {
+      header: 'Documents', key: 'documents', sortable: false,
+      render: (_, row) => (
+        <button
+          onClick={(e) => { e.stopPropagation(); openDocs(row); }}
+          disabled={row.status === 'CONVERTED' || row.status === 'REJECTED'}
+          className={`p-1.5 rounded-lg hover:bg-teal-50 dark:hover:bg-teal-950/50 disabled:opacity-30 disabled:cursor-not-allowed ${row.documentsVerifiedAt ? 'text-teal-600' : 'text-slate-400 hover:text-teal-600'}`}
+          title={row.documentsVerifiedAt ? 'Documents verified' : 'Verify Documents'}
+        >
+          <FileCheck className="w-4 h-4" />
         </button>
       ),
     },
@@ -451,6 +526,23 @@ export const PreAdmissionListPage = () => {
 
       <ViewModal isOpen={!!viewApp} application={viewApp} onClose={() => setViewApp(null)} />
       <AdmitModal isOpen={!!admitApp} application={admitApp} onClose={() => setAdmitApp(null)} onAdmitted={fetchAll} />
+
+      <FormModal
+        isOpen={!!docsApp}
+        title={`Verify Documents — ${docsApp?.studentFirstName || ''} ${docsApp?.studentLastName || ''}`}
+        subtitle="Application moves to DOCUMENTS VERIFIED once every document is ticked"
+        icon={FileCheck}
+        fields={[
+          ...docNames.map((name) => ({ name, label: name, type: 'checkbox' })),
+          { name: 'reviewNotes', label: 'Notes', type: 'textarea', span: 'full' },
+        ]}
+        values={docsForm}
+        onChange={(name, value) => setDocsForm((p) => ({ ...p, [name]: value }))}
+        onSubmit={handleSaveDocs}
+        onClose={() => setDocsApp(null)}
+        submitLabel="Save Checklist"
+        isSubmitting={savingDocs}
+      />
       <SMSComposeModal isOpen={smsModalOpen} onClose={() => setSmsModalOpen(false)} defaultRecipientType="pre_admission" />
     </div>
   );

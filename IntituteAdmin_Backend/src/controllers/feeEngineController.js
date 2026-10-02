@@ -354,6 +354,29 @@ const duplicateFeeStructure = async (req, res, next) => {
   }
 };
 
+/** Creates one student's assignment for a structure (loaded with items.feeHead), snapshotting each fee head. */
+const assignStructureWithinTx = async (tx, structure, studentId) => {
+  const assignment = await tx.studentFeeAssignment.create({
+    data: {
+      feeStructureId: structure.id,
+      studentId,
+      structureVersion: structure.version,
+      totalAmount: structure.totalAmount,
+      dueAmount: structure.totalAmount,
+    },
+  });
+  await tx.studentFeeItem.createMany({
+    data: structure.items.map((item) => ({
+      studentFeeAssignmentId: assignment.id,
+      feeHeadId: item.feeHeadId,
+      feeHeadName: item.feeHead.name,
+      amount: item.amount,
+      dueAmount: item.amount,
+    })),
+  });
+  return assignment;
+};
+
 /** Assigns a PUBLISHED structure to every matching active student (institution + course +
  * section, whichever are set on the structure), snapshotting each fee head's amount into a
  * StudentFeeItem row — skips students already assigned to this exact structure. */
@@ -388,26 +411,7 @@ const assignStructureToStudents = async (req, res, next) => {
         continue;
       }
 
-      await prisma.$transaction(async (tx) => {
-        const assignment = await tx.studentFeeAssignment.create({
-          data: {
-            feeStructureId: structure.id,
-            studentId: student.id,
-            structureVersion: structure.version,
-            totalAmount: structure.totalAmount,
-            dueAmount: structure.totalAmount,
-          },
-        });
-        await tx.studentFeeItem.createMany({
-          data: structure.items.map((item) => ({
-            studentFeeAssignmentId: assignment.id,
-            feeHeadId: item.feeHeadId,
-            feeHeadName: item.feeHead.name,
-            amount: item.amount,
-            dueAmount: item.amount,
-          })),
-        });
-      });
+      await prisma.$transaction((tx) => assignStructureWithinTx(tx, structure, student.id));
       assignedCount += 1;
     }
 
@@ -564,6 +568,7 @@ const reprintReceiptV2 = async (req, res, next) => {
 };
 
 module.exports = {
+  assignStructureWithinTx,
   getFeeCategoriesV2,
   createFeeCategory,
   getFeeHeads,
