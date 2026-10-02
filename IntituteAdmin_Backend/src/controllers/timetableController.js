@@ -11,6 +11,7 @@ const {
   sendSuccess,
   NotFoundError,
   ValidationError,
+  resolveRoomsById,
 } = require('../../../shared');
 
 const DAYS = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
@@ -74,6 +75,7 @@ const saveEntries = async (req, res, next) => {
       const count = await prisma.staff.count({ where: { id: { in: staffIds }, institutionId: req.institutionId } });
       if (count !== staffIds.length) throw new ValidationError('One or more staff are invalid for this institution');
     }
+    const roomsById = await resolveRoomsById(validEntries.map((e) => e.roomId), req.institutionId);
 
     await prisma.$transaction([
       prisma.timetableEntry.deleteMany({ where: { timetableId } }),
@@ -89,7 +91,8 @@ const saveEntries = async (req, res, next) => {
                 subjectId: e.subjectId || null,
                 staffId: e.staffId || null,
                 label: e.subjectId ? null : e.label || null,
-                roomNumber: e.roomNumber || null,
+                roomNumber: e.roomNumber || roomsById.get(e.roomId)?.roomNumber || null,
+                roomId: e.roomId || null,
               })),
             }),
           ]

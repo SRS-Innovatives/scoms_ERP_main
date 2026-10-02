@@ -8,6 +8,7 @@ const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
 const authController = require('../controllers/authController');
 const setupController = require('../controllers/setupController');
+const infrastructureController = require('../controllers/infrastructureController');
 const staffController = require('../controllers/staffController');
 const studentController = require('../controllers/studentController');
 const feeController = require('../controllers/feeController');
@@ -186,6 +187,22 @@ router.get('/setup/batches', setupController.getBatches);
 router.post('/setup/batches', setupController.createBatch);
 router.patch('/setup/batches/:id', setupController.updateBatch);
 router.delete('/setup/batches/:id', setupController.deleteBatch);
+
+// Infrastructure: Campus -> Building -> Floor -> Room
+router.get('/setup/campuses', infrastructureController.getCampuses);
+router.post('/setup/campuses', infrastructureController.createCampus);
+router.patch('/setup/campuses/:id', infrastructureController.updateCampus);
+router.delete('/setup/campuses/:id', infrastructureController.deleteCampus);
+router.get('/setup/buildings', infrastructureController.getBuildings);
+router.post('/setup/buildings', infrastructureController.createBuilding);
+router.patch('/setup/buildings/:id', infrastructureController.updateBuilding);
+router.delete('/setup/buildings/:id', infrastructureController.deleteBuilding);
+router.post('/setup/buildings/:id/floors', infrastructureController.createFloor);
+router.delete('/setup/floors/:floorId', infrastructureController.deleteFloor);
+router.get('/setup/rooms', infrastructureController.getRooms);
+router.post('/setup/rooms', infrastructureController.createRoom);
+router.patch('/setup/rooms/:id', infrastructureController.updateRoom);
+router.delete('/setup/rooms/:id', infrastructureController.deleteRoom);
 
 router.get('/setup/sections', setupController.getSections);
 router.post('/setup/sections', setupController.createSection);

@@ -16,6 +16,7 @@ const {
   resolveGrade,
   gradePointFor,
   computeGrade,
+  resolveRoom,
 } = require('../../../shared');
 const ExcelJS = require('exceljs');
 
@@ -112,11 +113,12 @@ const getSchedules = async (req, res, next) => {
 
 const createSchedule = async (req, res, next) => {
   try {
-    const { examId, subjectId, courseId, examDate, startTime, endTime, maxMarks, passMarks, roomNumber } = req.body;
+    const { examId, subjectId, courseId, examDate, startTime, endTime, maxMarks, passMarks, roomNumber, roomId } = req.body;
     if (!examId || !subjectId || !courseId || !examDate) throw new ValidationError('examId, subjectId, courseId, examDate are required');
 
     const exam = await prisma.exam.findFirst({ where: { id: examId, institutionId: req.institutionId } });
     if (!exam) throw new NotFoundError('Exam not found or access denied');
+    const room = await resolveRoom(roomId, req.institutionId);
 
     // A subject now serves several classes — courseId says explicitly which one this
     // particular exam schedule is for, so it must actually be mapped to that subject.
@@ -135,7 +137,8 @@ const createSchedule = async (req, res, next) => {
         endTime: endTime || '',
         maxMarks: Number(maxMarks) || 100,
         passMarks: Number(passMarks) || 35,
-        roomNumber: roomNumber || null,
+        roomNumber: roomNumber || room?.roomNumber || null,
+        roomId: room?.id || null,
       },
     });
     return sendSuccess(res, schedule, 'Exam schedule created successfully', 201);

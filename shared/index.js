@@ -41,6 +41,7 @@ const { askAi, getAiSettings } = require('./utils/aiProvider');
 const { emitEvent } = require('./events/dispatcher');
 const { EVENT_TYPES } = require('./events/eventTypes');
 const { seedIntegrationProviders } = require('./integrations/seedIntegrationProviders');
+const { resolveRoom, resolveRoomsById } = require('./utils/rooms');
 const {
   handleGetNotifications,
   handleGetUnreadCount,
@@ -113,4 +114,6 @@ module.exports = {
   emitEvent,
   EVENT_TYPES,
   seedIntegrationProviders,
+  resolveRoom,
+  resolveRoomsById,
 };

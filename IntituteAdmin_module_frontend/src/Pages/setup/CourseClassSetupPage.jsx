@@ -183,12 +183,10 @@ export const CourseClassSetupPage = () => {
                   label: 'Program (optional)',
                   type: 'select',
                   span: 'full',
-                  options: [
-                    { value: '', label: '- None -' },
-                    ...programs
-                      .filter((p) => !form.departmentId || p.departmentId === form.departmentId)
-                      .map((p) => ({ value: p.id, label: `${p.name} (${p.code})` })),
-                  ],
+                  placeholder: '- None -',
+                  options: programs
+                    .filter((p) => !form.departmentId || p.departmentId === form.departmentId)
+                    .map((p) => ({ value: p.id, label: `${p.name} (${p.code})` })),
                 },
               ]),
         ]}

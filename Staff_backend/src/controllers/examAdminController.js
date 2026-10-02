@@ -11,6 +11,7 @@ const {
   sendSuccess,
   NotFoundError,
   ValidationError,
+  resolveRoom,
 } = require('../../../shared');
 
 /** Academic-year picker for exam creation — mobile-only endpoint (see
@@ -94,11 +95,12 @@ const updateExamStatus = async (req, res, next) => {
 
 const createSchedule = async (req, res, next) => {
   try {
-    const { examId, subjectId, courseId, examDate, startTime, endTime, maxMarks, passMarks, roomNumber } = req.body;
+    const { examId, subjectId, courseId, examDate, startTime, endTime, maxMarks, passMarks, roomNumber, roomId } = req.body;
     if (!examId || !subjectId || !courseId || !examDate) throw new ValidationError('examId, subjectId, courseId, examDate are required');
 
     const exam = await prisma.exam.findFirst({ where: { id: examId, institutionId: req.institutionId } });
     if (!exam) throw new NotFoundError('Exam not found or access denied');
+    const room = await resolveRoom(roomId, req.institutionId);
 
     const mapping = await prisma.subjectClassMapping.findFirst({
       where: { subjectId, courseId, subject: { institutionId: req.institutionId }, course: { institutionId: req.institutionId } },
@@ -115,7 +117,8 @@ const createSchedule = async (req, res, next) => {
         endTime: endTime || '',
         maxMarks: Number(maxMarks) || 100,
         passMarks: Number(passMarks) || 35,
-        roomNumber: roomNumber || null,
+        roomNumber: roomNumber || room?.roomNumber || null,
+        roomId: room?.id || null,
       },
     });
     return sendSuccess(res, schedule, 'Exam schedule created successfully', 201);

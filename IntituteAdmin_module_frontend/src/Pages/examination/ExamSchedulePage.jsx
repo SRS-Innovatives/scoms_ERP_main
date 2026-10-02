@@ -8,8 +8,9 @@ import { CalendarClock, Plus, Trash2, Loader2 } from 'lucide-react';
 import examService from '../../services/examService';
 import courseService from '../../services/courseService';
 import subjectService from '../../services/subjectService';
+import { roomService, roomLabel } from '../../services/infrastructureService';
 
-const emptyForm = { subjectId: '', examDate: '', startTime: '', endTime: '', maxMarks: '100', passMarks: '35', roomNumber: '' };
+const emptyForm = { subjectId: '', examDate: '', startTime: '', endTime: '', maxMarks: '100', passMarks: '35', roomNumber: '', roomId: '' };
 
 export const ExamSchedulePage = () => {
   const { notifySuccess, notifyError } = useNotification();
@@ -24,6 +25,11 @@ export const ExamSchedulePage = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState(emptyForm);
+  const [rooms, setRooms] = useState([]);
+
+  useEffect(() => {
+    roomService.getAll({ activeOnly: 'true' }).then((res) => setRooms(res.data || [])).catch(() => setRooms([]));
+  }, []);
 
   const fetchInitial = useCallback(() => {
     setLoading(true);
@@ -165,7 +171,10 @@ export const ExamSchedulePage = () => {
         ].concat(courseId ? [
           { name: 'subjectId', label: 'Subject', type: 'select', required: true, span: 'full', options: subjects.map((s) => ({ value: s.id, label: s.name })) },
           { name: 'examDate', label: 'Exam Date', type: 'date', required: true },
-          { name: 'roomNumber', label: 'Room Number' },
+          ...(rooms.length > 0
+            ? [{ name: 'roomId', label: 'Room', type: 'select', placeholder: '- Not set -', options: rooms.map((r) => ({ value: r.id, label: roomLabel(r) })) }]
+            : []),
+          { name: 'roomNumber', label: rooms.length > 0 ? 'Room Number (or free text)' : 'Room Number' },
           { name: 'startTime', label: 'Start Time', type: 'time', required: true },
           { name: 'endTime', label: 'End Time', type: 'time', required: true },
           { name: 'maxMarks', label: 'Max Marks', type: 'number', required: true },

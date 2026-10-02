@@ -187,10 +187,8 @@ export const SemesterSetupPage = () => {
                   label: 'Batch (optional)',
                   type: 'select',
                   span: 'full',
-                  options: [
-                    { value: '', label: '- None -' },
-                    ...batches.filter((b) => b.courseId === form.courseId).map((b) => ({ value: b.id, label: b.name })),
-                  ],
+                  placeholder: '- None -',
+                  options: batches.filter((b) => b.courseId === form.courseId).map((b) => ({ value: b.id, label: b.name })),
                 },
               ]),
         ]}
