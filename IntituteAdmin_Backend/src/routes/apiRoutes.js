@@ -177,6 +177,16 @@ router.post('/setup/semesters', setupController.createSemester);
 router.patch('/setup/semesters/:id', setupController.updateSemester);
 router.delete('/setup/semesters/:id', setupController.deleteSemester);
 
+router.get('/setup/programs', setupController.getPrograms);
+router.post('/setup/programs', setupController.createProgram);
+router.patch('/setup/programs/:id', setupController.updateProgram);
+router.delete('/setup/programs/:id', setupController.deleteProgram);
+
+router.get('/setup/batches', setupController.getBatches);
+router.post('/setup/batches', setupController.createBatch);
+router.patch('/setup/batches/:id', setupController.updateBatch);
+router.delete('/setup/batches/:id', setupController.deleteBatch);
+
 router.get('/setup/sections', setupController.getSections);
 router.post('/setup/sections', setupController.createSection);
 router.patch('/setup/sections/:id', setupController.updateSection);

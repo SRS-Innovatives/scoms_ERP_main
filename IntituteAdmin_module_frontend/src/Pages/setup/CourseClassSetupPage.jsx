@@ -8,9 +8,10 @@ import { useNotification } from '../../context/NotificationContext';
 import { useInstitution } from '../../context/InstitutionContext';
 import courseService from '../../services/courseService';
 import departmentService from '../../services/departmentService';
+import programService from '../../services/programService';
 import { GraduationCap, Edit, Trash2 } from 'lucide-react';
 
-const emptyForm = { departmentId: '', code: '', name: '', durationYears: '' };
+const emptyForm = { departmentId: '', code: '', name: '', durationYears: '', programId: '' };
 
 export const CourseClassSetupPage = () => {
   const { notifySuccess, notifyError } = useNotification();
@@ -21,6 +22,7 @@ export const CourseClassSetupPage = () => {
   const unit = isSchool ? 'Class' : 'Course';
   const [courses, setCourses] = useState([]);
   const [departments, setDepartments] = useState([]);
+  const [programs, setPrograms] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
 
@@ -33,15 +35,20 @@ export const CourseClassSetupPage = () => {
   const fetchAll = useCallback(async () => {
     setLoading(true);
     try {
-      const [courseRes, deptRes] = await Promise.all([courseService.getAll(), departmentService.getAll()]);
+      const [courseRes, deptRes, programRes] = await Promise.all([
+        courseService.getAll(),
+        departmentService.getAll(),
+        isSchool ? Promise.resolve({ data: [] }) : programService.getAll(),
+      ]);
       setCourses(courseRes.data || []);
       setDepartments(deptRes.data || []);
+      setPrograms(programRes.data || []);
     } catch (error) {
       notifyError(`Failed to load courses: ${error.message}`);
     } finally {
       setLoading(false);
     }
-  }, [notifyError]);
+  }, [notifyError, isSchool]);
 
   useEffect(() => {
     fetchAll();
@@ -55,19 +62,21 @@ export const CourseClassSetupPage = () => {
 
   const openEditModal = (row) => {
     setEditingId(row.id);
-    setForm({ departmentId: row.departmentId, code: row.code, name: row.name, durationYears: row.durationYears });
+    setForm({ departmentId: row.departmentId, code: row.code, name: row.name, durationYears: row.durationYears, programId: row.programId || '' });
     setModalOpen(true);
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSubmitting(true);
+    const { programId, ...rest } = form;
+    const payload = isSchool ? rest : { ...rest, programId: programId || null };
     try {
       if (editingId) {
-        await courseService.update(editingId, form);
+        await courseService.update(editingId, payload);
         notifySuccess(`${unit} ${form.name} updated successfully!`);
       } else {
-        await courseService.create(form);
+        await courseService.create(payload);
         notifySuccess(`${unit} ${form.name} created successfully!`);
       }
       setModalOpen(false);
@@ -96,6 +105,7 @@ export const CourseClassSetupPage = () => {
     { header: `${unit} Code`, key: 'code', render: (val) => <span className="font-mono font-bold text-indigo-600">{val}</span> },
     { header: `${unit} Name`, key: 'name', render: (val) => <span className="font-bold text-slate-900 dark:text-white">{val}</span> },
     { header: 'Department', key: 'department', sortable: false, render: (val) => val?.name || '-' },
+    ...(isSchool ? [] : [{ header: 'Program', key: 'program', sortable: false, render: (val) => val?.name || '-' }]),
     { header: 'Duration', key: 'durationYears', render: (val) => `${val} Year${val === 1 ? '' : 's'}` },
     { header: 'Students', key: '_count', sortable: false, render: (val) => `${val?.students ?? 0} Enrolled` },
     { header: 'Subjects', key: '_countSub', sortable: false, render: (_, row) => `${row._count?.subjectClassMappings ?? 0} Subjects` },
@@ -165,6 +175,22 @@ export const CourseClassSetupPage = () => {
           { name: 'code', label: isSchool ? 'Class Code (e.g. CLASS-10)' : 'Course Code (e.g. BTECH-CSE)', required: true },
           { name: 'name', label: `${unit} Name`, required: true },
           { name: 'durationYears', label: 'Duration (Years)', type: 'number', required: true },
+          ...(isSchool
+            ? []
+            : [
+                {
+                  name: 'programId',
+                  label: 'Program (optional)',
+                  type: 'select',
+                  span: 'full',
+                  options: [
+                    { value: '', label: '- None -' },
+                    ...programs
+                      .filter((p) => !form.departmentId || p.departmentId === form.departmentId)
+                      .map((p) => ({ value: p.id, label: `${p.name} (${p.code})` })),
+                  ],
+                },
+              ]),
         ]}
       />
 

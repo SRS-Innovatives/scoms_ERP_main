@@ -47,6 +47,7 @@ export const navigationConfig = [
       { key: 'academic-year', title: 'Academic Year Setup', path: '/admin/setup/academic-year' },
       { key: 'campus', title: 'Campus Setup', path: '/admin/setup/campus' },
       { key: 'department', title: 'Department Setup', path: '/admin/setup/department' },
+      { key: 'program', title: 'Program Setup', path: '/admin/setup/program' },
       { key: 'course', title: 'Course / Class Setup', path: '/admin/setup/course' },
       { key: 'semester', title: 'Semester Setup', path: '/admin/setup/semester' },
       { key: 'section', title: 'Section Setup', path: '/admin/setup/section' },

@@ -9,9 +9,10 @@ import { useInstitution } from '../../context/InstitutionContext';
 import semesterService from '../../services/semesterService';
 import courseService from '../../services/courseService';
 import academicYearService from '../../services/academicYearService';
+import batchService from '../../services/batchService';
 import { BookOpen, Edit, Trash2 } from 'lucide-react';
 
-const emptyForm = { courseId: '', academicYearId: '', name: '', semesterNumber: '' };
+const emptyForm = { courseId: '', academicYearId: '', name: '', semesterNumber: '', batchId: '' };
 
 export const SemesterSetupPage = () => {
   const { notifySuccess, notifyError } = useNotification();
@@ -22,6 +23,7 @@ export const SemesterSetupPage = () => {
   const [semesters, setSemesters] = useState([]);
   const [courses, setCourses] = useState([]);
   const [academicYears, setAcademicYears] = useState([]);
+  const [batches, setBatches] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
 
@@ -34,20 +36,22 @@ export const SemesterSetupPage = () => {
   const fetchAll = useCallback(async () => {
     setLoading(true);
     try {
-      const [semRes, courseRes, ayRes] = await Promise.all([
+      const [semRes, courseRes, ayRes, batchRes] = await Promise.all([
         semesterService.getAll(),
         courseService.getAll(),
         academicYearService.getAll(),
+        isSchool ? Promise.resolve({ data: [] }) : batchService.getAll(),
       ]);
       setSemesters(semRes.data || []);
       setCourses(courseRes.data || []);
       setAcademicYears(ayRes.data || []);
+      setBatches(batchRes.data || []);
     } catch (error) {
       notifyError(`Failed to load semesters: ${error.message}`);
     } finally {
       setLoading(false);
     }
-  }, [notifyError]);
+  }, [notifyError, isSchool]);
 
   useEffect(() => {
     fetchAll();
@@ -61,7 +65,7 @@ export const SemesterSetupPage = () => {
 
   const openEditModal = (row) => {
     setEditingId(row.id);
-    setForm({ courseId: row.courseId, academicYearId: row.academicYearId, name: row.name, semesterNumber: row.semesterNumber });
+    setForm({ courseId: row.courseId, academicYearId: row.academicYearId, name: row.name, semesterNumber: row.semesterNumber, batchId: row.batchId || '' });
     setModalOpen(true);
   };
 
@@ -70,10 +74,16 @@ export const SemesterSetupPage = () => {
     setSubmitting(true);
     try {
       if (editingId) {
-        await semesterService.update(editingId, { name: form.name, semesterNumber: form.semesterNumber, academicYearId: form.academicYearId });
+        await semesterService.update(editingId, {
+          name: form.name,
+          semesterNumber: form.semesterNumber,
+          academicYearId: form.academicYearId,
+          ...(!isSchool && { batchId: form.batchId || null }),
+        });
         notifySuccess(`${termUnit} ${form.name} updated successfully!`);
       } else {
-        await semesterService.create(form);
+        const { batchId, ...rest } = form;
+        await semesterService.create(isSchool || !batchId ? rest : form);
         notifySuccess(`${termUnit} ${form.name} created successfully!`);
       }
       setModalOpen(false);
@@ -102,6 +112,7 @@ export const SemesterSetupPage = () => {
     { header: `${termUnit} Title`, key: 'name', render: (val) => <span className="font-bold text-slate-900 dark:text-white">{val}</span> },
     { header: classUnit, key: 'course', sortable: false, render: (val) => val?.name || '-' },
     { header: 'Academic Year', key: 'academicYear', sortable: false, render: (val) => val?.yearName || '-' },
+    ...(isSchool ? [] : [{ header: 'Batch', key: 'batch', sortable: false, render: (val) => val?.name || '-' }]),
     { header: 'Sections', key: '_count', sortable: false, render: (val) => `${val?.sections ?? 0} Sections` },
     {
       header: 'Actions',
@@ -168,6 +179,20 @@ export const SemesterSetupPage = () => {
           },
           { name: 'name', label: `${termUnit} Title (e.g. ${isSchool ? 'Term 1' : 'Semester 1'})`, required: true },
           { name: 'semesterNumber', label: `${termUnit} Number`, type: 'number', required: true },
+          ...(isSchool
+            ? []
+            : [
+                {
+                  name: 'batchId',
+                  label: 'Batch (optional)',
+                  type: 'select',
+                  span: 'full',
+                  options: [
+                    { value: '', label: '- None -' },
+                    ...batches.filter((b) => b.courseId === form.courseId).map((b) => ({ value: b.id, label: b.name })),
+                  ],
+                },
+              ]),
         ]}
       />
 

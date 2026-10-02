@@ -20,6 +20,7 @@ import SemesterSetupPage from '../pages/setup/SemesterSetupPage';
 import SectionSetupPage from '../pages/setup/SectionSetupPage';
 import SubjectSetupPage from '../pages/setup/SubjectSetupPage';
 import BatchSetupPage from '../pages/setup/BatchSetupPage';
+import ProgramSetupPage from '../pages/setup/ProgramSetupPage';
 import HouseGroupSetupPage from '../pages/setup/HouseGroupSetupPage';
 import AffiliatedCollegesPage from '../pages/setup/AffiliatedCollegesPage';
 import VisitorManagementPage from '../pages/setup/VisitorManagementPage';
@@ -234,6 +235,7 @@ export const AppRoutes = () => {
         <Route path="setup/section" element={<SectionSetupPage />} />
         <Route path="setup/subject" element={<SubjectSetupPage />} />
         <Route path="setup/batch" element={<BatchSetupPage />} />
+        <Route path="setup/program" element={<ProgramSetupPage />} />
         <Route path="setup/house" element={<HouseGroupSetupPage />} />
         <Route path="setup/affiliated-colleges" element={<AffiliatedCollegesPage />} />
         <Route path="setup/visitors" element={<VisitorManagementPage />} />
