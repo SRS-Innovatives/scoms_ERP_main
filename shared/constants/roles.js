@@ -56,6 +56,7 @@ const PERMISSIONS = {
   ATTENDANCE_VIEW: 'attendance.view',
   ATTENDANCE_MARK: 'attendance.mark',
   ATTENDANCE_UPDATE: 'attendance.update',
+  ATTENDANCE_APPROVE: 'attendance.approve',
 
   // Leave Management
   LEAVE_APPLY: 'leave.apply',
@@ -65,6 +66,7 @@ const PERMISSIONS = {
   // Timetable
   TIMETABLE_VIEW: 'timetable.view',
   TIMETABLE_MANAGE: 'timetable.manage',
+  TIMETABLE_SUBSTITUTE_APPROVE: 'timetable.substitute.approve',
 
   // Assignments & Materials
   ASSIGNMENTS_VIEW: 'assignments.view',
@@ -79,6 +81,8 @@ const PERMISSIONS = {
   EXAMS_VIEW: 'exams.view',
   EXAMS_CREATE: 'exams.create',
   MARKS_ENTER: 'marks.enter',
+  MARKS_VERIFY: 'marks.verify',
+  MARKS_APPROVE: 'marks.approve',
   RESULTS_PUBLISH: 'results.publish',
   RESULTS_VIEW: 'results.view',
 
@@ -92,6 +96,7 @@ const PERMISSIONS = {
   FEES_SETUP: 'fees.setup',
   FEES_COLLECT: 'fees.collect',
   FEES_REFUND: 'fees.refund',
+  FEES_CONCESSION_APPROVE: 'fees.concession.approve',
   PAYMENTS_ONLINE: 'payments.online',
 
   // Campus Services

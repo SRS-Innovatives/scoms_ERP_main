@@ -8,8 +8,9 @@ import { useNotification } from '../../context/NotificationContext';
 import { BedDouble, Plus, LogOut } from 'lucide-react';
 import hostelService from '../../services/hostelService';
 import studentService from '../../services/studentService';
+import { roomService, roomLabel } from '../../services/infrastructureService';
 
-const emptyBedForm = { hostelId: '', roomNumber: '', bedNumber: '', monthlyFee: '5000' };
+const emptyBedForm = { hostelId: '', roomNumber: '', bedNumber: '', monthlyFee: '5000', roomId: '' };
 const emptyAllocForm = { bedId: '', studentId: '' };
 
 export const RoomAllocationPage = () => {
@@ -25,6 +26,11 @@ export const RoomAllocationPage = () => {
   const [bedForm, setBedForm] = useState(emptyBedForm);
   const [allocForm, setAllocForm] = useState(emptyAllocForm);
   const [busyId, setBusyId] = useState(null);
+  const [hostelRooms, setHostelRooms] = useState([]);
+
+  useEffect(() => {
+    roomService.getAll({ type: 'HOSTEL_ROOM', activeOnly: 'true' }).then((res) => setHostelRooms(res.data || [])).catch(() => setHostelRooms([]));
+  }, []);
 
   const fetchAll = useCallback(() => {
     setLoading(true);
@@ -143,7 +149,10 @@ export const RoomAllocationPage = () => {
         onChange={(name, value) => setBedForm((prev) => ({ ...prev, [name]: value }))}
         fields={[
           { name: 'hostelId', label: 'Hostel Block', type: 'select', required: true, span: 'full', options: hostels.map((h) => ({ value: h.id, label: h.name })) },
-          { name: 'roomNumber', label: 'Room Number', required: true },
+          ...(hostelRooms.length > 0
+            ? [{ name: 'roomId', label: 'Room', type: 'select', span: 'full', placeholder: '- Not set (enter number below) -', options: hostelRooms.map((r) => ({ value: r.id, label: roomLabel(r) })) }]
+            : []),
+          { name: 'roomNumber', label: bedForm.roomId ? 'Room Number (optional)' : 'Room Number', required: !bedForm.roomId },
           { name: 'bedNumber', label: 'Bed Number', required: true },
           { name: 'monthlyFee', label: 'Monthly Fee (₹)', type: 'number' },
         ]}

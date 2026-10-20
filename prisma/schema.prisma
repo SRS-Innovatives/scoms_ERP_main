@@ -63,6 +63,11 @@ model Institution {
   academicYears                   AcademicYear[]
   departments                     Department[]
   courses                         Course[]
+  programs                        Program[]
+  batches                         Batch[]
+  campuses                        Campus[]
+  buildings                       Building[]
+  rooms                           Room[]
   students                        Student[]
   staff                           Staff[]
   attendanceSessions              AttendanceSession[]
@@ -338,6 +343,7 @@ model User {
   reportRequestsHandled ReportRequest[]        @relation("ReportRequestAssignedTo")
   notifications         Notification[]
   knowledgeBaseArticles KnowledgeBaseArticle[]
+  deviceTokens          DeviceToken[]
 
   @@unique([email])
   @@unique([mobile])
@@ -353,6 +359,29 @@ model RefreshToken {
   createdAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// One row per (user, device) — a device re-registering the same token just updates
+// lastSeenAt; a token moving to a different account (phone reused/re-logged-in) is
+// re-owned by upserting on the unique `token`, never left pointing at the old user.
+model DeviceToken {
+  id            String         @id @default(uuid())
+  userId        String
+  institutionId String? // denormalized from User for fast "notify everyone in institution X" push fan-out
+  token         String         @unique
+  platform      DevicePlatform
+  createdAt     DateTime       @default(now())
+  lastSeenAt    DateTime       @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([institutionId])
+}
+
+enum DevicePlatform {
+  ANDROID
+  IOS
 }
 
 // ------------------------------------------------------
@@ -617,16 +646,146 @@ model Department {
 
   institution Institution @relation(fields: [institutionId], references: [id])
   courses     Course[]
+  programs    Program[]
   staff       Staff[]
   students    Student[]
 
   @@unique([institutionId, code])
 }
 
+/// College-only grouping above Course (e.g. "B.Tech" over "B.Tech CSE", "B.Tech ECE").
+/// Optional - schools never create these, and a Course with no programId behaves exactly as before.
+model Program {
+  id            String   @id @default(uuid())
+  institutionId String
+  departmentId  String
+  code          String
+  name          String
+  level         String   @default("UG") // UG | PG | DIPLOMA | PHD | CERTIFICATE | OTHER
+  durationYears Int      @default(3)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  institution Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  department  Department  @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  courses     Course[]
+
+  @@unique([institutionId, code])
+}
+
+/// Intake cohort of a Course (e.g. "2024 - 2028"). Optional on Semester/Student.
+model Batch {
+  id            String      @id @default(uuid())
+  institutionId String
+  courseId      String
+  name          String
+  startYear     Int
+  endYear       Int
+  status        BatchStatus @default(ACTIVE)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  institution Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  course      Course      @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  semesters   Semester[]
+  students    Student[]
+
+  @@unique([courseId, startYear])
+  @@index([institutionId, status])
+}
+
+enum BatchStatus {
+  ACTIVE
+  GRADUATED
+  ARCHIVED
+}
+
+// ------------------------------------------------------
+// Infrastructure: Campus -> Building -> Floor -> Room
+// Shared by Timetable, Exam seating and Hostel via optional roomId columns;
+// the legacy free-text roomNumber columns stay as-is.
+// ------------------------------------------------------
+model Campus {
+  id            String   @id @default(uuid())
+  institutionId String
+  code          String
+  name          String
+  address       String?
+  city          String?
+  capacity      Int?
+  isMain        Boolean  @default(false)
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  institution Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  buildings   Building[]
+
+  @@unique([institutionId, code])
+}
+
+model Building {
+  id            String   @id @default(uuid())
+  institutionId String
+  campusId      String?
+  code          String
+  name          String
+  description   String?
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  institution Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  campus      Campus?     @relation(fields: [campusId], references: [id], onDelete: SetNull)
+  floors      Floor[]
+  rooms       Room[]
+
+  @@unique([institutionId, code])
+}
+
+model Floor {
+  id          String   @id @default(uuid())
+  buildingId  String
+  floorNumber Int // 0 = ground, negative = basement
+  name        String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  building Building @relation(fields: [buildingId], references: [id], onDelete: Cascade)
+  rooms    Room[]
+
+  @@unique([buildingId, floorNumber])
+}
+
+model Room {
+  id            String   @id @default(uuid())
+  institutionId String
+  buildingId    String
+  floorId       String?
+  roomNumber    String
+  name          String?
+  type          String   @default("CLASSROOM") // CLASSROOM | LAB | HALL | OFFICE | LIBRARY | HOSTEL_ROOM | STAFF_ROOM | OTHER
+  capacity      Int?
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  institution      Institution      @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  building         Building         @relation(fields: [buildingId], references: [id], onDelete: Cascade)
+  floor            Floor?           @relation(fields: [floorId], references: [id], onDelete: SetNull)
+  timetableEntries TimetableEntry[]
+  examSchedules    ExamSchedule[]
+  hostelBeds       HostelBed[]
+
+  @@unique([buildingId, roomNumber])
+  @@index([institutionId, type])
+}
+
 model Course {
   id            String   @id @default(uuid())
   institutionId String
   departmentId  String
+  programId     String?
   code          String
   name          String // e.g. "B.Tech Computer Science" or "Class 10"
   durationYears Int      @default(1)
@@ -635,6 +794,8 @@ model Course {
 
   institution          Institution           @relation(fields: [institutionId], references: [id], onDelete: Cascade)
   department           Department            @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  program              Program?              @relation(fields: [programId], references: [id], onDelete: SetNull)
+  batches              Batch[]
   semesters            Semester[]
   students             Student[]
   subjectClassMappings SubjectClassMapping[]
@@ -651,11 +812,13 @@ model Semester {
   academicYearId String
   name           String // e.g. "Semester 1" or "Term 1"
   semesterNumber Int
+  batchId        String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
   course       Course       @relation(fields: [courseId], references: [id], onDelete: Cascade)
   academicYear AcademicYear @relation(fields: [academicYearId], references: [id], onDelete: Cascade)
+  batch        Batch?       @relation(fields: [batchId], references: [id], onDelete: SetNull)
   sections     Section[]
 
   @@unique([courseId, semesterNumber, academicYearId])
@@ -850,6 +1013,7 @@ model Student {
   courseId     String?
   semesterId   String?
   sectionId    String?
+  batchId      String?
 
   // Institution-specific extra admission fields — only ever populated from fields that
   // were APPROVED by SuperAdmin at the time of submission (see AdmissionCustomField).
@@ -857,44 +1021,48 @@ model Student {
   customFields Json?
 
   // Relations
-  user                User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  institution         Institution              @relation(fields: [institutionId], references: [id])
-  department          Department?              @relation(fields: [departmentId], references: [id])
-  course              Course?                  @relation(fields: [courseId], references: [id])
-  section             Section?                 @relation(fields: [sectionId], references: [id])
-  parents             ParentStudent[]
-  attendanceRecords   AttendanceRecord[]
-  leaveRequests       LeaveRequest[]
-  submissions         AssignmentSubmission[]
-  studentMarks        StudentMark[]
-  feeAssignments      StudentFeeAssignment[]
-  feePayments         FeePayment[]
-  feeReceipts         FeeReceipt[]
-  feeChallans         FeeChallan[]
-  feeRefunds          FeeRefund[]
-  bookIssues          BookIssue[]
-  libraryMember       LibraryMember?
-  documents           StudentDocument[]
-  exitRecords         StudentExitRecord[]
-  transport           StudentTransportMapping?
-  hostelBed           HostelBed?
-  hostelVisitorLogs   HostelVisitorLog[]
-  certificateRequests CertificateRequest[]
-  certificates        Certificate[]
-  grievances          Grievance[]
-  resume              StudentResume?
-  eventRegistrations  EventRegistration[]
-  clubMemberships     ClubMember[]
-  achievements        StudentAchievement[]
-  courseFeedback      CourseFeedback[]
-  appointments        Appointment[]
-  jobApplications     JobApplication[]
-  parentMeetingNotes  ParentMeetingNote[]
-  equipmentIssues     EquipmentIssue[]
-  alumniRecord        AlumniRecord?
-  degreeRecords       DegreeRecord[]
-  disciplineRecords   DisciplineRecord[]
-  healthRecords       HealthRecord[]
+  user                  User                          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  institution           Institution                   @relation(fields: [institutionId], references: [id])
+  department            Department?                   @relation(fields: [departmentId], references: [id])
+  course                Course?                       @relation(fields: [courseId], references: [id])
+  section               Section?                      @relation(fields: [sectionId], references: [id])
+  batch                 Batch?                        @relation(fields: [batchId], references: [id], onDelete: SetNull)
+  markCorrections       MarkCorrectionRequest[]
+  attendanceCorrections AttendanceCorrectionRequest[]
+  parents               ParentStudent[]
+  attendanceRecords     AttendanceRecord[]
+  leaveRequests         LeaveRequest[]
+  submissions           AssignmentSubmission[]
+  studentMarks          StudentMark[]
+  feeAssignments        StudentFeeAssignment[]
+  concessions           ConcessionApplication[]
+  feePayments           FeePayment[]
+  feeReceipts           FeeReceipt[]
+  feeChallans           FeeChallan[]
+  feeRefunds            FeeRefund[]
+  bookIssues            BookIssue[]
+  libraryMember         LibraryMember?
+  documents             StudentDocument[]
+  exitRecords           StudentExitRecord[]
+  transport             StudentTransportMapping?
+  hostelBed             HostelBed?
+  hostelVisitorLogs     HostelVisitorLog[]
+  certificateRequests   CertificateRequest[]
+  certificates          Certificate[]
+  grievances            Grievance[]
+  resume                StudentResume?
+  eventRegistrations    EventRegistration[]
+  clubMemberships       ClubMember[]
+  achievements          StudentAchievement[]
+  courseFeedback        CourseFeedback[]
+  appointments          Appointment[]
+  jobApplications       JobApplication[]
+  parentMeetingNotes    ParentMeetingNote[]
+  equipmentIssues       EquipmentIssue[]
+  alumniRecord          AlumniRecord?
+  degreeRecords         DegreeRecord[]
+  disciplineRecords     DisciplineRecord[]
+  healthRecords         HealthRecord[]
 
   @@unique([institutionId, admissionNumber])
   @@unique([sectionId, rollNumber]) // roll numbers are assigned per-class; NULLs (no section/no roll yet) never collide
@@ -981,6 +1149,8 @@ model Staff {
   classTeacherOf            Section[]                 @relation("SectionClassTeacher")
   attendanceSessions        AttendanceSession[]
   timetableEntries          TimetableEntry[]
+  substitutesRequested      SubstituteRequest[]       @relation("SubstituteOriginal")
+  substitutesCovering       SubstituteRequest[]       @relation("SubstituteCover")
   assignments               Assignment[]
   materials                 StudyMaterial[]
   leaveRequests             LeaveRequest[]
@@ -1069,6 +1239,29 @@ enum AttendanceStatus {
   LATE
   LEAVE
   HALF_DAY
+  ON_DUTY // counted as attended
+}
+
+model AttendanceCorrectionRequest {
+  id            String                  @id @default(uuid())
+  institutionId String
+  sessionId     String
+  studentId     String
+  requestedById String // User.id
+  oldStatus     AttendanceStatus?
+  newStatus     AttendanceStatus
+  reason        String
+  status        CorrectionRequestStatus @default(PENDING)
+  reviewedById  String?
+  reviewedAt    DateTime?
+  reviewRemarks String?
+  createdAt     DateTime                @default(now())
+
+  session AttendanceSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  student Student           @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([institutionId, status])
+  @@index([sessionId])
 }
 
 model AttendanceSession {
@@ -1081,11 +1274,12 @@ model AttendanceSession {
   periodNumber  Int?     @default(1)
   createdAt     DateTime @default(now())
 
-  institution Institution        @relation(fields: [institutionId], references: [id])
-  section     Section            @relation(fields: [sectionId], references: [id])
-  subject     Subject?           @relation(fields: [subjectId], references: [id])
-  takenBy     Staff              @relation(fields: [takenById], references: [id])
+  institution Institution                   @relation(fields: [institutionId], references: [id])
+  section     Section                       @relation(fields: [sectionId], references: [id])
+  subject     Subject?                      @relation(fields: [subjectId], references: [id])
+  takenBy     Staff                         @relation(fields: [takenById], references: [id])
   records     AttendanceRecord[]
+  corrections AttendanceCorrectionRequest[]
 
   @@unique([institutionId, sectionId, date, periodNumber])
 }
@@ -1159,12 +1353,47 @@ model TimetableEntry {
   staffId     String?
   label       String? // used when there's no subject — e.g. "Assembly", "Lunch Break", "Games"
   roomNumber  String?
+  roomId      String?
 
-  timetable Timetable @relation(fields: [timetableId], references: [id], onDelete: Cascade)
-  subject   Subject?  @relation(fields: [subjectId], references: [id])
-  staff     Staff?    @relation(fields: [staffId], references: [id])
+  timetable          Timetable           @relation(fields: [timetableId], references: [id], onDelete: Cascade)
+  subject            Subject?            @relation(fields: [subjectId], references: [id])
+  staff              Staff?              @relation(fields: [staffId], references: [id])
+  room               Room?               @relation(fields: [roomId], references: [id], onDelete: SetNull)
+  substituteRequests SubstituteRequest[]
 
   @@unique([timetableId, dayOfWeek, period])
+}
+
+enum SubstituteStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+// Date-specific cover for one weekly TimetableEntry; the weekly grid itself is never changed.
+model SubstituteRequest {
+  id                String           @id @default(uuid())
+  institutionId     String
+  timetableEntryId  String
+  date              DateTime         @db.Date
+  originalStaffId   String
+  substituteStaffId String?
+  requestedById     String
+  reason            String
+  status            SubstituteStatus @default(PENDING)
+  reviewedById      String?
+  reviewedAt        DateTime?
+  reviewRemarks     String?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  entry           TimetableEntry @relation(fields: [timetableEntryId], references: [id], onDelete: Cascade)
+  originalStaff   Staff          @relation("SubstituteOriginal", fields: [originalStaffId], references: [id])
+  substituteStaff Staff?         @relation("SubstituteCover", fields: [substituteStaffId], references: [id])
+
+  @@index([institutionId, status])
+  @@index([substituteStaffId, date])
 }
 
 enum AssignmentStatus {
@@ -1296,13 +1525,70 @@ model ExamSchedule {
   maxMarks    Float     @default(100)
   passMarks   Float     @default(35)
   roomNumber  String?
+  roomId      String?
   isPublished Boolean   @default(false)
   publishedAt DateTime?
 
-  exam         Exam          @relation(fields: [examId], references: [id], onDelete: Cascade)
-  subject      Subject       @relation(fields: [subjectId], references: [id])
-  course       Course        @relation(fields: [courseId], references: [id])
-  studentMarks StudentMark[]
+  // Result lifecycle: DRAFT -> SUBMITTED -> VERIFIED -> APPROVED -> (isPublished).
+  // Only enforced for publishing when InstitutionSettings.examApprovalRequired is on;
+  // otherwise informational and the legacy direct-publish flow is unchanged.
+  markStatus    ExamMarkStatus @default(DRAFT)
+  submittedById String? // User.id
+  submittedAt   DateTime?
+  verifiedById  String?
+  verifiedAt    DateTime?
+  approvedById  String?
+  approvedAt    DateTime?
+  reviewRemarks String? // last return/rejection reason, shown to the teacher
+
+  exam               Exam                    @relation(fields: [examId], references: [id], onDelete: Cascade)
+  subject            Subject                 @relation(fields: [subjectId], references: [id])
+  course             Course                  @relation(fields: [courseId], references: [id])
+  room               Room?                   @relation(fields: [roomId], references: [id], onDelete: SetNull)
+  studentMarks       StudentMark[]
+  correctionRequests MarkCorrectionRequest[]
+
+  @@index([markStatus])
+}
+
+enum ExamMarkStatus {
+  DRAFT
+  SUBMITTED
+  VERIFIED
+  APPROVED
+}
+
+/// A request to change one student's mark after it has been locked (submitted for review or
+/// published). Approving it rewrites the StudentMark and is the correction audit trail.
+model MarkCorrectionRequest {
+  id             String                  @id @default(uuid())
+  institutionId  String
+  examScheduleId String
+  studentId      String
+  requestedById  String // User.id
+  oldMarks       Float?
+  oldIsAbsent    Boolean?
+  newMarks       Float?
+  newIsAbsent    Boolean                 @default(false)
+  reason         String
+  status         CorrectionRequestStatus @default(PENDING)
+  reviewedById   String?
+  reviewedAt     DateTime?
+  reviewRemarks  String?
+  createdAt      DateTime                @default(now())
+  updatedAt      DateTime                @updatedAt
+
+  examSchedule ExamSchedule @relation(fields: [examScheduleId], references: [id], onDelete: Cascade)
+  student      Student      @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([institutionId, status])
+  @@index([examScheduleId])
+}
+
+enum CorrectionRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
 }
 
 model StudentMark {
@@ -1451,13 +1737,66 @@ model StudentFeeAssignment {
   // AdmissionCustomField, entityType FEE_ASSIGNMENT), e.g. "Sponsor Name".
   customFields Json?
 
-  feeStructure FeeStructure     @relation(fields: [feeStructureId], references: [id])
-  student      Student          @relation(fields: [studentId], references: [id])
+  feeStructure FeeStructure            @relation(fields: [feeStructureId], references: [id])
+  student      Student                 @relation(fields: [studentId], references: [id])
   payments     FeePayment[]
   installments FeeInstallment[]
   items        StudentFeeItem[]
+  concessions  ConcessionApplication[]
 
   @@unique([feeStructureId, studentId])
+}
+
+/// Reusable scholarship / concession rule. Approved applications add their amount to
+/// StudentFeeAssignment.discountAmount, the same field every payment path already honours.
+model ConcessionScheme {
+  id            String   @id @default(uuid())
+  institutionId String
+  code          String
+  name          String
+  type          String   @default("SCHOLARSHIP") // SCHOLARSHIP, CONCESSION, WAIVER
+  valueType     String   @default("PERCENT") // PERCENT, FIXED
+  value         Float
+  maxAmount     Float? // cap for PERCENT schemes
+  description   String?
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  applications ConcessionApplication[]
+
+  @@unique([institutionId, code])
+}
+
+enum ConcessionStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  REVOKED
+}
+
+model ConcessionApplication {
+  id              String           @id @default(uuid())
+  institutionId   String
+  schemeId        String
+  studentId       String
+  feeAssignmentId String
+  requestedById   String // User.id
+  amount          Float
+  reason          String
+  referenceNo     String?
+  status          ConcessionStatus @default(PENDING)
+  reviewedById    String?
+  reviewedAt      DateTime?
+  reviewRemarks   String?
+  createdAt       DateTime         @default(now())
+
+  scheme        ConcessionScheme     @relation(fields: [schemeId], references: [id])
+  student       Student              @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  feeAssignment StudentFeeAssignment @relation(fields: [feeAssignmentId], references: [id], onDelete: Cascade)
+
+  @@index([institutionId, status])
+  @@index([feeAssignmentId])
 }
 
 /// The per-student, per-fee-head breakdown — snapshotted from FeeStructureItem at
@@ -1753,6 +2092,7 @@ model HostelBed {
   studentId  String? @unique
   isOccupied Boolean @default(false)
   monthlyFee Float   @default(5000)
+  roomId     String?
 
   // Institution-specific extra allocation fields (SuperAdmin-approved only — see
   // AdmissionCustomField, entityType HOSTEL_ALLOCATION), e.g. "Room Preference".
@@ -1760,6 +2100,7 @@ model HostelBed {
 
   hostel     Hostel             @relation(fields: [hostelId], references: [id])
   student    Student?           @relation(fields: [studentId], references: [id])
+  room       Room?              @relation(fields: [roomId], references: [id], onDelete: SetNull)
   attendance HostelAttendance[]
 
   @@unique([hostelId, roomNumber, bedNumber])
@@ -2227,6 +2568,8 @@ model InstitutionSettings {
   staffAttendanceSmsEnabled Boolean  @default(true) // lets the Institute Admin turn off the auto-SMS-to-parent feature staff trigger by marking a student absent
   idCardOrientation         String   @default("VERTICAL") // VERTICAL | HORIZONTAL — the institution's chosen ID card layout, applied everywhere a student/staff ID card renders
   idCardTemplate            String   @default("CLASSIC") // CLASSIC | MODERN | MINIMAL — the institution's chosen visual style
+  examApprovalRequired      Boolean  @default(false) // on = marks must be SUBMITTED -> VERIFIED -> APPROVED before they can be published
+  attendanceLockDays        Int? // null = never lock; N = sessions older than N days need an approved correction request
   paymentGatewayProvider    String?
   paymentKeyId              String? // public key/merchant id only — secrets stay server-side (.env), never stored here
   updatedAt                 DateTime @updatedAt
@@ -3490,6 +3833,7 @@ enum PreAdmissionStatus {
   NEW
   UNDER_REVIEW
   SHORTLISTED
+  DOCUMENTS_VERIFIED
   ENROLLED
   REJECTED
   CONVERTED
@@ -3507,44 +3851,47 @@ enum PreAdmissionStatus {
 /// issued) → CONVERTED (an "Admit" action turns it into a real Student record) — or
 /// REJECTED at any point before that.
 model PreAdmissionApplication {
-  id                 String             @id @default(uuid())
-  institutionId      String
-  applicationNumber  String // e.g. "DPIS/PADM/2026/00001" — auto-generated, always set, this institution's own tracking number
-  referenceNumber    String? // optional external reference the institution's own website/CRM may already use
-  receiptNumber      String? // set once "Generate Receipt" is used — an application/registration fee receipt
-  studentFirstName   String
-  studentLastName    String?
-  dob                DateTime?
-  gender             String?
-  classAppliedFor    String? // school-style ("Class 5")
-  courseApplied      String? // college-style ("B.Tech CSE") — a form only fills whichever applies to that institution
-  academicYear       String?
-  parentName         String?
-  parentPhone        String
-  parentEmail        String?
-  address            String?
-  city               String?
-  state              String?
-  pincode            String?
-  previousSchool     String?
-  previousClass      String?
-  source             String             @default("WEBSITE") // WEBSITE, API, MANUAL
-  submittedFromIp    String?
-  rawPayload         Json? // the full submitted body, kept as-is for audit/debugging
-  customFields       Json? // only the values matching APPROVED AdmissionCustomField keys at submission time — this is what actually carries through to the Student on Admit
+  id                    String             @id @default(uuid())
+  institutionId         String
+  applicationNumber     String // e.g. "DPIS/PADM/2026/00001" — auto-generated, always set, this institution's own tracking number
+  referenceNumber       String? // optional external reference the institution's own website/CRM may already use
+  receiptNumber         String? // set once "Generate Receipt" is used — an application/registration fee receipt
+  studentFirstName      String
+  studentLastName       String?
+  dob                   DateTime?
+  gender                String?
+  classAppliedFor       String? // school-style ("Class 5")
+  courseApplied         String? // college-style ("B.Tech CSE") — a form only fills whichever applies to that institution
+  academicYear          String?
+  parentName            String?
+  parentPhone           String
+  parentEmail           String?
+  address               String?
+  city                  String?
+  state                 String?
+  pincode               String?
+  previousSchool        String?
+  previousClass         String?
+  source                String             @default("WEBSITE") // WEBSITE, API, MANUAL
+  submittedFromIp       String?
+  rawPayload            Json? // the full submitted body, kept as-is for audit/debugging
+  customFields          Json? // only the values matching APPROVED AdmissionCustomField keys at submission time — this is what actually carries through to the Student on Admit
   // Application fee — only meaningful when the institution has set Institution.preAdmissionFeeAmount;
   // feeAmount is snapshotted at submission time so a later fee-amount change never rewrites history.
-  feeAmount          Float?
-  feePaid            Boolean            @default(false)
-  feePaymentId       String? // the real Razorpay payment id once verified (see shared/utils/paymentGateway)
-  feePaidAt          DateTime?
-  status             PreAdmissionStatus @default(NEW)
-  enrolledAt         DateTime? // when the applicant was accepted/enrolled (the "Enroll" action)
-  reviewNotes        String?
-  reviewedById       String?
-  convertedStudentId String?
-  createdAt          DateTime           @default(now())
-  updatedAt          DateTime           @updatedAt
+  feeAmount             Float?
+  feePaid               Boolean            @default(false)
+  feePaymentId          String? // the real Razorpay payment id once verified (see shared/utils/paymentGateway)
+  feePaidAt             DateTime?
+  status                PreAdmissionStatus @default(NEW)
+  enrolledAt            DateTime? // when the applicant was accepted/enrolled (the "Enroll" action)
+  documentChecklist     Json? // [{ name, verified }] - set by the "Verify Documents" action
+  documentsVerifiedAt   DateTime?
+  documentsVerifiedById String? // User.id
+  reviewNotes           String?
+  reviewedById          String?
+  convertedStudentId    String?
+  createdAt             DateTime           @default(now())
+  updatedAt             DateTime           @updatedAt
 
   institution Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
   reviewedBy  Staff?      @relation(fields: [reviewedById], references: [id])

@@ -12,6 +12,7 @@ const {
   ValidationError,
   BusinessRuleError,
   generateGatePassNumber,
+  resolveRoom,
 } = require('../../../shared');
 
 /** Local calendar date as a UTC-midnight Date, so `@db.Date` columns store the
@@ -87,14 +88,16 @@ const getBeds = async (req, res, next) => {
 
 const createBed = async (req, res, next) => {
   try {
-    const { hostelId, roomNumber, bedNumber, monthlyFee } = req.body;
+    const { hostelId, bedNumber, monthlyFee, roomId } = req.body;
+    const room = await resolveRoom(roomId, req.institutionId);
+    const roomNumber = req.body.roomNumber || room?.roomNumber;
     if (!hostelId || !roomNumber || !bedNumber) throw new ValidationError('hostelId, roomNumber, bedNumber are required');
 
     const hostel = await prisma.hostel.findFirst({ where: { id: hostelId, institutionId: req.institutionId } });
     if (!hostel) throw new NotFoundError('Hostel not found or access denied');
 
     const bed = await prisma.hostelBed.create({
-      data: { hostelId, roomNumber, bedNumber, monthlyFee: Number(monthlyFee) || 5000 },
+      data: { hostelId, roomNumber, bedNumber, monthlyFee: Number(monthlyFee) || 5000, roomId: room?.id || null },
     });
     return sendSuccess(res, bed, 'Bed added to room inventory successfully', 201);
   } catch (err) {

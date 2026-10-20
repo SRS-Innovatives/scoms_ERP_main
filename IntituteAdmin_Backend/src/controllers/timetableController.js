@@ -11,6 +11,8 @@ const {
   sendSuccess,
   NotFoundError,
   ValidationError,
+  resolveRoomsById,
+  timetableRules,
 } = require('../../../shared');
 
 const DAYS = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
@@ -74,26 +76,47 @@ const saveEntries = async (req, res, next) => {
       const count = await prisma.staff.count({ where: { id: { in: staffIds }, institutionId: req.institutionId } });
       if (count !== staffIds.length) throw new ValidationError('One or more staff are invalid for this institution');
     }
+    const roomsById = await resolveRoomsById(validEntries.map((e) => e.roomId), req.institutionId);
+
+    const rows = validEntries.map((e) => ({
+      dayOfWeek: e.dayOfWeek,
+      period: Number(e.period),
+      startTime: e.startTime || '',
+      endTime: e.endTime || '',
+      subjectId: e.subjectId || null,
+      staffId: e.staffId || null,
+      label: e.subjectId ? null : e.label || null,
+      roomNumber: e.roomNumber || roomsById.get(e.roomId)?.roomNumber || null,
+      roomId: e.roomId || null,
+    }));
+
+    const conflicts = await timetableRules.findConflicts({ institutionId: req.institutionId, timetableId, entries: rows });
+    if (conflicts.length > 0 && !req.body.allowConflicts) {
+      throw new ValidationError('Teacher or room is already booked in another section for some periods', conflicts);
+    }
+
+    // Update slots in place so entry ids (and substitute requests that point at them) survive a save.
+    const existing = await prisma.timetableEntry.findMany({ where: { timetableId }, select: { id: true, dayOfWeek: true, period: true, staffId: true } });
+    const existingBySlot = new Map(existing.map((x) => [`${x.dayOfWeek}_${x.period}`, x]));
+    const keep = new Set(rows.map((r) => `${r.dayOfWeek}_${r.period}`));
+    const removedIds = existing.filter((x) => !keep.has(`${x.dayOfWeek}_${x.period}`)).map((x) => x.id);
+    const teacherChangedIds = rows
+      .map((r) => ({ r, x: existingBySlot.get(`${r.dayOfWeek}_${r.period}`) }))
+      .filter(({ r, x }) => x && x.staffId !== r.staffId)
+      .map(({ x }) => x.id);
 
     await prisma.$transaction([
-      prisma.timetableEntry.deleteMany({ where: { timetableId } }),
-      ...(validEntries.length > 0
-        ? [
-            prisma.timetableEntry.createMany({
-              data: validEntries.map((e) => ({
-                timetableId,
-                dayOfWeek: e.dayOfWeek,
-                period: Number(e.period),
-                startTime: e.startTime || '',
-                endTime: e.endTime || '',
-                subjectId: e.subjectId || null,
-                staffId: e.staffId || null,
-                label: e.subjectId ? null : e.label || null,
-                roomNumber: e.roomNumber || null,
-              })),
-            }),
-          ]
+      ...(teacherChangedIds.length > 0
+        ? [prisma.substituteRequest.updateMany({ where: { timetableEntryId: { in: teacherChangedIds }, status: 'PENDING' }, data: { status: 'CANCELLED' } })]
         : []),
+      prisma.timetableEntry.deleteMany({ where: { id: { in: removedIds } } }),
+      ...rows.map((r) =>
+        prisma.timetableEntry.upsert({
+          where: { timetableId_dayOfWeek_period: { timetableId, dayOfWeek: r.dayOfWeek, period: r.period } },
+          create: { timetableId, ...r },
+          update: r,
+        })
+      ),
     ]);
 
     const updated = await prisma.timetable.findUnique({
@@ -109,7 +132,7 @@ const saveEntries = async (req, res, next) => {
       },
     });
 
-    return sendSuccess(res, updated, 'Timetable saved successfully');
+    return sendSuccess(res, { ...updated, conflicts }, conflicts.length > 0 ? 'Timetable saved with clashes' : 'Timetable saved successfully');
   } catch (err) {
     next(err);
   }
@@ -137,8 +160,47 @@ const getTeacherTimetable = async (req, res, next) => {
   }
 };
 
+const getSubstituteRequests = async (req, res, next) => {
+  try {
+    const { status, from } = req.query;
+    const data = await timetableRules.listSubstituteRequests({ institutionId: req.institutionId, status, from });
+    return sendSuccess(res, data, 'Substitute requests retrieved');
+  } catch (err) {
+    next(err);
+  }
+};
+
+const getAvailableSubstitutes = async (req, res, next) => {
+  try {
+    const data = await timetableRules.findAvailableSubstitutes({ institutionId: req.institutionId, requestId: req.params.id });
+    return sendSuccess(res, data, 'Available teachers retrieved');
+  } catch (err) {
+    next(err);
+  }
+};
+
+const reviewSubstituteRequest = async (req, res, next) => {
+  try {
+    const { decision, substituteStaffId, remarks } = req.body;
+    const data = await timetableRules.reviewSubstituteRequest({
+      institutionId: req.institutionId,
+      userId: req.user.id,
+      requestId: req.params.id,
+      decision,
+      substituteStaffId,
+      remarks,
+    });
+    return sendSuccess(res, data, `Substitute request ${data.status.toLowerCase()}`);
+  } catch (err) {
+    next(err);
+  }
+};
+
 module.exports = {
   getTimetable,
   saveEntries,
   getTeacherTimetable,
+  getSubstituteRequests,
+  getAvailableSubstitutes,
+  reviewSubstituteRequest,
 };

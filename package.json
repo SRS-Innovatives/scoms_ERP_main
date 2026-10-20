@@ -8,11 +8,12 @@
     "SuperAdmin_Backend",
     "IntituteAdmin_Backend",
     "Staff_backend",
-    "Student_Backend"
+    "Student_Backend",
+    "scoms-app-backend"
   ],
   "scripts": {
-    "dev": "concurrently \"npm run start:super-admin\" \"npm run start:institute-admin\" \"npm run start:staff\" \"npm run start:student\"",
-    "test": "node test/tenantIsolation.test.js && node test/rbacMatrix.test.js",
+    "dev": "concurrently \"npm run start:super-admin\" \"npm run start:institute-admin\" \"npm run start:staff\" \"npm run start:student\" \"npm run start:mobile\"",
+    "test": "node test/tenantIsolation.test.js && node test/rbacMatrix.test.js && node test/mobileTenantIsolation.test.js && node test/staffNavPermissionCoverage.test.js",
     "prisma:generate": "prisma generate",
     "prisma:validate": "prisma validate",
     "prisma:migrate": "prisma migrate dev",
@@ -20,7 +21,8 @@
     "start:super-admin": "node --watch SuperAdmin_Backend/src/server.js",
     "start:institute-admin": "node --watch IntituteAdmin_Backend/src/server.js",
     "start:staff": "node --watch Staff_backend/src/server.js",
-    "start:student": "node --watch Student_Backend/src/server.js"
+    "start:student": "node --watch Student_Backend/src/server.js",
+    "start:mobile": "node --watch scoms-app-backend/src/server.js"
   },
   "devDependencies": {
     "concurrently": "^10.0.5",

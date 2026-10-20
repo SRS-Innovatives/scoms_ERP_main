@@ -16,6 +16,7 @@ const {
   ValidationError,
   BusinessRuleError,
   generateGatePassNumber,
+  resolveRoom,
 } = require('../../../shared');
 
 const toDateOnly = (dateStr) => {
@@ -67,6 +68,38 @@ const createHostel = async (req, res, next) => {
   }
 };
 
+/** Student picker for bed allocation — only students who don't already have a bed
+ * (HostelBed.studentId is unique), so the Warden never sees a student they'd
+ * immediately get a "already has a bed allocated" error for. Mobile-only endpoint,
+ * added for the mobile allocate-bed flow (see scoms-app-staff's hostel module);
+ * nothing on web changes. */
+const searchStudents = async (req, res, next) => {
+  try {
+    const { q } = req.query;
+    const students = await prisma.student.findMany({
+      where: {
+        institutionId: req.institutionId,
+        status: 'ACTIVE',
+        hostelBed: null,
+        ...(q && {
+          OR: [
+            { firstName: { contains: q, mode: 'insensitive' } },
+            { lastName: { contains: q, mode: 'insensitive' } },
+            { rollNumber: { contains: q, mode: 'insensitive' } },
+            { admissionNumber: { contains: q, mode: 'insensitive' } },
+          ],
+        }),
+      },
+      select: { id: true, firstName: true, lastName: true, rollNumber: true, admissionNumber: true },
+      take: 20,
+      orderBy: { rollNumber: 'asc' },
+    });
+    return sendSuccess(res, students, 'Students retrieved successfully');
+  } catch (err) {
+    next(err);
+  }
+};
+
 // ============================================================
 // Beds — room/bed inventory + allocation
 // ============================================================
@@ -89,14 +122,16 @@ const getBeds = async (req, res, next) => {
 
 const createBed = async (req, res, next) => {
   try {
-    const { hostelId, roomNumber, bedNumber, monthlyFee } = req.body;
+    const { hostelId, bedNumber, monthlyFee, roomId } = req.body;
+    const room = await resolveRoom(roomId, req.institutionId);
+    const roomNumber = req.body.roomNumber || room?.roomNumber;
     if (!hostelId || !roomNumber || !bedNumber) throw new ValidationError('hostelId, roomNumber, bedNumber are required');
 
     const hostel = await prisma.hostel.findFirst({ where: { id: hostelId, institutionId: req.institutionId } });
     if (!hostel) throw new NotFoundError('Hostel not found or access denied');
 
     const bed = await prisma.hostelBed.create({
-      data: { hostelId, roomNumber, bedNumber, monthlyFee: Number(monthlyFee) || 5000 },
+      data: { hostelId, roomNumber, bedNumber, monthlyFee: Number(monthlyFee) || 5000, roomId: room?.id || null },
     });
     return sendSuccess(res, bed, 'Bed added to room inventory successfully', 201);
   } catch (err) {
@@ -278,6 +313,7 @@ const checkOutVisitor = async (req, res, next) => {
 module.exports = {
   getHostels,
   createHostel,
+  searchStudents,
   getBeds,
   createBed,
   allocateBed,

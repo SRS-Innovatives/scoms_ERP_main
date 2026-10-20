@@ -10,9 +10,64 @@ const {
   prisma, sendSuccess, NotFoundError, ValidationError,
   generatePreAdmissionNumber, generateReceiptNumber, generateApiKey,
 } = require('../../../shared');
-const { admitStudentWithinTx } = require('./studentController');
+const { admitStudentWithinTx, sendStudentCredentials } = require('./studentController');
+const { assignStructureWithinTx } = require('./feeEngineController');
 
-const VALID_STATUSES = ['NEW', 'UNDER_REVIEW', 'SHORTLISTED', 'ENROLLED', 'REJECTED', 'CONVERTED'];
+const VALID_STATUSES = ['NEW', 'UNDER_REVIEW', 'SHORTLISTED', 'DOCUMENTS_VERIFIED', 'ENROLLED', 'REJECTED', 'CONVERTED'];
+
+/** Next free numeric roll number in a section (non-numeric roll numbers are ignored). */
+const nextRollNumber = async (tx, sectionId) => {
+  const rolls = await tx.student.findMany({ where: { sectionId }, select: { rollNumber: true } });
+  const max = rolls.reduce((m, r) => (/^\d+$/.test(r.rollNumber || '') ? Math.max(m, Number(r.rollNumber)) : m), 0);
+  return String(max + 1);
+};
+
+/** PUBLISHED structures for the current academic year that apply to this student's course/section. */
+const findMatchingFeeStructures = (tx, institutionId, courseId, sectionId) =>
+  tx.feeStructure.findMany({
+    where: {
+      institutionId,
+      status: 'PUBLISHED',
+      academicYear: { isCurrent: true },
+      AND: [
+        { OR: [{ courseId: null }, ...(courseId ? [{ courseId }] : [])] },
+        { OR: [{ sectionId: null }, { sectionId }] },
+      ],
+    },
+    include: { items: { include: { feeHead: true } } },
+  });
+
+/** "Verify Documents" — records the checklist; moves the application to DOCUMENTS_VERIFIED once every item is verified. */
+const verifyDocuments = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { checklist, reviewNotes } = req.body;
+    if (!Array.isArray(checklist) || checklist.length === 0 || checklist.some((d) => !d || !String(d.name || '').trim())) {
+      throw new ValidationError('checklist must be a non-empty array of { name, verified }');
+    }
+    const existing = await prisma.preAdmissionApplication.findFirst({ where: { id, institutionId: req.institutionId } });
+    if (!existing) throw new NotFoundError('Application not found');
+    if (['CONVERTED', 'REJECTED'].includes(existing.status)) throw new ValidationError(`Documents can't be verified for a ${existing.status.toLowerCase()} application`);
+
+    const clean = checklist.map((d) => ({ name: String(d.name).trim(), verified: d.verified === true }));
+    const allVerified = clean.every((d) => d.verified);
+    const promote = allVerified && ['NEW', 'UNDER_REVIEW', 'SHORTLISTED'].includes(existing.status);
+
+    const application = await prisma.preAdmissionApplication.update({
+      where: { id },
+      data: {
+        documentChecklist: clean,
+        ...(reviewNotes !== undefined && { reviewNotes }),
+        documentsVerifiedAt: allVerified ? new Date() : null,
+        documentsVerifiedById: allVerified ? req.user.id : null,
+        ...(promote && { status: 'DOCUMENTS_VERIFIED' }),
+      },
+    });
+    return sendSuccess(res, application, allVerified ? 'All documents verified' : 'Document checklist saved');
+  } catch (err) {
+    next(err);
+  }
+};
 
 const getApplications = async (req, res, next) => {
   try {
@@ -167,7 +222,7 @@ const admitApplication = async (req, res, next) => {
     if (application.status === 'CONVERTED') throw new ValidationError('This application has already been admitted');
     if (application.status === 'REJECTED') throw new ValidationError('A rejected application cannot be admitted — change its status first if this was a mistake');
 
-    const { email, sectionId, courseId, ...rest } = req.body;
+    const { email, sectionId, courseId, assignFees, autoRollNumber, sendCredentials, ...rest } = req.body;
     if (!email) throw new ValidationError('email is required to create the student\'s real login account');
     if (!sectionId) throw new ValidationError('sectionId is required — pick the real class/section to admit this student into');
 
@@ -198,13 +253,38 @@ const admitApplication = async (req, res, next) => {
     };
 
     const result = await prisma.$transaction(async (tx) => {
+      if (autoRollNumber === true && !admissionData.rollNumber) admissionData.rollNumber = await nextRollNumber(tx, sectionId);
       const admission = await admitStudentWithinTx(tx, req.institutionId, req.user.id, admissionData);
       const updated = await tx.preAdmissionApplication.update({
         where: { id },
         data: { status: 'CONVERTED', convertedStudentId: admission.student.id, reviewedById: req.user.staffId || null },
       });
-      return { ...admission, application: updated };
-    });
+
+      const feesAssigned = [];
+      if (assignFees === true) {
+        const structures = await findMatchingFeeStructures(tx, req.institutionId, admission.student.courseId, sectionId);
+        for (const structure of structures) {
+          await assignStructureWithinTx(tx, structure, admission.student.id);
+          feesAssigned.push({ id: structure.id, name: structure.name, totalAmount: structure.totalAmount });
+        }
+      }
+      return { ...admission, application: updated, provisioning: { rollNumber: admission.student.rollNumber, feesAssigned } };
+    }, { timeout: 20000 });
+
+    const credentialsSent = sendCredentials === true;
+    if (credentialsSent) {
+      sendStudentCredentials({
+        institutionId: req.institutionId,
+        firstName: result.student.firstName,
+        lastName: result.student.lastName,
+        email,
+        phone: result.student.phone,
+        password: rest.password,
+        admissionNumber: result.student.admissionNumber,
+      });
+    }
+    result.provisioning.credentialsSent = credentialsSent;
+    if (result.user) delete result.user.password;
 
     return sendSuccess(res, result, `${application.studentFirstName} admitted successfully as ${result.student.admissionNumber}`, 201);
   } catch (err) {
@@ -272,6 +352,7 @@ module.exports = {
   updateStatus,
   generateReceipt,
   admitApplication,
+  verifyDocuments,
   deleteApplication,
   getApiKeySettings,
   updateFeeAmount,

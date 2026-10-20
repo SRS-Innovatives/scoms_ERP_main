@@ -1,0 +1,30 @@
+buildscript {
+    ext {
+        // Pinned to what's actually installed in this SDK (avoids Gradle silently
+        // trying to auto-download a missing platform/build-tools version, which on a
+        // slow connection manifests as an apparent hang printing "Still waiting for
+        // package manifests to be fetched remotely" — see docs/troubleshooting.md).
+        buildToolsVersion = "36.1.0"
+        minSdkVersion = 24
+        compileSdkVersion = 36
+        targetSdkVersion = 36
+        ndkVersion = "27.1.12297006"
+        kotlinVersion = "2.2.0"
+    }
+    repositories {
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        classpath("com.android.tools.build:gradle")
+        classpath("com.facebook.react:react-native-gradle-plugin")
+        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin")
+        // Required by @react-native-firebase/app — reads android/app/google-services.json,
+        // which you must download from your own Firebase project (Console > Project
+        // Settings > Your apps > Android app) and place there yourself; this repo never
+        // ships real Firebase credentials.
+        classpath("com.google.gms:google-services:4.4.2")
+    }
+}
+
+apply plugin: "com.facebook.react.rootproject"

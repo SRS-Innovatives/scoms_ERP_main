@@ -29,6 +29,7 @@ const ATTENDANCE_STATUS = {
   LATE: 'LATE',
   LEAVE: 'LEAVE',
   HALF_DAY: 'HALF_DAY',
+  ON_DUTY: 'ON_DUTY',
 };
 
 const LEAVE_STATUS = {

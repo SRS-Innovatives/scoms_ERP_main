@@ -15,6 +15,7 @@ const STATUS_META = {
   ABSENT: { label: 'Absent', icon: X, className: 'bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-400' },
   LEAVE: { label: 'Leave', icon: Clock, className: 'bg-sky-100 text-sky-700 dark:bg-sky-500/15 dark:text-sky-400' },
   HALF_DAY: { label: 'Half Day', icon: Clock, className: 'bg-orange-100 text-orange-700 dark:bg-orange-500/15 dark:text-orange-400' },
+  ON_DUTY: { label: 'On Duty', icon: Clock, className: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-400' },
   NOT_MARKED: { label: 'Not Marked', icon: Clock, className: 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400' },
 };
 

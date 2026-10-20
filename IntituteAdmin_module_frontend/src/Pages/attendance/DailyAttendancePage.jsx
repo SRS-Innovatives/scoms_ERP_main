@@ -10,6 +10,7 @@ const STATUS_META = {
   ABSENT: { icon: X, className: 'bg-rose-100 text-rose-700' },
   LEAVE: { icon: Clock, className: 'bg-sky-100 text-sky-700' },
   HALF_DAY: { icon: Clock, className: 'bg-slate-100 text-slate-700' },
+  ON_DUTY: { icon: Clock, className: 'bg-indigo-100 text-indigo-700' },
 };
 
 export const DailyAttendancePage = () => {
@@ -68,7 +69,7 @@ export const DailyAttendancePage = () => {
                   <p className="text-xs text-slate-500">Period {s.periodNumber} • Taken by {s.takenBy?.user?.email || 'Staff'}</p>
                 </div>
                 <span className="text-xs font-bold text-slate-600 dark:text-slate-300">
-                  {s.records.filter((r) => r.status === 'PRESENT' || r.status === 'LATE').length} / {s.records.length} Present
+                  {s.records.filter((r) => ['PRESENT', 'LATE', 'ON_DUTY'].includes(r.status)).length} / {s.records.length} Present
                 </span>
               </div>
               <div className="p-4 flex flex-wrap gap-2">

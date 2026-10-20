@@ -7,7 +7,10 @@ const {
   sendSuccess,
   NotFoundError,
   ValidationError,
+  attendanceRules,
 } = require('../../../shared');
+
+const { isAttended } = attendanceRules;
 
 /** Fields a student may edit about themselves — never admission/academic/identity fields. */
 const SELF_EDITABLE_FIELDS = ['email', 'phone', 'address', 'city', 'state', 'pincode'];
@@ -51,7 +54,7 @@ const getAttendanceSummary = async (req, res, next) => {
     });
 
     const totalClasses = records.length;
-    const presentCount = records.filter((r) => r.status === 'PRESENT' || r.status === 'LATE').length;
+    const presentCount = records.filter((r) => isAttended(r.status)).length;
     const percentage = totalClasses > 0 ? ((presentCount / totalClasses) * 100).toFixed(1) : 100.0;
 
     // Subject-wise breakdown
@@ -60,7 +63,7 @@ const getAttendanceSummary = async (req, res, next) => {
       const key = r.session.subject?.name || 'General';
       if (!bySubject[key]) bySubject[key] = { subject: key, total: 0, present: 0 };
       bySubject[key].total++;
-      if (r.status === 'PRESENT' || r.status === 'LATE') bySubject[key].present++;
+      if (isAttended(r.status)) bySubject[key].present++;
     });
     const subjectBreakdown = Object.values(bySubject).map((s) => ({
       ...s,

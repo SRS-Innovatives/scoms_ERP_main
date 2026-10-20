@@ -4,8 +4,8 @@ import attendanceService from '../../services/attendanceService';
 import { useNotification } from '../../context/NotificationContext';
 import ErrorState from '../../components/common/ErrorState';
 
-const STATUS_LABEL = { PRESENT: 'P', ABSENT: 'A', LATE: 'L', LEAVE: 'OD' };
-const STATUS_COLOR = { PRESENT: 'text-emerald-600', ABSENT: 'text-rose-600', LATE: 'text-amber-600', LEAVE: 'text-sky-600' };
+const STATUS_LABEL = { PRESENT: 'P', ABSENT: 'A', LATE: 'L', LEAVE: 'LV', ON_DUTY: 'OD', HALF_DAY: 'HD' };
+const STATUS_COLOR = { PRESENT: 'text-emerald-600', ABSENT: 'text-rose-600', LATE: 'text-amber-600', LEAVE: 'text-violet-600', ON_DUTY: 'text-sky-600', HALF_DAY: 'text-orange-600' };
 
 const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 

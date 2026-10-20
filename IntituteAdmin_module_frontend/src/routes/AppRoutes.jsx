@@ -20,6 +20,7 @@ import SemesterSetupPage from '../pages/setup/SemesterSetupPage';
 import SectionSetupPage from '../pages/setup/SectionSetupPage';
 import SubjectSetupPage from '../pages/setup/SubjectSetupPage';
 import BatchSetupPage from '../pages/setup/BatchSetupPage';
+import ProgramSetupPage from '../pages/setup/ProgramSetupPage';
 import HouseGroupSetupPage from '../pages/setup/HouseGroupSetupPage';
 import AffiliatedCollegesPage from '../pages/setup/AffiliatedCollegesPage';
 import VisitorManagementPage from '../pages/setup/VisitorManagementPage';
@@ -64,6 +65,7 @@ import PayrollPage from '../pages/staff/PayrollPage';
 
 // Attendance
 import DailyAttendancePage from '../pages/attendance/DailyAttendancePage';
+import AttendanceCorrectionsPage from '../pages/attendance/AttendanceCorrectionsPage';
 import SubjectAttendancePage from '../pages/attendance/SubjectAttendancePage';
 import BiometricImportPage from '../pages/attendance/BiometricImportPage';
 import AbsentStudentsPage from '../pages/attendance/AbsentStudentsPage';
@@ -74,6 +76,7 @@ import ClassTimetablePage from '../pages/timetable/ClassTimetablePage';
 import TeacherTimetablePage from '../pages/timetable/TeacherTimetablePage';
 import ExamTimetablePage from '../pages/timetable/ExamTimetablePage';
 import TimetableGeneratorPage from '../pages/timetable/TimetableGeneratorPage';
+import SubstituteRequestsPage from '../pages/timetable/SubstituteRequestsPage';
 
 // Examination
 import ExamSetupPage from '../pages/examination/ExamSetupPage';
@@ -234,6 +237,7 @@ export const AppRoutes = () => {
         <Route path="setup/section" element={<SectionSetupPage />} />
         <Route path="setup/subject" element={<SubjectSetupPage />} />
         <Route path="setup/batch" element={<BatchSetupPage />} />
+        <Route path="setup/program" element={<ProgramSetupPage />} />
         <Route path="setup/house" element={<HouseGroupSetupPage />} />
         <Route path="setup/affiliated-colleges" element={<AffiliatedCollegesPage />} />
         <Route path="setup/visitors" element={<VisitorManagementPage />} />
@@ -282,6 +286,7 @@ export const AppRoutes = () => {
 
         {/* Attendance */}
         <Route path="attendance/daily" element={<DailyAttendancePage />} />
+        <Route path="attendance/corrections" element={<AttendanceCorrectionsPage />} />
         <Route path="attendance/subject" element={<SubjectAttendancePage />} />
         <Route path="attendance/biometric" element={<BiometricImportPage />} />
         <Route path="attendance/absentee" element={<AbsentStudentsPage />} />
@@ -292,6 +297,7 @@ export const AppRoutes = () => {
         <Route path="timetable/teacher" element={<TeacherTimetablePage />} />
         <Route path="timetable/exam" element={<ExamTimetablePage />} />
         <Route path="timetable/generator" element={<TimetableGeneratorPage />} />
+        <Route path="timetable/substitutes" element={<SubstituteRequestsPage />} />
 
         {/* Examination */}
         <Route path="examination/setup" element={<ExamSetupPage />} />

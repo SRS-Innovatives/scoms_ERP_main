@@ -37,7 +37,7 @@ const {
   requireAuth, requireTenant, requireModule, handleForgotPassword, handleVerifyOtp, handleResetPassword,
   loginLimiter, otpLimiter,
   handleGetNotifications, handleGetUnreadCount, handleMarkNotificationRead, handleMarkAllNotificationsRead,
-  shadowPermission, PERMISSIONS,
+  shadowPermission, requirePermissionStrict, PERMISSIONS,
 } = require('../../../shared');
 
 // Standalone Auth Routes
@@ -84,6 +84,10 @@ router.get('/attendance/history', shadowPermission(PERMISSIONS.ATTENDANCE_VIEW),
 router.get('/attendance/monthly-grid', shadowPermission(PERMISSIONS.ATTENDANCE_VIEW), attendanceController.getMonthlyGrid);
 router.post('/attendance/mark', shadowPermission(PERMISSIONS.ATTENDANCE_MARK), attendanceController.markAttendance);
 router.patch('/attendance/:sessionId', shadowPermission(PERMISSIONS.ATTENDANCE_UPDATE), attendanceController.updateAttendance);
+router.post('/attendance/:sessionId/corrections', shadowPermission(PERMISSIONS.ATTENDANCE_UPDATE), attendanceController.createCorrectionRequest);
+router.get('/attendance-corrections/mine', requireModule('attendance'), shadowPermission(PERMISSIONS.ATTENDANCE_VIEW), attendanceController.getMyCorrectionRequests);
+router.get('/attendance-corrections', requireModule('attendance'), requirePermissionStrict(PERMISSIONS.ATTENDANCE_APPROVE), attendanceController.getPendingCorrections);
+router.post('/attendance-corrections/:id/review', requireModule('attendance'), requirePermissionStrict(PERMISSIONS.ATTENDANCE_APPROVE), attendanceController.reviewCorrectionRequest);
 
 // Assignment / Homework Routes
 router.use('/assignments', requireModule('homework'));
@@ -111,6 +115,13 @@ router.get('/exam-schedules/:scheduleId/roster', shadowPermission(PERMISSIONS.EX
 router.post('/exam-schedules/:scheduleId/marks', shadowPermission(PERMISSIONS.MARKS_ENTER), examController.saveMarks);
 router.post('/exam-schedules/:scheduleId/publish', shadowPermission(PERMISSIONS.RESULTS_PUBLISH), examController.publishMarks);
 router.post('/exam-schedules/:scheduleId/import', upload.single('file'), shadowPermission(PERMISSIONS.MARKS_ENTER), examController.parseMarksImport);
+router.post('/exam-schedules/:scheduleId/submit', shadowPermission(PERMISSIONS.MARKS_ENTER), examController.submitMarks);
+router.post('/exam-schedules/:scheduleId/corrections', shadowPermission(PERMISSIONS.MARKS_ENTER), examController.createCorrectionRequest);
+router.get('/exams/my-corrections', shadowPermission(PERMISSIONS.MARKS_ENTER), examController.getMyCorrectionRequests);
+router.get('/exams/review-queue', requirePermissionStrict(PERMISSIONS.MARKS_VERIFY), examController.getReviewQueue);
+router.post('/exam-schedules/:scheduleId/verify', requirePermissionStrict(PERMISSIONS.MARKS_VERIFY), examController.verifyMarks);
+router.post('/exam-schedules/:scheduleId/return', requirePermissionStrict(PERMISSIONS.MARKS_VERIFY), examController.returnMarks);
+router.post('/exam-schedules/:scheduleId/approve', requirePermissionStrict(PERMISSIONS.MARKS_APPROVE), examController.approveMarks);
 
 // Announcements
 router.use('/announcements', requireModule('communication'));
@@ -120,6 +131,13 @@ router.post('/announcements', shadowPermission(PERMISSIONS.ANNOUNCEMENTS_CREATE)
 // Timetable
 router.use('/timetable', requireModule('timetable'));
 router.get('/timetable/my', shadowPermission(PERMISSIONS.TIMETABLE_VIEW), timetableController.getMyTimetable);
+router.post('/timetable/substitutes', shadowPermission(PERMISSIONS.TIMETABLE_VIEW), timetableController.createSubstituteRequest);
+router.get('/timetable/substitutes/mine', shadowPermission(PERMISSIONS.TIMETABLE_VIEW), timetableController.getMySubstituteRequests);
+router.get('/timetable/substitutes/covering', shadowPermission(PERMISSIONS.TIMETABLE_VIEW), timetableController.getMyCoverClasses);
+router.post('/timetable/substitutes/:id/cancel', shadowPermission(PERMISSIONS.TIMETABLE_VIEW), timetableController.cancelSubstituteRequest);
+router.get('/timetable/substitutes', requirePermissionStrict(PERMISSIONS.TIMETABLE_SUBSTITUTE_APPROVE), timetableController.getPendingSubstituteRequests);
+router.get('/timetable/substitutes/:id/available', requirePermissionStrict(PERMISSIONS.TIMETABLE_SUBSTITUTE_APPROVE), timetableController.getAvailableSubstitutes);
+router.post('/timetable/substitutes/:id/review', requirePermissionStrict(PERMISSIONS.TIMETABLE_SUBSTITUTE_APPROVE), timetableController.reviewSubstituteRequest);
 
 // Library Desk
 router.use('/library', requireModule('library'));
@@ -204,6 +222,7 @@ router.get('/academic-calendar', requireModule('academic_calendar'), academicCal
 
 // Exam Setup (Exam Admin — create/schedule; marks entry & publishing already above)
 router.use('/exam-setup', requireModule('examination'));
+router.get('/exam-setup/academic-years', shadowPermission(PERMISSIONS.EXAMS_VIEW), examAdminController.getAcademicYears);
 router.get('/exam-setup/exams', shadowPermission(PERMISSIONS.EXAMS_VIEW), examAdminController.getExams);
 router.post('/exam-setup/exams', shadowPermission(PERMISSIONS.EXAMS_CREATE), examAdminController.createExam);
 router.patch('/exam-setup/exams/:id/status', shadowPermission(PERMISSIONS.EXAMS_CREATE), examAdminController.updateExamStatus);
@@ -248,6 +267,7 @@ router.post('/transport/trips/complete', shadowPermission(PERMISSIONS.TRANSPORT_
 router.use('/hostel', requireModule('hostel'));
 router.get('/hostel/hostels', shadowPermission(PERMISSIONS.HOSTEL_MANAGE), hostelController.getHostels);
 router.post('/hostel/hostels', shadowPermission(PERMISSIONS.HOSTEL_MANAGE), hostelController.createHostel);
+router.get('/hostel/students', shadowPermission(PERMISSIONS.HOSTEL_MANAGE), hostelController.searchStudents);
 router.get('/hostel/beds', shadowPermission(PERMISSIONS.HOSTEL_MANAGE), hostelController.getBeds);
 router.post('/hostel/beds', shadowPermission(PERMISSIONS.HOSTEL_MANAGE), hostelController.createBed);
 router.post('/hostel/beds/allocate', shadowPermission(PERMISSIONS.HOSTEL_MANAGE), hostelController.allocateBed);

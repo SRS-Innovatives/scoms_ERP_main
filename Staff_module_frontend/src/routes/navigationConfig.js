@@ -66,6 +66,7 @@ export const navigationConfig = [
     children: [
       { key: 'take-attendance', title: 'Take Attendance', path: '/staff/attendance/take' },
       { key: 'edit-attendance', title: 'Edit Attendance', path: '/staff/attendance/edit' },
+      { key: 'attendance-corrections', title: 'Correction Approvals', path: '/staff/attendance/corrections' },
       { key: 'subject-attendance', title: 'Subject-wise Attendance', path: '/staff/attendance/subject' },
       { key: 'monthly-attendance', title: 'Monthly Attendance', path: '/staff/attendance/monthly' },
       { key: 'absent-students', title: 'Absent Student List', path: '/staff/attendance/absent' },

@@ -47,6 +47,7 @@ export const navigationConfig = [
       { key: 'academic-year', title: 'Academic Year Setup', path: '/admin/setup/academic-year' },
       { key: 'campus', title: 'Campus Setup', path: '/admin/setup/campus' },
       { key: 'department', title: 'Department Setup', path: '/admin/setup/department' },
+      { key: 'program', title: 'Program Setup', path: '/admin/setup/program' },
       { key: 'course', title: 'Course / Class Setup', path: '/admin/setup/course' },
       { key: 'semester', title: 'Semester Setup', path: '/admin/setup/semester' },
       { key: 'section', title: 'Section Setup', path: '/admin/setup/section' },
@@ -140,6 +141,7 @@ export const navigationConfig = [
       { key: 'subject-att', title: 'Subject-wise Attendance', path: '/admin/attendance/subject' },
       { key: 'biometric', title: 'Biometric Sync', path: '/admin/attendance/biometric' },
       { key: 'absent-list', title: 'Absentee List & SMS', path: '/admin/attendance/absentee' },
+      { key: 'att-corrections', title: 'Lock & Corrections', path: '/admin/attendance/corrections' },
       { key: 'att-reports', title: 'Attendance Reports', path: '/admin/attendance/reports' }
     ]
   },
@@ -150,6 +152,7 @@ export const navigationConfig = [
     children: [
       { key: 'class-tt', title: 'Class Timetable', path: '/admin/timetable/class' },
       { key: 'teacher-tt', title: 'Teacher Timetable', path: '/admin/timetable/teacher' },
+      { key: 'substitute-tt', title: 'Substitute Requests', path: '/admin/timetable/substitutes' },
       { key: 'exam-tt', title: 'Exam Schedule TT', path: '/admin/timetable/exam' },
       { key: 'tt-generator', title: 'Timetable Generator UI', path: '/admin/timetable/generator' }
     ]

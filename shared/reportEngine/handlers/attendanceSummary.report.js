@@ -1,5 +1,6 @@
 const prisma = require('../../database/client');
 const { ValidationError } = require('../../errors/customErrors');
+const { isAttended } = require('../../attendance/attendanceRules');
 
 const startOfDay = (d) => { const x = new Date(d); x.setHours(0, 0, 0, 0); return x; };
 const endOfDay = (d) => { const x = new Date(d); x.setHours(23, 59, 59, 999); return x; };
@@ -42,7 +43,7 @@ module.exports = async (institutionId, filters) => {
     const relevant = studentId ? s.records.filter((r) => r.studentId === studentId) : s.records;
     relevant.forEach((r) => {
       bySection[key].total += 1;
-      if (r.status === 'PRESENT' || r.status === 'LATE') bySection[key].present += 1;
+      if (isAttended(r.status)) bySection[key].present += 1;
       else if (r.status === 'ABSENT') bySection[key].absent += 1;
     });
   });

@@ -21,9 +21,22 @@ const importMarksCsv = (scheduleId, file) => {
   return apiCall(`/exam-schedules/${scheduleId}/import`, { method: 'POST', body: formData });
 };
 
+const submitMarks = (scheduleId) => apiCall(`/exam-schedules/${scheduleId}/submit`, { method: 'POST' });
+const verifyMarks = (scheduleId) => apiCall(`/exam-schedules/${scheduleId}/verify`, { method: 'POST' });
+const approveMarks = (scheduleId) => apiCall(`/exam-schedules/${scheduleId}/approve`, { method: 'POST' });
+const returnMarks = (scheduleId, remarks) => apiCall(`/exam-schedules/${scheduleId}/return`, { method: 'POST', body: { remarks } });
+const getReviewQueue = () => apiCall('/exam-review/queue');
+const createCorrectionRequest = (scheduleId, payload) =>
+  apiCall(`/exam-schedules/${scheduleId}/corrections`, { method: 'POST', body: payload });
+const getCorrectionRequests = (status) => apiCall(`/exam-corrections${status ? `?status=${status}` : ''}`);
+const reviewCorrectionRequest = (id, decision, remarks) =>
+  apiCall(`/exam-corrections/${id}/review`, { method: 'POST', body: { decision, remarks } });
+
 export const examService = {
   getExams, createExam, updateExamStatus, getRankList, getConsolidatedReport,
   getSchedules, createSchedule, deleteSchedule, getMarksRoster, saveMarks, publishResults,
   unlockSchedule, importMarksCsv,
+  submitMarks, verifyMarks, approveMarks, returnMarks, getReviewQueue,
+  createCorrectionRequest, getCorrectionRequests, reviewCorrectionRequest,
 };
 export default examService;

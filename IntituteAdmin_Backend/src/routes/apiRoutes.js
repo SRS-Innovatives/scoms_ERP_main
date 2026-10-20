@@ -8,9 +8,11 @@ const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
 const authController = require('../controllers/authController');
 const setupController = require('../controllers/setupController');
+const infrastructureController = require('../controllers/infrastructureController');
 const staffController = require('../controllers/staffController');
 const studentController = require('../controllers/studentController');
 const feeController = require('../controllers/feeController');
+const concessionController = require('../controllers/concessionController');
 const feeEngineController = require('../controllers/feeEngineController');
 const dashboardController = require('../controllers/dashboardController');
 const announcementController = require('../controllers/announcementController');
@@ -64,7 +66,7 @@ const {
   requireAuth, requireTenant, requireModule, handleForgotPassword, handleVerifyOtp, handleResetPassword,
   loginLimiter, otpLimiter,
   handleGetNotifications, handleGetUnreadCount, handleMarkNotificationRead, handleMarkAllNotificationsRead,
-  shadowPermission, PERMISSIONS,
+  shadowPermission, requirePermissionStrict, PERMISSIONS,
 } = require('../../../shared');
 
 // Standalone Auth Routes
@@ -177,6 +179,32 @@ router.post('/setup/semesters', setupController.createSemester);
 router.patch('/setup/semesters/:id', setupController.updateSemester);
 router.delete('/setup/semesters/:id', setupController.deleteSemester);
 
+router.get('/setup/programs', setupController.getPrograms);
+router.post('/setup/programs', setupController.createProgram);
+router.patch('/setup/programs/:id', setupController.updateProgram);
+router.delete('/setup/programs/:id', setupController.deleteProgram);
+
+router.get('/setup/batches', setupController.getBatches);
+router.post('/setup/batches', setupController.createBatch);
+router.patch('/setup/batches/:id', setupController.updateBatch);
+router.delete('/setup/batches/:id', setupController.deleteBatch);
+
+// Infrastructure: Campus -> Building -> Floor -> Room
+router.get('/setup/campuses', infrastructureController.getCampuses);
+router.post('/setup/campuses', infrastructureController.createCampus);
+router.patch('/setup/campuses/:id', infrastructureController.updateCampus);
+router.delete('/setup/campuses/:id', infrastructureController.deleteCampus);
+router.get('/setup/buildings', infrastructureController.getBuildings);
+router.post('/setup/buildings', infrastructureController.createBuilding);
+router.patch('/setup/buildings/:id', infrastructureController.updateBuilding);
+router.delete('/setup/buildings/:id', infrastructureController.deleteBuilding);
+router.post('/setup/buildings/:id/floors', infrastructureController.createFloor);
+router.delete('/setup/floors/:floorId', infrastructureController.deleteFloor);
+router.get('/setup/rooms', infrastructureController.getRooms);
+router.post('/setup/rooms', infrastructureController.createRoom);
+router.patch('/setup/rooms/:id', infrastructureController.updateRoom);
+router.delete('/setup/rooms/:id', infrastructureController.deleteRoom);
+
 router.get('/setup/sections', setupController.getSections);
 router.post('/setup/sections', setupController.createSection);
 router.patch('/setup/sections/:id', setupController.updateSection);
@@ -256,6 +284,14 @@ router.get('/fees/challans', shadowPermission(PERMISSIONS.FEES_VIEW), feeControl
 router.post('/fees/challans', shadowPermission(PERMISSIONS.FEES_COLLECT), feeController.createChallan);
 router.get('/fees/scholarships', shadowPermission(PERMISSIONS.FEES_VIEW), feeController.getScholarships);
 router.patch('/fees/assignments/:id/scholarship', shadowPermission(PERMISSIONS.FEES_SETUP), feeController.applyScholarship);
+router.get('/fees/concession-schemes', shadowPermission(PERMISSIONS.FEES_VIEW), concessionController.getSchemes);
+router.post('/fees/concession-schemes', shadowPermission(PERMISSIONS.FEES_SETUP), concessionController.createScheme);
+router.patch('/fees/concession-schemes/:id', shadowPermission(PERMISSIONS.FEES_SETUP), concessionController.updateScheme);
+router.delete('/fees/concession-schemes/:id', shadowPermission(PERMISSIONS.FEES_SETUP), concessionController.deleteScheme);
+router.get('/fees/concessions', shadowPermission(PERMISSIONS.FEES_VIEW), concessionController.getApplications);
+router.post('/fees/concessions', shadowPermission(PERMISSIONS.FEES_SETUP), concessionController.createApplication);
+router.post('/fees/concessions/:id/review', requirePermissionStrict(PERMISSIONS.FEES_CONCESSION_APPROVE), concessionController.reviewApplication);
+router.post('/fees/concessions/:id/revoke', requirePermissionStrict(PERMISSIONS.FEES_CONCESSION_APPROVE), concessionController.revokeApplication);
 router.get('/fees/refunds', shadowPermission(PERMISSIONS.FEES_VIEW), feeController.getRefunds);
 router.post('/fees/refunds', shadowPermission(PERMISSIONS.FEES_REFUND), feeController.createRefund);
 router.patch('/fees/refunds/:id', shadowPermission(PERMISSIONS.FEES_REFUND), feeController.processRefund);
@@ -436,6 +472,7 @@ router.get('/pre-admission/applications/:id', preAdmissionController.getApplicat
 router.patch('/pre-admission/applications/:id/status', preAdmissionController.updateStatus);
 router.post('/pre-admission/applications/:id/receipt', preAdmissionController.generateReceipt);
 router.post('/pre-admission/applications/:id/admit', preAdmissionController.admitApplication);
+router.patch('/pre-admission/applications/:id/documents', preAdmissionController.verifyDocuments);
 router.delete('/pre-admission/applications/:id', preAdmissionController.deleteApplication);
 router.get('/pre-admission/settings/api-key', preAdmissionController.getApiKeySettings);
 router.post('/pre-admission/settings/api-key/regenerate', preAdmissionController.regenerateApiKey);
@@ -539,6 +576,8 @@ router.get('/attendance/absentees', shadowPermission(PERMISSIONS.ATTENDANCE_VIEW
 router.post('/attendance/absentees/notify', shadowPermission(PERMISSIONS.NOTIFICATIONS_SEND), attendanceController.notifyAbsentees);
 router.get('/attendance/consolidated-report', shadowPermission(PERMISSIONS.ATTENDANCE_VIEW), attendanceController.getConsolidatedAttendanceReport);
 router.get('/attendance/date-wise-report', shadowPermission(PERMISSIONS.ATTENDANCE_VIEW), attendanceController.getDateWiseAttendanceReport);
+router.get('/attendance/corrections', requirePermissionStrict(PERMISSIONS.ATTENDANCE_APPROVE), attendanceController.getCorrectionRequests);
+router.post('/attendance/corrections/:id/review', requirePermissionStrict(PERMISSIONS.ATTENDANCE_APPROVE), attendanceController.reviewCorrectionRequest);
 
 // Dynamic Report Builder (Phase 8) — registered before the /reports/:code/... wildcard
 // block below so these specific literal paths always win, regardless of what report
@@ -574,6 +613,9 @@ router.use('/timetable', requireModule('timetable'));
 router.get('/timetable', shadowPermission(PERMISSIONS.TIMETABLE_VIEW), timetableController.getTimetable);
 router.put('/timetable/:timetableId/entries', shadowPermission(PERMISSIONS.TIMETABLE_MANAGE), timetableController.saveEntries);
 router.get('/timetable/teacher/:staffId', shadowPermission(PERMISSIONS.TIMETABLE_VIEW), timetableController.getTeacherTimetable);
+router.get('/timetable/substitutes', requirePermissionStrict(PERMISSIONS.TIMETABLE_SUBSTITUTE_APPROVE), timetableController.getSubstituteRequests);
+router.get('/timetable/substitutes/:id/available', requirePermissionStrict(PERMISSIONS.TIMETABLE_SUBSTITUTE_APPROVE), timetableController.getAvailableSubstitutes);
+router.post('/timetable/substitutes/:id/review', requirePermissionStrict(PERMISSIONS.TIMETABLE_SUBSTITUTE_APPROVE), timetableController.reviewSubstituteRequest);
 
 // Examination
 router.use('/exams', requireModule('examination'));
@@ -601,5 +643,13 @@ router.post('/exam-schedules/:scheduleId/marks', shadowPermission(PERMISSIONS.MA
 router.post('/exam-schedules/:scheduleId/publish', shadowPermission(PERMISSIONS.RESULTS_PUBLISH), examController.publishResults);
 router.post('/exam-schedules/:scheduleId/unlock', shadowPermission(PERMISSIONS.RESULTS_PUBLISH), examController.unlockSchedule);
 router.post('/exam-schedules/:scheduleId/import', upload.single('file'), shadowPermission(PERMISSIONS.MARKS_ENTER), examController.parseMarksImport);
+router.get('/exam-review/queue', requireModule('examination'), requirePermissionStrict(PERMISSIONS.MARKS_VERIFY), examController.getReviewQueue);
+router.post('/exam-schedules/:scheduleId/submit', shadowPermission(PERMISSIONS.MARKS_ENTER), examController.submitMarks);
+router.post('/exam-schedules/:scheduleId/verify', requirePermissionStrict(PERMISSIONS.MARKS_VERIFY), examController.verifyMarks);
+router.post('/exam-schedules/:scheduleId/approve', requirePermissionStrict(PERMISSIONS.MARKS_APPROVE), examController.approveMarks);
+router.post('/exam-schedules/:scheduleId/return', requirePermissionStrict(PERMISSIONS.MARKS_VERIFY), examController.returnMarks);
+router.post('/exam-schedules/:scheduleId/corrections', shadowPermission(PERMISSIONS.MARKS_ENTER), examController.createCorrectionRequest);
+router.get('/exam-corrections', requireModule('examination'), requirePermissionStrict(PERMISSIONS.MARKS_APPROVE), examController.getCorrectionRequests);
+router.post('/exam-corrections/:id/review', requireModule('examination'), requirePermissionStrict(PERMISSIONS.MARKS_APPROVE), examController.reviewCorrectionRequest);
 
 module.exports = router;

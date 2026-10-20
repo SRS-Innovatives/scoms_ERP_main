@@ -192,7 +192,11 @@ const getCourses = async (req, res, next) => {
         institutionId: req.institutionId,
         ...(departmentId && { departmentId }),
       },
-      include: { department: true, _count: { select: { students: true, subjectClassMappings: true } } },
+      include: {
+        department: true,
+        program: { select: { id: true, code: true, name: true } },
+        _count: { select: { students: true, subjectClassMappings: true } },
+      },
       orderBy: { name: 'asc' },
     });
     return sendSuccess(res, courses, 'Courses retrieved');
@@ -203,12 +207,13 @@ const getCourses = async (req, res, next) => {
 
 const createCourse = async (req, res, next) => {
   try {
-    const { departmentId, code, name, durationYears } = req.body;
+    const { departmentId, code, name, durationYears, programId } = req.body;
 
     const department = await prisma.department.findFirst({
       where: { id: departmentId, institutionId: req.institutionId },
     });
     if (!department) throw new NotFoundError('Department not found or access denied');
+    const resolvedProgramId = await resolveProgramId(programId, req.institutionId);
 
     const course = await prisma.course.create({
       data: {
@@ -217,6 +222,7 @@ const createCourse = async (req, res, next) => {
         code,
         name,
         durationYears: Number(durationYears) || 1,
+        ...(resolvedProgramId !== undefined && { programId: resolvedProgramId }),
       },
     });
     return sendSuccess(res, course, 'Course created successfully', 201);
@@ -228,7 +234,7 @@ const createCourse = async (req, res, next) => {
 const updateCourse = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { departmentId, code, name, durationYears } = req.body;
+    const { departmentId, code, name, durationYears, programId } = req.body;
 
     const existing = await prisma.course.findFirst({
       where: { id, institutionId: req.institutionId },
@@ -241,10 +247,12 @@ const updateCourse = async (req, res, next) => {
       });
       if (!department) throw new NotFoundError('Department not found or access denied');
     }
+    const resolvedProgramId = await resolveProgramId(programId, req.institutionId);
 
     const course = await prisma.course.update({
       where: { id },
       data: {
+        ...(resolvedProgramId !== undefined && { programId: resolvedProgramId }),
         ...(departmentId !== undefined && { departmentId }),
         ...(code !== undefined && { code }),
         ...(name !== undefined && { name }),
@@ -286,7 +294,12 @@ const getSemesters = async (req, res, next) => {
         ...(courseId && { courseId }),
         course: { institutionId: req.institutionId }, // Enforce tenant isolation via relation
       },
-      include: { course: true, academicYear: true, _count: { select: { sections: true } } },
+      include: {
+        course: true,
+        academicYear: true,
+        batch: { select: { id: true, name: true } },
+        _count: { select: { sections: true } },
+      },
       orderBy: { semesterNumber: 'asc' },
     });
     return sendSuccess(res, semesters, 'Semesters retrieved');
@@ -297,7 +310,7 @@ const getSemesters = async (req, res, next) => {
 
 const createSemester = async (req, res, next) => {
   try {
-    const { courseId, academicYearId, name, semesterNumber } = req.body;
+    const { courseId, academicYearId, name, semesterNumber, batchId } = req.body;
 
     // Verify course belongs to tenant
     const course = await prisma.course.findFirst({
@@ -309,6 +322,7 @@ const createSemester = async (req, res, next) => {
       where: { id: academicYearId, institutionId: req.institutionId },
     });
     if (!academicYear) throw new NotFoundError('Academic Year not found or access denied');
+    const resolvedBatchId = await resolveBatchId(batchId, courseId, req.institutionId);
 
     const semester = await prisma.semester.create({
       data: {
@@ -316,6 +330,7 @@ const createSemester = async (req, res, next) => {
         academicYearId,
         name,
         semesterNumber: Number(semesterNumber),
+        ...(resolvedBatchId !== undefined && { batchId: resolvedBatchId }),
       },
     });
     return sendSuccess(res, semester, 'Semester created successfully', 201);
@@ -327,7 +342,7 @@ const createSemester = async (req, res, next) => {
 const updateSemester = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { name, semesterNumber, academicYearId } = req.body;
+    const { name, semesterNumber, academicYearId, batchId } = req.body;
 
     const existing = await prisma.semester.findFirst({
       where: { id, course: { institutionId: req.institutionId } },
@@ -340,10 +355,12 @@ const updateSemester = async (req, res, next) => {
       });
       if (!academicYear) throw new NotFoundError('Academic Year not found or access denied');
     }
+    const resolvedBatchId = await resolveBatchId(batchId, existing.courseId, req.institutionId);
 
     const semester = await prisma.semester.update({
       where: { id },
       data: {
+        ...(resolvedBatchId !== undefined && { batchId: resolvedBatchId }),
         ...(name !== undefined && { name }),
         ...(semesterNumber !== undefined && { semesterNumber: Number(semesterNumber) }),
         ...(academicYearId !== undefined && { academicYearId }),
@@ -368,6 +385,212 @@ const deleteSemester = async (req, res, next) => {
     }
     await prisma.semester.delete({ where: { id } });
     return sendSuccess(res, null, 'Semester deleted successfully');
+  } catch (err) {
+    next(err);
+  }
+};
+
+// ============================================================
+// Programs & Batches (college hierarchy - optional for schools)
+// ============================================================
+const PROGRAM_LEVELS = ['UG', 'PG', 'DIPLOMA', 'PHD', 'CERTIFICATE', 'OTHER'];
+const BATCH_STATUSES = ['ACTIVE', 'GRADUATED', 'ARCHIVED'];
+
+// undefined = field not sent (leave as-is), null = explicitly cleared
+const resolveProgramId = async (programId, institutionId) => {
+  if (programId === undefined) return undefined;
+  if (!programId) return null;
+  const program = await prisma.program.findFirst({ where: { id: programId, institutionId } });
+  if (!program) throw new NotFoundError('Program not found or access denied');
+  return programId;
+};
+
+const resolveBatchId = async (batchId, courseId, institutionId) => {
+  if (batchId === undefined) return undefined;
+  if (!batchId) return null;
+  const batch = await prisma.batch.findFirst({ where: { id: batchId, institutionId } });
+  if (!batch) throw new NotFoundError('Batch not found or access denied');
+  if (batch.courseId !== courseId) throw new ValidationError('Batch belongs to a different course');
+  return batchId;
+};
+
+const getPrograms = async (req, res, next) => {
+  try {
+    const { departmentId } = req.query;
+    const programs = await prisma.program.findMany({
+      where: { institutionId: req.institutionId, ...(departmentId && { departmentId }) },
+      include: { department: { select: { id: true, name: true, code: true } }, _count: { select: { courses: true } } },
+      orderBy: { name: 'asc' },
+    });
+    return sendSuccess(res, programs, 'Programs retrieved');
+  } catch (err) {
+    next(err);
+  }
+};
+
+const createProgram = async (req, res, next) => {
+  try {
+    const { departmentId, code, name, level, durationYears } = req.body;
+    if (!code || !name) throw new ValidationError('Program code and name are required');
+    if (level && !PROGRAM_LEVELS.includes(level)) throw new ValidationError(`Level must be one of ${PROGRAM_LEVELS.join(', ')}`);
+
+    const department = await prisma.department.findFirst({ where: { id: departmentId, institutionId: req.institutionId } });
+    if (!department) throw new NotFoundError('Department not found or access denied');
+
+    const program = await prisma.program.create({
+      data: {
+        institutionId: req.institutionId,
+        departmentId,
+        code,
+        name,
+        ...(level && { level }),
+        ...(durationYears && { durationYears: Number(durationYears) }),
+      },
+    });
+    return sendSuccess(res, program, 'Program created successfully', 201);
+  } catch (err) {
+    next(err);
+  }
+};
+
+const updateProgram = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { departmentId, code, name, level, durationYears } = req.body;
+    const existing = await prisma.program.findFirst({ where: { id, institutionId: req.institutionId } });
+    if (!existing) throw new NotFoundError('Program not found');
+    if (level && !PROGRAM_LEVELS.includes(level)) throw new ValidationError(`Level must be one of ${PROGRAM_LEVELS.join(', ')}`);
+    if (departmentId) {
+      const department = await prisma.department.findFirst({ where: { id: departmentId, institutionId: req.institutionId } });
+      if (!department) throw new NotFoundError('Department not found or access denied');
+    }
+
+    const program = await prisma.program.update({
+      where: { id },
+      data: {
+        ...(departmentId !== undefined && { departmentId }),
+        ...(code !== undefined && { code }),
+        ...(name !== undefined && { name }),
+        ...(level !== undefined && { level }),
+        ...(durationYears !== undefined && { durationYears: Number(durationYears) }),
+      },
+    });
+    return sendSuccess(res, program, 'Program updated successfully');
+  } catch (err) {
+    next(err);
+  }
+};
+
+const deleteProgram = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const existing = await prisma.program.findFirst({
+      where: { id, institutionId: req.institutionId },
+      include: { _count: { select: { courses: true } } },
+    });
+    if (!existing) throw new NotFoundError('Program not found');
+    if (existing._count.courses > 0) {
+      throw new BusinessRuleError('Cannot delete a Program with courses linked to it');
+    }
+    await prisma.program.delete({ where: { id } });
+    return sendSuccess(res, null, 'Program deleted successfully');
+  } catch (err) {
+    next(err);
+  }
+};
+
+const getBatches = async (req, res, next) => {
+  try {
+    const { courseId, status } = req.query;
+    const batches = await prisma.batch.findMany({
+      where: {
+        institutionId: req.institutionId,
+        ...(courseId && { courseId }),
+        ...(status && BATCH_STATUSES.includes(status) && { status }),
+      },
+      include: {
+        course: { select: { id: true, code: true, name: true } },
+        semesters: { select: { id: true, name: true, semesterNumber: true }, orderBy: { semesterNumber: 'desc' }, take: 1 },
+        _count: { select: { students: true, semesters: true } },
+      },
+      orderBy: [{ startYear: 'desc' }, { name: 'asc' }],
+    });
+    return sendSuccess(res, batches, 'Batches retrieved');
+  } catch (err) {
+    next(err);
+  }
+};
+
+const createBatch = async (req, res, next) => {
+  try {
+    const { courseId, name, startYear, endYear, status } = req.body;
+    const start = Number(startYear);
+    const end = Number(endYear);
+    if (!Number.isInteger(start) || !Number.isInteger(end) || end < start) {
+      throw new ValidationError('Valid start and end years are required (end year >= start year)');
+    }
+    if (status && !BATCH_STATUSES.includes(status)) throw new ValidationError(`Status must be one of ${BATCH_STATUSES.join(', ')}`);
+
+    const course = await prisma.course.findFirst({ where: { id: courseId, institutionId: req.institutionId } });
+    if (!course) throw new NotFoundError('Course not found or access denied');
+
+    const batch = await prisma.batch.create({
+      data: {
+        institutionId: req.institutionId,
+        courseId,
+        name: name || `${start} - ${end}`,
+        startYear: start,
+        endYear: end,
+        ...(status && { status }),
+      },
+    });
+    return sendSuccess(res, batch, 'Batch created successfully', 201);
+  } catch (err) {
+    next(err);
+  }
+};
+
+const updateBatch = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { name, startYear, endYear, status } = req.body;
+    const existing = await prisma.batch.findFirst({ where: { id, institutionId: req.institutionId } });
+    if (!existing) throw new NotFoundError('Batch not found');
+    if (status && !BATCH_STATUSES.includes(status)) throw new ValidationError(`Status must be one of ${BATCH_STATUSES.join(', ')}`);
+    const start = startYear !== undefined ? Number(startYear) : existing.startYear;
+    const end = endYear !== undefined ? Number(endYear) : existing.endYear;
+    if (!Number.isInteger(start) || !Number.isInteger(end) || end < start) {
+      throw new ValidationError('Valid start and end years are required (end year >= start year)');
+    }
+
+    const batch = await prisma.batch.update({
+      where: { id },
+      data: {
+        ...(name !== undefined && { name }),
+        startYear: start,
+        endYear: end,
+        ...(status !== undefined && { status }),
+      },
+    });
+    return sendSuccess(res, batch, 'Batch updated successfully');
+  } catch (err) {
+    next(err);
+  }
+};
+
+const deleteBatch = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const existing = await prisma.batch.findFirst({
+      where: { id, institutionId: req.institutionId },
+      include: { _count: { select: { students: true, semesters: true } } },
+    });
+    if (!existing) throw new NotFoundError('Batch not found');
+    if (existing._count.students > 0 || existing._count.semesters > 0) {
+      throw new BusinessRuleError('Cannot delete a Batch with students or semesters linked to it - archive it instead');
+    }
+    await prisma.batch.delete({ where: { id } });
+    return sendSuccess(res, null, 'Batch deleted successfully');
   } catch (err) {
     next(err);
   }
@@ -706,6 +929,14 @@ module.exports = {
   createSemester,
   updateSemester,
   deleteSemester,
+  getPrograms,
+  createProgram,
+  updateProgram,
+  deleteProgram,
+  getBatches,
+  createBatch,
+  updateBatch,
+  deleteBatch,
   getSections,
   createSection,
   updateSection,

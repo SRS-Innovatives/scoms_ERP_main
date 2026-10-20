@@ -16,6 +16,8 @@ const {
   resolveGrade,
   gradePointFor,
   computeGrade,
+  resolveRoom,
+  resultLifecycle,
 } = require('../../../shared');
 const ExcelJS = require('exceljs');
 
@@ -112,11 +114,12 @@ const getSchedules = async (req, res, next) => {
 
 const createSchedule = async (req, res, next) => {
   try {
-    const { examId, subjectId, courseId, examDate, startTime, endTime, maxMarks, passMarks, roomNumber } = req.body;
+    const { examId, subjectId, courseId, examDate, startTime, endTime, maxMarks, passMarks, roomNumber, roomId } = req.body;
     if (!examId || !subjectId || !courseId || !examDate) throw new ValidationError('examId, subjectId, courseId, examDate are required');
 
     const exam = await prisma.exam.findFirst({ where: { id: examId, institutionId: req.institutionId } });
     if (!exam) throw new NotFoundError('Exam not found or access denied');
+    const room = await resolveRoom(roomId, req.institutionId);
 
     // A subject now serves several classes — courseId says explicitly which one this
     // particular exam schedule is for, so it must actually be mapped to that subject.
@@ -135,7 +138,8 @@ const createSchedule = async (req, res, next) => {
         endTime: endTime || '',
         maxMarks: Number(maxMarks) || 100,
         passMarks: Number(passMarks) || 35,
-        roomNumber: roomNumber || null,
+        roomNumber: roomNumber || room?.roomNumber || null,
+        roomId: room?.id || null,
       },
     });
     return sendSuccess(res, schedule, 'Exam schedule created successfully', 201);
@@ -207,6 +211,7 @@ const saveMarks = async (req, res, next) => {
     if (schedule.isPublished) {
       throw new BusinessRuleError('Results for this subject are already published and locked. Unlock for correction first, then re-publish once you\'re done.');
     }
+    await resultLifecycle.assertMarksEditable(schedule, req.institutionId);
 
     const scale = await getGradeScale(req.institutionId);
 
@@ -239,6 +244,7 @@ const publishResults = async (req, res, next) => {
     const { scheduleId } = req.params;
     const schedule = await prisma.examSchedule.findFirst({ where: { id: scheduleId, exam: { institutionId: req.institutionId } } });
     if (!schedule) throw new NotFoundError('Exam schedule not found');
+    if (!schedule.isPublished) await resultLifecycle.assertPublishable(schedule, req.institutionId);
 
     const updated = await prisma.examSchedule.update({
       where: { id: scheduleId },
@@ -275,10 +281,11 @@ const unlockSchedule = async (req, res, next) => {
     if (!schedule) throw new NotFoundError('Exam schedule not found');
     if (!schedule.isPublished) throw new ValidationError('This result is not published — nothing to unlock');
 
-    const updated = await prisma.examSchedule.update({
+    await prisma.examSchedule.update({
       where: { id: scheduleId },
       data: { isPublished: false, publishedAt: null },
     });
+    const updated = await resultLifecycle.resetForCorrection(scheduleId);
 
     await prisma.auditLog.create({
       data: {
@@ -617,6 +624,95 @@ const getStudentMarksheet = async (req, res, next) => {
   }
 };
 
+// ============================================================
+// Result lifecycle (submit -> verify -> approve) & correction requests
+// ============================================================
+const lifecycleHandler = (fn, message) => async (req, res, next) => {
+  try {
+    const result = await fn({
+      scheduleId: req.params.scheduleId,
+      institutionId: req.institutionId,
+      userId: req.user.id,
+      remarks: req.body?.remarks,
+    });
+    return sendSuccess(res, result, message);
+  } catch (err) {
+    next(err);
+  }
+};
+
+const submitMarks = lifecycleHandler(resultLifecycle.submitMarks, 'Marks submitted for verification');
+const verifyMarks = lifecycleHandler(resultLifecycle.verifyMarks, 'Marks verified');
+const approveMarks = lifecycleHandler(resultLifecycle.approveMarks, 'Marks approved - ready to publish');
+const returnMarks = lifecycleHandler(resultLifecycle.returnMarks, 'Marks returned for changes');
+
+/** Schedules waiting on a reviewer, institution-wide. ?status=SUBMITTED|VERIFIED|APPROVED */
+const getReviewQueue = async (req, res, next) => {
+  try {
+    const { status } = req.query;
+    const statuses = status ? [status] : ['SUBMITTED', 'VERIFIED', 'APPROVED'];
+    const schedules = await prisma.examSchedule.findMany({
+      where: { exam: { institutionId: req.institutionId }, isPublished: false, markStatus: { in: statuses } },
+      include: {
+        subject: { select: { name: true, code: true } },
+        course: { select: { name: true } },
+        exam: { select: { name: true, examType: true } },
+        _count: { select: { studentMarks: true } },
+      },
+      orderBy: [{ submittedAt: 'asc' }],
+    });
+    return sendSuccess(res, schedules, 'Review queue retrieved');
+  } catch (err) {
+    next(err);
+  }
+};
+
+const getCorrectionRequests = async (req, res, next) => {
+  try {
+    const requests = await resultLifecycle.listCorrectionRequests({
+      institutionId: req.institutionId,
+      scheduleId: req.query.scheduleId,
+      status: req.query.status,
+    });
+    return sendSuccess(res, requests, 'Correction requests retrieved');
+  } catch (err) {
+    next(err);
+  }
+};
+
+const createCorrectionRequest = async (req, res, next) => {
+  try {
+    const { studentId, newMarks, newIsAbsent, reason } = req.body;
+    const request = await resultLifecycle.createCorrectionRequest({
+      scheduleId: req.params.scheduleId,
+      institutionId: req.institutionId,
+      userId: req.user.id,
+      studentId,
+      newMarks,
+      newIsAbsent,
+      reason,
+    });
+    return sendSuccess(res, request, 'Correction request raised', 201);
+  } catch (err) {
+    next(err);
+  }
+};
+
+const reviewCorrectionRequest = async (req, res, next) => {
+  try {
+    const result = await resultLifecycle.reviewCorrectionRequest({
+      requestId: req.params.id,
+      institutionId: req.institutionId,
+      userId: req.user.id,
+      decision: req.body.decision,
+      remarks: req.body.remarks,
+    });
+    return sendSuccess(res, result, req.body.decision === 'APPROVE' ? 'Correction applied' : 'Correction rejected');
+  } catch (err) {
+    next(err);
+  }
+};
+
 module.exports = {
   getExams,
   createExam,
@@ -632,4 +728,12 @@ module.exports = {
   getRankList,
   getConsolidatedMarksReport,
   getStudentMarksheet,
+  submitMarks,
+  verifyMarks,
+  approveMarks,
+  returnMarks,
+  getReviewQueue,
+  getCorrectionRequests,
+  createCorrectionRequest,
+  reviewCorrectionRequest,
 };

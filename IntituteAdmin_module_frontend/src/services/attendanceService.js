@@ -20,5 +20,12 @@ const getConsolidatedReport = (sectionId, month, year) =>
 const getDateWiseReport = (sectionId, date) =>
   apiCall(`/attendance/date-wise-report?sectionId=${sectionId}&date=${date}`);
 
-export const attendanceService = { getRegister, getAbsentees, notifyAbsentees, getReports, getConsolidatedReport, getDateWiseReport };
+const getCorrections = (status) => apiCall(`/attendance/corrections${status ? `?status=${status}` : ''}`);
+const reviewCorrection = (id, decision, remarks) =>
+  apiCall(`/attendance/corrections/${id}/review`, { method: 'POST', body: { decision, remarks } });
+
+export const attendanceService = {
+  getRegister, getAbsentees, notifyAbsentees, getReports, getConsolidatedReport, getDateWiseReport,
+  getCorrections, reviewCorrection,
+};
 export default attendanceService;

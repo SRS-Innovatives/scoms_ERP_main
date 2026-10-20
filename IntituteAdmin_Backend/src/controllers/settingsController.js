@@ -99,9 +99,18 @@ const updateSettings = async (req, res, next) => {
     const {
       smtpHost, smtpPort, smtpFromEmail, smsProvider, smsSenderId, smsDltEntityId,
       staffAttendanceSmsEnabled, idCardOrientation, idCardTemplate,
-      paymentGatewayProvider, paymentKeyId,
+      paymentGatewayProvider, paymentKeyId, examApprovalRequired, attendanceLockDays,
     } = req.body;
     const smsToggle = staffAttendanceSmsEnabled === undefined ? undefined : Boolean(staffAttendanceSmsEnabled);
+    const examApprovalToggle = examApprovalRequired === undefined ? undefined : examApprovalRequired === true || examApprovalRequired === 'true';
+
+    let lockDays;
+    if (attendanceLockDays !== undefined) {
+      lockDays = attendanceLockDays === null || attendanceLockDays === '' ? null : Number(attendanceLockDays);
+      if (lockDays !== null && !(Number.isInteger(lockDays) && lockDays >= 0 && lockDays <= 365)) {
+        throw new ValidationError('attendanceLockDays must be a whole number between 0 and 365, or empty to disable the lock');
+      }
+    }
 
     if (idCardOrientation !== undefined && !ID_CARD_ORIENTATIONS.includes(idCardOrientation)) {
       throw new ValidationError(`idCardOrientation must be one of: ${ID_CARD_ORIENTATIONS.join(', ')}`);
@@ -118,10 +127,14 @@ const updateSettings = async (req, res, next) => {
         idCardOrientation: idCardOrientation || 'VERTICAL',
         idCardTemplate: idCardTemplate || 'CLASSIC',
         paymentGatewayProvider, paymentKeyId,
+        examApprovalRequired: examApprovalToggle ?? false,
+        attendanceLockDays: lockDays ?? null,
       },
       update: {
         smtpHost, smtpPort, smtpFromEmail, smsProvider, smsSenderId, smsDltEntityId,
         ...(smsToggle !== undefined && { staffAttendanceSmsEnabled: smsToggle }),
+        ...(examApprovalToggle !== undefined && { examApprovalRequired: examApprovalToggle }),
+        ...(lockDays !== undefined && { attendanceLockDays: lockDays }),
         ...(idCardOrientation !== undefined && { idCardOrientation }),
         ...(idCardTemplate !== undefined && { idCardTemplate }),
         paymentGatewayProvider, paymentKeyId,
