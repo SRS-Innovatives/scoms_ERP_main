@@ -1,7 +1,7 @@
 // Live REST API Service Wrapper for SCOMS Super Admin Portal
 // Connects to Super Admin Backend (Port 5001)
 
-const BASE_URL = 'http://localhost:5001';
+const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
 
 export const apiCall = async (endpoint, options = {}) => {
   const token = localStorage.getItem('scoms_superadmin_token');

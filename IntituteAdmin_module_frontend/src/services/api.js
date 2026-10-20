@@ -3,7 +3,7 @@
 // NOTE: the backend mounts all tenant routes under /api/v1/admin (see
 // IntituteAdmin_Backend/src/app.js) — this prefix must match that mount exactly.
 
-const BASE_URL = 'http://localhost:5002';
+const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5002';
 const API_PREFIX = '/api/v1/admin';
 
 export const apiCall = async (endpoint, options = {}) => {

@@ -3,7 +3,7 @@
 // NOTE: the backend mounts all routes under /api/v1/staff (see Staff_backend/src/app.js)
 // — this prefix must match that mount exactly.
 
-const BASE_URL = 'http://localhost:5003';
+const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5003';
 const API_PREFIX = '/api/v1/staff';
 
 export const apiCall = async (endpoint, options = {}) => {

@@ -6,7 +6,7 @@ import { KeyRound, RefreshCw, Copy, Check, Loader2, ShieldAlert, Wallet, Save } 
 const PUBLIC_ENDPOINT = 'https://api.scoms.in/api/v1/public/pre-admission';
 // Local backend for dev/testing — the real deployed URL is what an institution's live
 // website would actually point at; both are shown so the snippet works either way.
-const LOCAL_ENDPOINT = 'http://localhost:5002/api/v1/public/pre-admission';
+const LOCAL_ENDPOINT = `${import.meta.env.VITE_API_URL || 'http://localhost:5002'}/api/v1/public/pre-admission`;
 
 /** The free (no fee) version — submit and done. */
 const snippetNoFee = (apiKey, endpoint) => `<!-- Paste this into your institution's admission-form page -->

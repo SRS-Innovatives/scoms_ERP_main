@@ -10,8 +10,11 @@ const { errorHandler, getHealthPayload } = require('../../shared');
 
 const app = express();
 
+// CORS_ORIGINS: comma-separated frontend URLs allowed in production; unset = allow all (local dev)
+const corsOrigins = process.env.CORS_ORIGINS ? process.env.CORS_ORIGINS.split(',').map((o) => o.trim()) : '*';
+
 app.use(helmet());
-app.use(cors());
+app.use(cors({ origin: corsOrigins }));
 app.use(express.json({ limit: '8mb' })); // raised from the 100kb default — institution logos are sent as base64 data URIs
 
 // Base Route

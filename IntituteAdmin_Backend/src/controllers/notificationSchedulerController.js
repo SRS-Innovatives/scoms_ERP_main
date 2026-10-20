@@ -5,13 +5,20 @@
  * Dispatch reuses broadcastController's exact resolveRecipients/personalize/send
  * pipeline (imported, never duplicated) — a scheduled notification behaves identically
  * to an immediate one, just triggered later by runDueNotifications() instead of by a
- * request. See IntituteAdmin_Backend/src/jobs/notificationSchedulerJob.js for what
- * calls runDueNotifications() and when.
+ * request. The dispatch job sleeps until the next PENDING row is due (no idle polling)
+ * and wakeNotificationScheduler() re-arms it when a row is created or cancelled.
  */
 const { prisma, sendSuccess, NotFoundError, ValidationError, sendSMSNotification, sendEmailNotification, sendWhatsAppNotification } = require('../../../shared');
 const { resolveRecipients, personalize, RECIPIENT_GROUPS } = require('./broadcastController');
 
 const CHANNELS = ['SMS', 'EMAIL', 'WHATSAPP'];
+const dispatchingIds = new Set();
+
+const wakeScheduler = () => {
+  // Lazy require: the job module loads this controller, so a top-level import would cycle.
+  const { wakeNotificationScheduler } = require('../jobs/notificationSchedulerJob');
+  wakeNotificationScheduler();
+};
 
 const getScheduled = async (req, res, next) => {
   try {
@@ -49,6 +56,7 @@ const createScheduled = async (req, res, next) => {
         createdById: req.user.id,
       },
     });
+    wakeScheduler();
     return sendSuccess(res, scheduled, 'Notification scheduled successfully', 201);
   } catch (err) {
     next(err);
@@ -63,6 +71,7 @@ const cancelScheduled = async (req, res, next) => {
     if (existing.status !== 'PENDING') throw new ValidationError('Only a PENDING scheduled notification can be cancelled');
 
     const cancelled = await prisma.scheduledNotification.update({ where: { id }, data: { status: 'CANCELLED' } });
+    wakeScheduler();
     return sendSuccess(res, cancelled, 'Scheduled notification cancelled');
   } catch (err) {
     next(err);
@@ -71,9 +80,10 @@ const cancelScheduled = async (req, res, next) => {
 
 /** Sends one due ScheduledNotification for real (through the same simulated/live
  * gateway pipeline as an immediate broadcast) and marks it SENT/FAILED. Exported so the
- * dispatch job (a simple in-process interval — no new infra, per the "start simple"
- * rule) can call it without duplicating any send logic. */
+ * dispatch job can call it without duplicating any send logic. */
 const dispatchOne = async (scheduled) => {
+  if (dispatchingIds.has(scheduled.id)) return;
+  dispatchingIds.add(scheduled.id);
   try {
     const recipients = await resolveRecipients(scheduled.institutionId, scheduled.recipientGroup, scheduled.courseId);
     let sent = 0;
@@ -104,16 +114,20 @@ const dispatchOne = async (scheduled) => {
       where: { id: scheduled.id },
       data: { status: 'FAILED', errorMessage: err.message },
     }).catch(() => {});
+  } finally {
+    dispatchingIds.delete(scheduled.id);
   }
 };
 
-/** Finds every PENDING notification whose time has come and dispatches it. Safe to call
- * as often as you like — a notification is only ever picked up once its status is still
- * PENDING, and dispatchOne() moves it to SENT/FAILED before anything else could race it
- * (single-process interval, no concurrent workers, so no lock is needed yet). */
-const runDueNotifications = async () => {
+/** Finds due PENDING notifications and dispatches them. Bounded so a large backlog
+ * cannot load the whole table in one go; the job re-arms immediately when a full
+ * batch is returned. dispatchOne() moves each row to SENT/FAILED before the next
+ * tick can pick it up (single-process timer, plus an in-memory in-flight guard). */
+const runDueNotifications = async (take = 50) => {
   const due = await prisma.scheduledNotification.findMany({
     where: { status: 'PENDING', scheduledFor: { lte: new Date() } },
+    orderBy: { scheduledFor: 'asc' },
+    take,
   });
   for (const scheduled of due) {
     await dispatchOne(scheduled);
