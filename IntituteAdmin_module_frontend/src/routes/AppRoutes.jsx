@@ -205,10 +205,10 @@ import ThemeSettingsPage from '../pages/settings/ThemeSettingsPage';
 import CustomListsSettingsPage from '../pages/settings/CustomListsSettingsPage';
 import BackupRestorePage from '../pages/settings/BackupRestorePage';
 import AuditLogsPage from '../pages/settings/AuditLogsPage';
-import LoginPage from '../Pages/auth/LoginPage';
-import ForgotPasswordPage from '../Pages/auth/ForgotPasswordPage';
+import LoginPage from '../pages/auth/LoginPage';
+import ForgotPasswordPage from '../pages/auth/ForgotPasswordPage';
 import ProtectedRoute from '../components/auth/ProtectedRoute';
-import AdminProfilePage from '../Pages/profile/AdminProfilePage';
+import AdminProfilePage from '../pages/profile/AdminProfilePage';
 
 export const AppRoutes = () => {
   return (
