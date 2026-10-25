@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Mail, ArrowLeft, KeyRound, Lock, Eye, EyeOff, CheckCircle2, AlertCircle } from 'lucide-react';
-import { MODULE_ROLES } from './UnifiedLoginPage';
+import { MODULE_ROLES, getModuleApiUrl } from './UnifiedLoginPage';
 
 /**
  * Real 3-step forgot-password flow (request code → verify code → set new password),
@@ -21,7 +21,7 @@ export const UnifiedForgotPasswordFlow = ({ defaultRole = 'INSTITUTE_ADMIN' }) =
   const [errorMessage, setErrorMessage] = useState('');
   const [infoMessage, setInfoMessage] = useState('');
 
-  const apiBase = `http://localhost:${activeModule.port}${activeModule.apiPrefix}`;
+  const apiBase = `${getModuleApiUrl(activeModule, defaultRole)}${activeModule.apiPrefix}`;
 
   const callApi = async (path, body) => {
     const res = await fetch(`${apiBase}${path}`, {
