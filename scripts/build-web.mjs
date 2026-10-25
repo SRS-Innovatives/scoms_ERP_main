@@ -15,7 +15,7 @@
  * the current Render URLs as defaults. Run locally: `node scripts/build-web.mjs`.
  */
 import { execSync } from 'node:child_process';
-import { existsSync, mkdirSync, rmSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, rmSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -62,5 +62,10 @@ for (const portal of portals) {
   }
   run(`npx vite build --base=/${portal.base}/ --outDir "${path.join(outRoot, portal.base)}" --emptyOutDir`, cwd, env);
 }
+
+// The site root (/ and unknown paths) is the Institute Admin app — a real file there
+// too, so the root never 404s even if the host skips vercel.json's rewrites
+copyFileSync(path.join(outRoot, 'admin', 'index.html'), path.join(outRoot, 'index.html'));
+copyFileSync(path.join(outRoot, 'admin', 'index.html'), path.join(outRoot, '404.html'));
 
 console.log(`\nBuilt all portals into ${outRoot}`);
