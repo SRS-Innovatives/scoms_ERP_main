@@ -1,0 +1,13 @@
+{
+  "framework": null,
+  "installCommand": "echo \"Each portal installs its own deps in scripts/build-web.mjs\"",
+  "buildCommand": "node scripts/build-web.mjs",
+  "outputDirectory": "dist-web",
+  "rewrites": [
+    { "source": "/super-admin/:path*", "destination": "/super-admin/index.html" },
+    { "source": "/admin/:path*", "destination": "/admin/index.html" },
+    { "source": "/staff/:path*", "destination": "/staff/index.html" },
+    { "source": "/student/:path*", "destination": "/student/index.html" },
+    { "source": "/:path*", "destination": "/admin/index.html" }
+  ]
+}

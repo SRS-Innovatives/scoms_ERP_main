@@ -111,11 +111,21 @@ export const MODULE_ROLES = [
   },
 ];
 
-// Each deployed portal is its own website (own origin, own localStorage), so a portal
-// only logs users into itself: its backend comes from its VITE_API_URL. The other
-// portals' tiles link to their own websites via VITE_<ROLE>_APP_URL (optional — a tile
-// with no URL is hidden in production). Unset = local dev ports.
+// Two deployment shapes:
+// - Single site (VITE_SINGLE_SITE=true, built by scripts/build-web.mjs): all 4 portals
+//   share one origin under /super-admin, /admin, /staff, /student — so they share
+//   localStorage and any tile can log in, using VITE_<ROLE>_API_URL for its backend.
+// - Separate sites: a portal only logs users into itself via its VITE_API_URL; other
+//   tiles link to their own websites via VITE_<ROLE>_APP_URL (hidden when unset).
+// Nothing set = local dev ports.
 const env = import.meta.env || {};
+const isSingleSite = env.VITE_SINGLE_SITE === 'true';
+const API_URL_OVERRIDES = {
+  SUPER_ADMIN: env.VITE_SUPER_ADMIN_API_URL,
+  INSTITUTE_ADMIN: env.VITE_INSTITUTE_ADMIN_API_URL,
+  STAFF: env.VITE_STAFF_API_URL,
+  STUDENT: env.VITE_STUDENT_API_URL,
+};
 const APP_URL_OVERRIDES = {
   SUPER_ADMIN: env.VITE_SUPER_ADMIN_APP_URL,
   INSTITUTE_ADMIN: env.VITE_INSTITUTE_ADMIN_APP_URL,
@@ -125,7 +135,9 @@ const APP_URL_OVERRIDES = {
 
 /** Backend origin for a portal, e.g. https://scoms-erp-main-1.onrender.com */
 export const getModuleApiUrl = (moduleItem, portalRole) =>
-  (moduleItem.id === portalRole && env.VITE_API_URL) || `http://localhost:${moduleItem.port}`;
+  API_URL_OVERRIDES[moduleItem.id] ||
+  (moduleItem.id === portalRole && env.VITE_API_URL) ||
+  `http://localhost:${moduleItem.port}`;
 
 // Demo-credential autofill and the pre-filled-password banner are dev-tooling, not
 // something a real deployment should ship — import.meta.env.DEV is false in every
@@ -146,13 +158,14 @@ export const UnifiedLoginPage = ({ defaultRole = 'INSTITUTE_ADMIN', onCustomLogi
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
 
-  // In production, only show this portal's tile plus portals whose website URL is known
-  const visibleModules = isDevEnvironment
+  // Separate-site production: only this portal's tile plus portals whose website URL is known
+  const visibleModules = isDevEnvironment || isSingleSite
     ? MODULE_ROLES
     : MODULE_ROLES.filter((m) => m.id === defaultRole || APP_URL_OVERRIDES[m.id]);
 
   const handleModuleSelect = (moduleItem) => {
-    const otherPortalAppUrl = !isDevEnvironment && moduleItem.id !== defaultRole && APP_URL_OVERRIDES[moduleItem.id];
+    const otherPortalAppUrl =
+      !isDevEnvironment && !isSingleSite && moduleItem.id !== defaultRole && APP_URL_OVERRIDES[moduleItem.id];
     if (otherPortalAppUrl) {
       window.location.href = `${otherPortalAppUrl}/login`;
       return;
@@ -237,7 +250,10 @@ export const UnifiedLoginPage = ({ defaultRole = 'INSTITUTE_ADMIN', onCustomLogi
         setTimeout(() => {
           const targetFrontendPort = activeModule.frontendPort;
           const finalUrl = redirectUrl || activeModule.redirectUrl;
-          if (window.location.port && window.location.port !== String(targetFrontendPort)) {
+          if (isSingleSite && activeModule.id !== defaultRole) {
+            // Another portal's app on this same site — full page load to hand over to it
+            window.location.href = finalUrl;
+          } else if (window.location.port && window.location.port !== String(targetFrontendPort)) {
             window.location.href = `http://localhost:${targetFrontendPort}${finalUrl}`;
           } else {
             navigate(finalUrl);

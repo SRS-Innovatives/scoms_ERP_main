@@ -26,7 +26,7 @@ export const apiCall = async (endpoint, options = {}) => {
 
     if (res.status === 401) {
       localStorage.removeItem('scoms_admin_token');
-      window.location.href = '/login';
+      window.location.href = '/admin/login';
       throw new Error('Session expired. Please log in again.');
     }
 
