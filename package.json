@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "description": "SCOMS - School College Management System Multi-Tenant Backend Platform",
   "private": true,
+  "engines": {
+    "node": "22.x"
+  },
   "workspaces": [
     "shared",
     "SuperAdmin_Backend",

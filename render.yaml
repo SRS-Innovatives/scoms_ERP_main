@@ -1,0 +1,86 @@
+# Render Blueprint — creates the 4 web backends in one go (Render → New → Blueprint).
+# Mobile gateway (scoms-app-backend) is intentionally not deployed yet; with
+# INTERNAL_PUSH_SECRET unset the backends skip push dispatch and keep working.
+
+envVarGroups:
+  - name: scoms-shared
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NODE_VERSION
+        value: "22"
+      # Generated once by Render and shared by all 4 services, so a token issued by
+      # one backend is accepted by the others
+      - key: JWT_ACCESS_SECRET
+        generateValue: true
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
+      - key: JWT_ACCESS_EXPIRES
+        value: 1d
+      - key: JWT_REFRESH_EXPIRES
+        value: 7d
+      - key: MODULE_REGISTRY_ENABLED
+        value: "false"
+      - key: RBAC_ENFORCEMENT_ENABLED
+        value: "true"
+
+services:
+  - type: web
+    name: scoms-superadmin-api
+    runtime: node
+    plan: free
+    region: singapore # same region as the Supabase database
+    buildCommand: npm install --include=dev && npx prisma generate
+    startCommand: node SuperAdmin_Backend/src/server.js
+    healthCheckPath: /health
+    envVars:
+      - fromGroup: scoms-shared
+      - key: DATABASE_URL # Supabase transaction pooler URL (port 6543, ?pgbouncer=true)
+        sync: false
+      - key: CORS_ORIGINS # this portal's Vercel URL; blank = allow all
+        sync: false
+
+  - type: web
+    name: scoms-institute-api
+    runtime: node
+    plan: free
+    region: singapore
+    buildCommand: npm install --include=dev && npx prisma generate
+    startCommand: node IntituteAdmin_Backend/src/server.js
+    healthCheckPath: /health
+    envVars:
+      - fromGroup: scoms-shared
+      - key: DATABASE_URL
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false
+
+  - type: web
+    name: scoms-staff-api
+    runtime: node
+    plan: free
+    region: singapore
+    buildCommand: npm install --include=dev && npx prisma generate
+    startCommand: node Staff_backend/src/server.js
+    healthCheckPath: /health
+    envVars:
+      - fromGroup: scoms-shared
+      - key: DATABASE_URL
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false
+
+  - type: web
+    name: scoms-student-api
+    runtime: node
+    plan: free
+    region: singapore
+    buildCommand: npm install --include=dev && npx prisma generate
+    startCommand: node Student_Backend/src/server.js
+    healthCheckPath: /health
+    envVars:
+      - fromGroup: scoms-shared
+      - key: DATABASE_URL
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false

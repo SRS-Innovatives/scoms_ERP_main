@@ -111,6 +111,29 @@ export const MODULE_ROLES = [
   },
 ];
 
+// Deployed backend/frontend URLs per portal. Each portal's own backend comes from its
+// VITE_API_URL; a portal can also log users into the *other* portals when their
+// VITE_<ROLE>_API_URL / VITE_<ROLE>_APP_URL are set. Unset = local dev ports.
+const env = import.meta.env || {};
+const API_URL_OVERRIDES = {
+  SUPER_ADMIN: env.VITE_SUPER_ADMIN_API_URL,
+  INSTITUTE_ADMIN: env.VITE_INSTITUTE_ADMIN_API_URL,
+  STAFF: env.VITE_STAFF_API_URL,
+  STUDENT: env.VITE_STUDENT_API_URL,
+};
+const APP_URL_OVERRIDES = {
+  SUPER_ADMIN: env.VITE_SUPER_ADMIN_APP_URL,
+  INSTITUTE_ADMIN: env.VITE_INSTITUTE_ADMIN_APP_URL,
+  STAFF: env.VITE_STAFF_APP_URL,
+  STUDENT: env.VITE_STUDENT_APP_URL,
+};
+
+/** Backend origin for a portal, e.g. https://scoms-erp-main-1.onrender.com */
+export const getModuleApiUrl = (moduleItem, portalRole) =>
+  API_URL_OVERRIDES[moduleItem.id] ||
+  (moduleItem.id === portalRole && env.VITE_API_URL) ||
+  `http://localhost:${moduleItem.port}`;
+
 // Demo-credential autofill and the pre-filled-password banner are dev-tooling, not
 // something a real deployment should ship — import.meta.env.DEV is false in every
 // `vite build` output (what actually gets deployed), true only under `vite`/`vite dev`,
@@ -149,8 +172,7 @@ export const UnifiedLoginPage = ({ defaultRole = 'INSTITUTE_ADMIN', onCustomLogi
     setErrorMessage('');
     setSuccessMessage('');
 
-    const targetPort = activeModule.port;
-    const backendUrl = `http://localhost:${targetPort}${activeModule.apiPrefix}/auth/login`;
+    const backendUrl = `${getModuleApiUrl(activeModule, defaultRole)}${activeModule.apiPrefix}/auth/login`;
 
     try {
       const response = await fetch(backendUrl, {
@@ -212,7 +234,10 @@ export const UnifiedLoginPage = ({ defaultRole = 'INSTITUTE_ADMIN', onCustomLogi
         setTimeout(() => {
           const targetFrontendPort = activeModule.frontendPort;
           const finalUrl = redirectUrl || activeModule.redirectUrl;
-          if (window.location.port && window.location.port !== String(targetFrontendPort)) {
+          const otherPortalAppUrl = activeModule.id !== defaultRole && APP_URL_OVERRIDES[activeModule.id];
+          if (otherPortalAppUrl) {
+            window.location.href = `${otherPortalAppUrl}${finalUrl}`;
+          } else if (window.location.port && window.location.port !== String(targetFrontendPort)) {
             window.location.href = `http://localhost:${targetFrontendPort}${finalUrl}`;
           } else {
             navigate(finalUrl);

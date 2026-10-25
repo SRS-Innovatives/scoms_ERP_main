@@ -12,6 +12,7 @@ dist
 
 # Secrets — only .env.example is committed
 .env
+render.env
 dist-ssr
 *.local
 scoms-app-backend/src/generated
