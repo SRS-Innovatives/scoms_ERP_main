@@ -111,16 +111,11 @@ export const MODULE_ROLES = [
   },
 ];
 
-// Deployed backend/frontend URLs per portal. Each portal's own backend comes from its
-// VITE_API_URL; a portal can also log users into the *other* portals when their
-// VITE_<ROLE>_API_URL / VITE_<ROLE>_APP_URL are set. Unset = local dev ports.
+// Each deployed portal is its own website (own origin, own localStorage), so a portal
+// only logs users into itself: its backend comes from its VITE_API_URL. The other
+// portals' tiles link to their own websites via VITE_<ROLE>_APP_URL (optional — a tile
+// with no URL is hidden in production). Unset = local dev ports.
 const env = import.meta.env || {};
-const API_URL_OVERRIDES = {
-  SUPER_ADMIN: env.VITE_SUPER_ADMIN_API_URL,
-  INSTITUTE_ADMIN: env.VITE_INSTITUTE_ADMIN_API_URL,
-  STAFF: env.VITE_STAFF_API_URL,
-  STUDENT: env.VITE_STUDENT_API_URL,
-};
 const APP_URL_OVERRIDES = {
   SUPER_ADMIN: env.VITE_SUPER_ADMIN_APP_URL,
   INSTITUTE_ADMIN: env.VITE_INSTITUTE_ADMIN_APP_URL,
@@ -130,9 +125,7 @@ const APP_URL_OVERRIDES = {
 
 /** Backend origin for a portal, e.g. https://scoms-erp-main-1.onrender.com */
 export const getModuleApiUrl = (moduleItem, portalRole) =>
-  API_URL_OVERRIDES[moduleItem.id] ||
-  (moduleItem.id === portalRole && env.VITE_API_URL) ||
-  `http://localhost:${moduleItem.port}`;
+  (moduleItem.id === portalRole && env.VITE_API_URL) || `http://localhost:${moduleItem.port}`;
 
 // Demo-credential autofill and the pre-filled-password banner are dev-tooling, not
 // something a real deployment should ship — import.meta.env.DEV is false in every
@@ -153,7 +146,17 @@ export const UnifiedLoginPage = ({ defaultRole = 'INSTITUTE_ADMIN', onCustomLogi
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
 
+  // In production, only show this portal's tile plus portals whose website URL is known
+  const visibleModules = isDevEnvironment
+    ? MODULE_ROLES
+    : MODULE_ROLES.filter((m) => m.id === defaultRole || APP_URL_OVERRIDES[m.id]);
+
   const handleModuleSelect = (moduleItem) => {
+    const otherPortalAppUrl = !isDevEnvironment && moduleItem.id !== defaultRole && APP_URL_OVERRIDES[moduleItem.id];
+    if (otherPortalAppUrl) {
+      window.location.href = `${otherPortalAppUrl}/login`;
+      return;
+    }
     setActiveModule(moduleItem);
     setIdentifier(isDevEnvironment ? moduleItem.demoUser.identifier : '');
     setPassword(isDevEnvironment ? moduleItem.demoUser.password : '');
@@ -234,10 +237,7 @@ export const UnifiedLoginPage = ({ defaultRole = 'INSTITUTE_ADMIN', onCustomLogi
         setTimeout(() => {
           const targetFrontendPort = activeModule.frontendPort;
           const finalUrl = redirectUrl || activeModule.redirectUrl;
-          const otherPortalAppUrl = activeModule.id !== defaultRole && APP_URL_OVERRIDES[activeModule.id];
-          if (otherPortalAppUrl) {
-            window.location.href = `${otherPortalAppUrl}${finalUrl}`;
-          } else if (window.location.port && window.location.port !== String(targetFrontendPort)) {
+          if (window.location.port && window.location.port !== String(targetFrontendPort)) {
             window.location.href = `http://localhost:${targetFrontendPort}${finalUrl}`;
           } else {
             navigate(finalUrl);
@@ -322,8 +322,8 @@ export const UnifiedLoginPage = ({ defaultRole = 'INSTITUTE_ADMIN', onCustomLogi
           </div>
 
           {/* Role Selector Grid */}
-          <div className="grid grid-cols-2 gap-3 mb-8">
-            {MODULE_ROLES.map((m) => {
+          <div className={`grid gap-3 mb-8 ${visibleModules.length > 1 ? 'grid-cols-2' : 'grid-cols-1'}`}>
+            {visibleModules.map((m) => {
               const Icon = m.icon;
               const isSelected = activeModule.id === m.id;
 
