@@ -5,7 +5,7 @@ import EmptyState from '../../components/common/EmptyState';
 import FormModal from '../../components/common/FormModal';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
 import { useNotification } from '../../context/NotificationContext';
-import { useInstitution } from '../../context/InstitutionContext';
+import { useAcademic } from '../../context/InstitutionContext';
 import semesterService from '../../services/semesterService';
 import courseService from '../../services/courseService';
 import academicYearService from '../../services/academicYearService';
@@ -16,10 +16,13 @@ const emptyForm = { courseId: '', academicYearId: '', name: '', semesterNumber: 
 
 export const SemesterSetupPage = () => {
   const { notifySuccess, notifyError } = useNotification();
-  const { institution } = useInstitution();
-  const isSchool = institution?.type === 'SCHOOL';
-  const termUnit = isSchool ? 'Term' : 'Semester';
-  const classUnit = isSchool ? 'Class' : 'Course';
+  const academic = useAcademic();
+  // Term / Semester / Trimester / Year and whether batches apply come from the
+  // institution's academic structure, not its type
+  const termUnit = academic.label('semester');
+  const classUnit = academic.label('course');
+  const yearUnit = academic.label('academicYear');
+  const usesBatches = academic.isLevelEnabled('batch');
   const [semesters, setSemesters] = useState([]);
   const [courses, setCourses] = useState([]);
   const [academicYears, setAcademicYears] = useState([]);
@@ -40,18 +43,18 @@ export const SemesterSetupPage = () => {
         semesterService.getAll(),
         courseService.getAll(),
         academicYearService.getAll(),
-        isSchool ? Promise.resolve({ data: [] }) : batchService.getAll(),
+        usesBatches ? batchService.getAll() : Promise.resolve({ data: [] }),
       ]);
       setSemesters(semRes.data || []);
       setCourses(courseRes.data || []);
       setAcademicYears(ayRes.data || []);
       setBatches(batchRes.data || []);
     } catch (error) {
-      notifyError(`Failed to load semesters: ${error.message}`);
+      notifyError(`Failed to load ${termUnit.toLowerCase()}s: ${error.message}`);
     } finally {
       setLoading(false);
     }
-  }, [notifyError, isSchool]);
+  }, [notifyError, usesBatches, termUnit]);
 
   useEffect(() => {
     fetchAll();
@@ -78,12 +81,12 @@ export const SemesterSetupPage = () => {
           name: form.name,
           semesterNumber: form.semesterNumber,
           academicYearId: form.academicYearId,
-          ...(!isSchool && { batchId: form.batchId || null }),
+          ...(usesBatches && { batchId: form.batchId || null }),
         });
         notifySuccess(`${termUnit} ${form.name} updated successfully!`);
       } else {
         const { batchId, ...rest } = form;
-        await semesterService.create(isSchool || !batchId ? rest : form);
+        await semesterService.create(!usesBatches || !batchId ? rest : form);
         notifySuccess(`${termUnit} ${form.name} created successfully!`);
       }
       setModalOpen(false);
@@ -111,9 +114,9 @@ export const SemesterSetupPage = () => {
   const columns = [
     { header: `${termUnit} Title`, key: 'name', render: (val) => <span className="font-bold text-slate-900 dark:text-white">{val}</span> },
     { header: classUnit, key: 'course', sortable: false, render: (val) => val?.name || '-' },
-    { header: 'Academic Year', key: 'academicYear', sortable: false, render: (val) => val?.yearName || '-' },
-    ...(isSchool ? [] : [{ header: 'Batch', key: 'batch', sortable: false, render: (val) => val?.name || '-' }]),
-    { header: 'Sections', key: '_count', sortable: false, render: (val) => `${val?.sections ?? 0} Sections` },
+    { header: yearUnit, key: 'academicYear', sortable: false, render: (val) => val?.yearName || '-' },
+    ...(usesBatches ? [{ header: academic.label('batch'), key: 'batch', sortable: false, render: (val) => val?.name || '-' }] : []),
+    { header: `${academic.label('section')}s`, key: '_count', sortable: false, render: (val) => `${val?.sections ?? 0} ${academic.label('section')}s` },
     {
       header: 'Actions',
       key: 'actions',
@@ -137,13 +140,13 @@ export const SemesterSetupPage = () => {
     <div className="space-y-6">
       <div>
         <h1 className="text-xl font-bold text-slate-900 dark:text-white">{termUnit} Setup</h1>
-        <p className="text-xs text-slate-500 dark:text-slate-400">Manage term schedules for each {classUnit.toLowerCase()}/academic year</p>
+        <p className="text-xs text-slate-500 dark:text-slate-400">Manage {termUnit.toLowerCase()} schedules for each {classUnit.toLowerCase()}/{yearUnit.toLowerCase()}</p>
       </div>
 
       <SearchFilterBar searchQuery={search} onSearchChange={setSearch} addLabel={`Add ${termUnit}`} onAddClick={openAddModal} onRefreshClick={fetchAll} />
 
       {!loading && filtered.length === 0 ? (
-        <EmptyState title={`No ${termUnit}s Found`} description={`Add a ${termUnit.toLowerCase()} to get started. You'll need a ${classUnit.toLowerCase()} and academic year first.`} actionLabel={`Add ${termUnit}`} onAction={openAddModal} />
+        <EmptyState title={`No ${termUnit}s Found`} description={`Add a ${termUnit.toLowerCase()} to get started. You'll need a ${classUnit.toLowerCase()} and ${yearUnit.toLowerCase()} first.`} actionLabel={`Add ${termUnit}`} onAction={openAddModal} />
       ) : (
         <DataTable columns={columns} data={filtered} loading={loading} />
       )}
@@ -151,7 +154,7 @@ export const SemesterSetupPage = () => {
       <FormModal
         isOpen={modalOpen}
         title={editingId ? `Edit ${termUnit}` : `Add ${termUnit}`}
-        subtitle={`Link a ${termUnit.toLowerCase()} to its ${classUnit.toLowerCase()} and academic year`}
+        subtitle={`Link a ${termUnit.toLowerCase()} to its ${classUnit.toLowerCase()} and ${yearUnit.toLowerCase()}`}
         icon={BookOpen}
         submitLabel={editingId ? 'Save Changes' : `Create ${termUnit}`}
         isSubmitting={submitting}
@@ -171,20 +174,20 @@ export const SemesterSetupPage = () => {
           },
           {
             name: 'academicYearId',
-            label: 'Academic Year',
+            label: yearUnit,
             type: 'select',
             required: true,
             span: 'full',
             options: academicYears.map((y) => ({ value: y.id, label: y.yearName })),
           },
-          { name: 'name', label: `${termUnit} Title (e.g. ${isSchool ? 'Term 1' : 'Semester 1'})`, required: true },
+          { name: 'name', label: `${termUnit} Title (e.g. ${termUnit} 1)`, required: true },
           { name: 'semesterNumber', label: `${termUnit} Number`, type: 'number', required: true },
-          ...(isSchool
+          ...(!usesBatches
             ? []
             : [
                 {
                   name: 'batchId',
-                  label: 'Batch (optional)',
+                  label: `${academic.label('batch')} (optional)`,
                   type: 'select',
                   span: 'full',
                   placeholder: '- None -',

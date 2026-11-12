@@ -9,6 +9,7 @@ const studentProfileController = require('../controllers/studentProfileControlle
 const feePaymentController = require('../controllers/feePaymentController');
 const aiAssistantController = require('../controllers/aiAssistantController');
 const announcementController = require('../controllers/announcementController');
+const circularController = require('../controllers/circularController');
 const timetableController = require('../controllers/timetableController');
 const examController = require('../controllers/examController');
 const campusController = require('../controllers/campusController');
@@ -88,6 +89,8 @@ router.get('/ai/topics', shadowPermission(PERMISSIONS.AI_ACCESS), aiAssistantCon
 
 // Announcements
 router.get('/announcements', requireModule('communication'), announcementController.getAnnouncements);
+router.get('/circulars', requireModule('communication'), circularController.getCirculars);
+router.get('/circulars/:id', requireModule('communication'), circularController.getCircular);
 
 // Timetable
 router.get('/timetable', requireModule('timetable'), shadowPermission(PERMISSIONS.TIMETABLE_VIEW), timetableController.getTimetable);
@@ -133,6 +136,7 @@ router.post('/leave', shadowPermission(PERMISSIONS.LEAVE_APPLY), leaveController
 // Issued Certificates & Documents
 router.get('/certificates', requireModule('certificates'), certificateController.getMyCertificates);
 router.get('/certificate-requests', requireModule('certificates'), certificateController.getMyCertificateRequests);
+router.get('/certificate-types', requireModule('certificates'), certificateController.getRequestableTypes);
 router.post('/certificate-requests', requireModule('certificates'), certificateController.requestCertificate);
 
 // Messages

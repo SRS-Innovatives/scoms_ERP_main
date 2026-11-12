@@ -8,11 +8,13 @@ import assignmentService from '../../services/assignmentService';
 import examService from '../../services/examService';
 import { ArrowLeft, User, Download, FileText, Loader2 } from 'lucide-react';
 import ErrorState from '../../components/common/ErrorState';
+import { useAcademic } from '../../context/InstitutionContext';
 
 export const SubjectDetailPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { error: showError } = useNotification();
+  const academic = useAcademic();
 
   const [subject, setSubject] = useState(null);
   const [materials, setMaterials] = useState([]);
@@ -80,7 +82,7 @@ export const SubjectDetailPage = () => {
           </span>
           <h2 className="text-xl font-black text-slate-900 dark:text-slate-100 mt-2">{subject.name}</h2>
           <p className="text-xs text-slate-500 flex items-center gap-1">
-            <User className="w-3.5 h-3.5" /> Faculty: <span className="font-semibold">{subject.faculty}</span> • {subject.credits} Credits
+            <User className="w-3.5 h-3.5" /> {academic.label('teacher')}: <span className="font-semibold">{subject.faculty}</span>{academic.regulations?.creditsEnabled !== false && <> • {subject.credits} Credits</>}
           </p>
         </div>
         {subject.attendance !== null && (

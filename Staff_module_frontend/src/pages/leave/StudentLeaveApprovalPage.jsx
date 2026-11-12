@@ -4,12 +4,14 @@ import { useNotification } from '../../context/NotificationContext';
 import { CheckCircle, XCircle, Loader2, Inbox } from 'lucide-react';
 import studentLeaveService from '../../services/studentLeaveService';
 import ErrorState from '../../components/common/ErrorState';
+import { useAcademic } from '../../context/InstitutionContext';
 
 const TYPE_LABELS = { MEDICAL: 'Medical Leave', CASUAL: 'Casual / Personal Leave', DUTY: 'On Duty (OD)', EARNED: 'Earned Leave' };
 
 const daysBetween = (start, end) => Math.round((new Date(end) - new Date(start)) / 86400000) + 1;
 
 export const StudentLeaveApprovalPage = () => {
+  const academic = useAcademic();
   const { success, error: showError } = useNotification();
   const [leaves, setLeaves] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -44,7 +46,7 @@ export const StudentLeaveApprovalPage = () => {
     <div className="glass-card p-6 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-4">
       <div>
         <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">Student Leave Approvals</h3>
-        <p className="text-xs text-slate-500">Requests from students in the sections you teach.</p>
+        <p className="text-xs text-slate-500">The {academic.label('classTeacher').toLowerCase()} approves or rejects; other teachers of the {academic.label('section').toLowerCase()} can view.</p>
       </div>
 
       {loading ? (
@@ -61,7 +63,7 @@ export const StudentLeaveApprovalPage = () => {
             <thead className="bg-slate-100 dark:bg-slate-800 uppercase font-semibold text-slate-600 dark:text-slate-400">
               <tr>
                 <th className="p-3">Student</th>
-                <th className="p-3">Section</th>
+                <th className="p-3">{academic.label('section')}</th>
                 <th className="p-3">Type</th>
                 <th className="p-3">Dates</th>
                 <th className="p-3">Reason</th>
@@ -79,7 +81,9 @@ export const StudentLeaveApprovalPage = () => {
                   <td className="p-3 max-w-[220px] truncate">{lv.reason}</td>
                   <td className="p-3"><StatusBadge status={lv.status} size="sm" /></td>
                   <td className="p-3 text-right">
-                    {lv.status === 'PENDING' ? (
+                    {lv.status === 'PENDING' && lv.canDecide === false ? (
+                      <span className="text-[10px] text-slate-400">View only — {academic.label('classTeacher').toLowerCase()} decides</span>
+                    ) : lv.status === 'PENDING' ? (
                       <div className="flex items-center justify-end gap-1.5">
                         <button
                           onClick={() => handleDecision(lv, 'APPROVED')}

@@ -6,6 +6,7 @@ import { useNotification } from '../../context/NotificationContext';
 import { CalendarDays, Printer, Loader2, RefreshCw, Check, X, Clock } from 'lucide-react';
 import attendanceService from '../../services/attendanceService';
 import sectionService from '../../services/sectionService';
+import { useAcademic } from '../../context/InstitutionContext';
 
 const sectionLabel = (s) => `${s.semester?.course?.name || ''} — ${s.semester?.name || ''} — ${s.name}`;
 
@@ -20,6 +21,7 @@ const STATUS_META = {
 };
 
 export const DateWiseAttendanceReportPage = () => {
+  const academic = useAcademic();
   const { notifyError } = useNotification();
   const [sections, setSections] = useState([]);
   const [sectionId, setSectionId] = useState('');
@@ -82,9 +84,9 @@ export const DateWiseAttendanceReportPage = () => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 no-print">
-        <ReportConfigBox title="Class & Date">
+        <ReportConfigBox title={`${academic.label('section')} & Date`}>
           <div>
-            <label className="block text-slate-500 mb-1">Section</label>
+            <label className="block text-slate-500 mb-1">{academic.label('section')}</label>
             <select value={sectionId} onChange={(e) => setSectionId(e.target.value)} className="w-full p-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg">
               {sections.map((s) => <option key={s.id} value={s.id}>{sectionLabel(s)}</option>)}
             </select>
@@ -124,7 +126,7 @@ export const DateWiseAttendanceReportPage = () => {
       ) : reportError ? (
         <ErrorState onRetry={generate} />
       ) : !report || report.rows.length === 0 ? (
-        <EmptyState title="No Students in This Section" icon={CalendarDays} />
+        <EmptyState title={`No Students in This ${academic.label('section')}`} icon={CalendarDays} />
       ) : filteredRows.length === 0 ? (
         <EmptyState title="No Students Match This Filter" icon={CalendarDays} />
       ) : (

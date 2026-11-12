@@ -2,8 +2,10 @@ import React from 'react';
 import PrintHeader from '../common/PrintHeader';
 import { Printer } from 'lucide-react';
 import { useInstitution } from '../../context/InstitutionContext';
+import { useAcademic } from '../../context/InstitutionContext';
 
 export const CertificateTemplate = ({ type = 'bonafide', certData }) => {
+  const academic = useAcademic();
   const { institution } = useInstitution();
   const student = certData || {
     name: "Kavitha R. Sharma",
@@ -78,7 +80,7 @@ export const CertificateTemplate = ({ type = 'bonafide', certData }) => {
                 <p><span className="font-semibold text-slate-600">4. Date of Birth:</span> <span className="font-bold">{student.dob}</span></p>
               </div>
               <div className="grid grid-cols-2 gap-4 border-b pb-2">
-                <p><span className="font-semibold text-slate-600">5. Course & Branch Studied:</span> <span className="font-bold">{student.course}</span></p>
+                <p><span className="font-semibold text-slate-600">5. {academic.label('course')} Studied:</span> <span className="font-bold">{student.course}</span></p>
                 <p><span className="font-semibold text-slate-600">6. Date of Admission:</span> <span className="font-bold">{student.dateOfAdmission}</span></p>
               </div>
               <div className="grid grid-cols-2 gap-4 border-b pb-2">

@@ -41,20 +41,25 @@ export const navigationConfig = [
     key: 'setup',
     title: 'Institution Setup',
     icon: Building2,
+    // `level` ties an item to an academic hierarchy level: hidden when the institution's
+    // structure doesn't use it, and titled with the institution's own term for it
+    // ("Standard Setup" for a school). `labelKey` only retitles, never hides. `types`
+    // limits an item to institution types.
     children: [
       { key: 'profile', title: 'Institute Profile', path: '/admin/setup/profile' },
       { key: 'module-settings', title: 'Module Settings', path: '/admin/setup/module-settings' },
-      { key: 'academic-year', title: 'Academic Year Setup', path: '/admin/setup/academic-year' },
+      { key: 'academic-year', title: 'Academic Year Setup', path: '/admin/setup/academic-year', labelKey: 'academicYear' },
       { key: 'campus', title: 'Campus Setup', path: '/admin/setup/campus' },
-      { key: 'department', title: 'Department Setup', path: '/admin/setup/department' },
-      { key: 'program', title: 'Program Setup', path: '/admin/setup/program' },
-      { key: 'course', title: 'Course / Class Setup', path: '/admin/setup/course' },
-      { key: 'semester', title: 'Semester Setup', path: '/admin/setup/semester' },
-      { key: 'section', title: 'Section Setup', path: '/admin/setup/section' },
-      { key: 'subject', title: 'Subject Setup', path: '/admin/setup/subject' },
-      { key: 'batch', title: 'Batch Setup', path: '/admin/setup/batch' },
+      { key: 'faculty', title: 'Faculty / School Setup', path: '/admin/setup/faculty', level: 'faculty' },
+      { key: 'department', title: 'Department Setup', path: '/admin/setup/department', level: 'department' },
+      { key: 'program', title: 'Program Setup', path: '/admin/setup/program', level: 'program' },
+      { key: 'course', title: 'Course / Class Setup', path: '/admin/setup/course', level: 'course' },
+      { key: 'batch', title: 'Batch Setup', path: '/admin/setup/batch', level: 'batch' },
+      { key: 'semester', title: 'Semester Setup', path: '/admin/setup/semester', level: 'semester' },
+      { key: 'section', title: 'Section Setup', path: '/admin/setup/section', level: 'section' },
+      { key: 'subject', title: 'Subject Setup', path: '/admin/setup/subject', level: 'subject' },
       { key: 'house', title: 'House / Group Setup', path: '/admin/setup/house' },
-      { key: 'affiliated-colleges', title: 'Affiliated Colleges', path: '/admin/setup/affiliated-colleges' }
+      { key: 'affiliated-colleges', title: 'Affiliated Colleges', path: '/admin/setup/affiliated-colleges', types: ['UNIVERSITY'] }
     ]
   },
   {
@@ -139,7 +144,7 @@ export const navigationConfig = [
     children: [
       { key: 'daily', title: 'Daily Attendance', path: '/admin/attendance/daily' },
       { key: 'subject-att', title: 'Subject-wise Attendance', path: '/admin/attendance/subject' },
-      { key: 'biometric', title: 'Biometric Sync', path: '/admin/attendance/biometric' },
+      { key: 'biometric', title: 'Biometric Import', path: '/admin/attendance/biometric' },
       { key: 'absent-list', title: 'Absentee List & SMS', path: '/admin/attendance/absentee' },
       { key: 'att-corrections', title: 'Lock & Corrections', path: '/admin/attendance/corrections' },
       { key: 'att-reports', title: 'Attendance Reports', path: '/admin/attendance/reports' }
@@ -153,8 +158,7 @@ export const navigationConfig = [
       { key: 'class-tt', title: 'Class Timetable', path: '/admin/timetable/class' },
       { key: 'teacher-tt', title: 'Teacher Timetable', path: '/admin/timetable/teacher' },
       { key: 'substitute-tt', title: 'Substitute Requests', path: '/admin/timetable/substitutes' },
-      { key: 'exam-tt', title: 'Exam Schedule TT', path: '/admin/timetable/exam' },
-      { key: 'tt-generator', title: 'Timetable Generator UI', path: '/admin/timetable/generator' }
+      { key: 'exam-tt', title: 'Exam Timetable', path: '/admin/timetable/exam' }
     ]
   },
   {
@@ -206,7 +210,7 @@ export const navigationConfig = [
     icon: MessageSquare,
     children: [
       { key: 'announcements', title: 'Announcements', path: '/admin/communication/announcements' },
-      { key: 'circulars', title: 'Circulars & Notices', path: '/admin/communication/circulars' },
+      { key: 'circulars', title: 'Official Circulars', path: '/admin/communication/circulars' },
       { key: 'sms-center', title: 'SMS Center (DLT)', path: '/admin/communication/sms-center' },
       { key: 'scheduled-notifications', title: 'Scheduled Notifications', path: '/admin/communication/scheduled' },
       { key: 'email-center', title: 'Email Broadcast', path: '/admin/communication/email-center' },
@@ -229,7 +233,7 @@ export const navigationConfig = [
     icon: ShieldAlert,
     children: [
       { key: 'grievances', title: 'Student Grievances', path: '/admin/communication/grievances' },
-      { key: 'feedback-summary', title: 'Faculty Feedback Summary', path: '/admin/reports/feedback' }
+      { key: 'feedback-summary', title: 'Faculty Feedback Summary', path: '/admin/reports/feedback', titleTemplate: (academic) => `${academic.label('teacher')} Feedback Summary` }
     ]
   },
   {
@@ -399,7 +403,7 @@ export const navigationConfig = [
       { key: 'rep-staff', title: 'Staff Report', path: '/admin/reports/staff' },
       { key: 'rep-transport', title: 'Transport Report', path: '/admin/reports/transport' },
       { key: 'rep-library', title: 'Library Report', path: '/admin/reports/library' },
-      { key: 'rep-feedback', title: 'Faculty Feedback Summary', path: '/admin/reports/feedback' }
+      { key: 'rep-feedback', title: 'Faculty Feedback Summary', path: '/admin/reports/feedback', titleTemplate: (academic) => `${academic.label('teacher')} Feedback Summary` }
     ]
   },
   {

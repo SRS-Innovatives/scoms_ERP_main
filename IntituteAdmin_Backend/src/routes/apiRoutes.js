@@ -20,6 +20,10 @@ const attendanceController = require('../controllers/attendanceController');
 const reportController = require('../controllers/reportController');
 const timetableController = require('../controllers/timetableController');
 const examController = require('../controllers/examController');
+const examInsightsController = require('../controllers/examInsightsController');
+const circularController = require('../controllers/circularController');
+const houseController = require('../controllers/houseController');
+const biometricController = require('../controllers/biometricController');
 const libraryController = require('../controllers/libraryController');
 const transportController = require('../controllers/transportController');
 const hostelController = require('../controllers/hostelController');
@@ -164,6 +168,12 @@ router.post('/setup/academic-years', setupController.createAcademicYear);
 router.patch('/setup/academic-years/:id', setupController.updateAcademicYear);
 router.delete('/setup/academic-years/:id', setupController.deleteAcademicYear);
 
+// New endpoints (no legacy traffic) — always-enforced permission checks
+router.get('/setup/faculties', requirePermissionStrict(PERMISSIONS.ACADEMICS_VIEW), setupController.getFaculties);
+router.post('/setup/faculties', requirePermissionStrict(PERMISSIONS.ACADEMICS_MANAGE), setupController.createFaculty);
+router.patch('/setup/faculties/:id', requirePermissionStrict(PERMISSIONS.ACADEMICS_MANAGE), setupController.updateFaculty);
+router.delete('/setup/faculties/:id', requirePermissionStrict(PERMISSIONS.ACADEMICS_MANAGE), setupController.deleteFaculty);
+
 router.get('/setup/departments', setupController.getDepartments);
 router.post('/setup/departments', setupController.createDepartment);
 router.patch('/setup/departments/:id', setupController.updateDepartment);
@@ -217,6 +227,17 @@ router.get('/setup/subjects/class-mapping', setupController.getSubjectClassMappi
 router.put('/setup/subjects/:id/class-mapping', setupController.setSubjectClassMapping);
 router.patch('/setup/subjects/:id', setupController.updateSubject);
 router.delete('/setup/subjects/:id', setupController.deleteSubject);
+
+// Houses / groups: mentor teacher, members, points log
+router.get('/setup/houses', houseController.getHouses);
+router.post('/setup/houses', houseController.createHouse);
+router.patch('/setup/houses/:id', houseController.updateHouse);
+router.delete('/setup/houses/:id', houseController.deleteHouse);
+router.get('/setup/houses/:id/members', houseController.getMembers);
+router.post('/setup/houses/:id/members', houseController.assignMembers);
+router.delete('/setup/houses/:id/members/:studentId', houseController.removeMember);
+router.get('/setup/houses/:id/points', houseController.getPoints);
+router.post('/setup/houses/:id/points', houseController.awardPoints);
 
 // Student Routes
 router.use('/students', requireModule('student'));
@@ -417,6 +438,14 @@ router.get('/announcements', announcementController.getAnnouncements);
 router.post('/announcements', shadowPermission(PERMISSIONS.ANNOUNCEMENTS_CREATE), announcementController.createAnnouncement);
 router.delete('/announcements/:id', shadowPermission(PERMISSIONS.ANNOUNCEMENTS_CREATE), announcementController.deleteAnnouncement);
 
+// Official circulars (ref no + signatory + PDF) — Staff/Student/Parent portals read them by audience
+router.use('/circulars', requireModule('communication'));
+router.get('/circulars', circularController.getCirculars);
+router.get('/circulars/:id', circularController.getCircular);
+router.post('/circulars', shadowPermission(PERMISSIONS.ANNOUNCEMENTS_CREATE), circularController.createCircular);
+router.patch('/circulars/:id', shadowPermission(PERMISSIONS.ANNOUNCEMENTS_CREATE), circularController.updateCircular);
+router.delete('/circulars/:id', shadowPermission(PERMISSIONS.ANNOUNCEMENTS_CREATE), circularController.deleteCircular);
+
 // Bulk SMS, Email & WhatsApp Broadcast
 router.use('/broadcast', requireModule('communication'));
 router.post('/broadcast/sms', shadowPermission(PERMISSIONS.NOTIFICATIONS_SEND), broadcastController.broadcastSms);
@@ -576,6 +605,9 @@ router.get('/attendance/absentees', shadowPermission(PERMISSIONS.ATTENDANCE_VIEW
 router.post('/attendance/absentees/notify', shadowPermission(PERMISSIONS.NOTIFICATIONS_SEND), attendanceController.notifyAbsentees);
 router.get('/attendance/consolidated-report', shadowPermission(PERMISSIONS.ATTENDANCE_VIEW), attendanceController.getConsolidatedAttendanceReport);
 router.get('/attendance/date-wise-report', shadowPermission(PERMISSIONS.ATTENDANCE_VIEW), attendanceController.getDateWiseAttendanceReport);
+// Bulk import across every class — an oversight action, so approvers only (not subject teachers)
+router.get('/attendance/biometric-import/template', requirePermissionStrict(PERMISSIONS.ATTENDANCE_APPROVE), biometricController.getTemplate);
+router.post('/attendance/biometric-import', requirePermissionStrict(PERMISSIONS.ATTENDANCE_APPROVE), upload.single('file'), biometricController.importBiometric);
 router.get('/attendance/corrections', requirePermissionStrict(PERMISSIONS.ATTENDANCE_APPROVE), attendanceController.getCorrectionRequests);
 router.post('/attendance/corrections/:id/review', requirePermissionStrict(PERMISSIONS.ATTENDANCE_APPROVE), attendanceController.reviewCorrectionRequest);
 
@@ -626,6 +658,10 @@ router.patch('/exams/:id/status', shadowPermission(PERMISSIONS.EXAMS_CREATE), ex
 router.get('/exams/:examId/rank-list', shadowPermission(PERMISSIONS.RESULTS_VIEW), examController.getRankList);
 router.get('/exams/:examId/consolidated-report', shadowPermission(PERMISSIONS.RESULTS_VIEW), examController.getConsolidatedMarksReport);
 router.get('/students/:studentId/marksheet', requireModule('examination'), shadowPermission(PERMISSIONS.RESULTS_VIEW), examController.getStudentMarksheet);
+// Read-only insights from real exam records (Subject Analysis, Hall Tickets, Progress Report)
+router.get('/exams/:examId/subject-analysis', shadowPermission(PERMISSIONS.RESULTS_VIEW), examInsightsController.getSubjectAnalysis);
+router.get('/exams/:examId/hall-tickets', shadowPermission(PERMISSIONS.EXAMS_VIEW), examInsightsController.getHallTickets);
+router.get('/students/:studentId/progress-report', requireModule('examination'), shadowPermission(PERMISSIONS.RESULTS_VIEW), examInsightsController.getProgressReport);
 
 // Grade Scale (SGPA/CGPA point system)
 router.use('/grade-scale', requireModule('examination'));

@@ -8,6 +8,7 @@ import { useNotification } from '../../context/NotificationContext';
 import textbookService from '../../services/textbookService';
 import { BrainCircuit, Edit, Trash2 } from 'lucide-react';
 import ErrorState from '../../components/common/ErrorState';
+import { useAcademic } from '../../context/InstitutionContext';
 
 const CLASS_OPTIONS = Array.from({ length: 8 }, (_, i) => ({ value: String(i + 5), label: `Class ${i + 5}` }));
 const LANGUAGE_OPTIONS = [{ value: 'ENGLISH', label: 'English' }, { value: 'TAMIL', label: 'Tamil' }];
@@ -17,6 +18,7 @@ const emptyForm = { classGrade: '', subject: '', language: 'ENGLISH', chapterTit
 /** What the AI Study Tutor actually grounds its answers in — upload the real chapter text
  * once per class+subject+language and the student portal's AI Tutor references it live. */
 export const AiTutorContentPage = () => {
+  const academic = useAcademic();
   const { notifySuccess, notifyError } = useNotification();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -81,7 +83,7 @@ export const AiTutorContentPage = () => {
   };
 
   const columns = [
-    { header: 'Class', key: 'classGrade', render: (val) => <span className="font-mono font-bold text-indigo-600">Class {val}</span> },
+    { header: academic.label('course'), key: 'classGrade', render: (val) => <span className="font-mono font-bold text-indigo-600">{academic.label('course')} {val}</span> },
     { header: 'Subject', key: 'subject', render: (val) => <span className="font-bold text-slate-900 dark:text-white">{val}</span> },
     { header: 'Language', key: 'language', render: (val) => <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300">{val}</span> },
     { header: 'Chapter', key: 'chapterTitle' },
@@ -129,7 +131,7 @@ export const AiTutorContentPage = () => {
         values={form}
         onChange={(name, value) => setForm((prev) => ({ ...prev, [name]: value }))}
         fields={[
-          { name: 'classGrade', label: 'Class', type: 'select', required: true, options: CLASS_OPTIONS },
+          { name: 'classGrade', label: academic.label('course'), type: 'select', required: true, options: CLASS_OPTIONS.map((o) => ({ ...o, label: `${academic.label('course')} ${o.value}` })) },
           { name: 'language', label: 'Language', type: 'select', required: true, options: LANGUAGE_OPTIONS },
           { name: 'subject', label: 'Subject', required: true, span: 'full', placeholder: 'e.g. Science, Tamil, Social Science' },
           { name: 'chapterTitle', label: 'Chapter Title', required: true, span: 'full', placeholder: 'e.g. Chapter 4: Photosynthesis' },

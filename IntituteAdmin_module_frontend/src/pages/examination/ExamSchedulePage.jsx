@@ -9,10 +9,12 @@ import examService from '../../services/examService';
 import courseService from '../../services/courseService';
 import subjectService from '../../services/subjectService';
 import { roomService, roomLabel } from '../../services/infrastructureService';
+import { useAcademic } from '../../context/InstitutionContext';
 
 const emptyForm = { subjectId: '', examDate: '', startTime: '', endTime: '', maxMarks: '100', passMarks: '35', roomNumber: '', roomId: '' };
 
 export const ExamSchedulePage = () => {
+  const academic = useAcademic();
   const { notifySuccess, notifyError } = useNotification();
   const [exams, setExams] = useState([]);
   const [examId, setExamId] = useState('');
@@ -99,7 +101,7 @@ export const ExamSchedulePage = () => {
 
   const columns = [
     { header: 'Subject', key: 'subject', sortable: false, render: (val) => <span className="font-bold text-slate-900 dark:text-white">{val?.name}</span> },
-    { header: 'Course', key: 'subject2', sortable: false, render: (_, row) => row.course?.name },
+    { header: academic.label('course'), key: 'subject2', sortable: false, render: (_, row) => row.course?.name },
     { header: 'Date', key: 'examDate', render: (val) => <span className="font-mono">{new Date(val).toLocaleDateString('en-IN')}</span> },
     { header: 'Time', key: 'startTime', sortable: false, render: (_, row) => `${row.startTime} - ${row.endTime}` },
     { header: 'Max / Pass', key: 'maxMarks', sortable: false, render: (_, row) => `${row.maxMarks} / ${row.passMarks}` },
@@ -162,7 +164,7 @@ export const ExamSchedulePage = () => {
         fields={[
           {
             name: 'courseId',
-            label: 'Course',
+            label: academic.label('course'),
             type: 'select',
             required: true,
             span: 'full',

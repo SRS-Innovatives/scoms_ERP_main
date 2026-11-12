@@ -5,8 +5,10 @@ import ErrorState from '../../components/common/ErrorState';
 import { useNotification } from '../../context/NotificationContext';
 import { Trophy, Loader2, BarChart3 } from 'lucide-react';
 import examService from '../../services/examService';
+import { useAcademic } from '../../context/InstitutionContext';
 
 export const RankListPage = () => {
+  const academic = useAcademic();
   const { notifyError } = useNotification();
   const [exams, setExams] = useState([]);
   const [examId, setExamId] = useState('');
@@ -60,7 +62,7 @@ export const RankListPage = () => {
     },
     { header: 'Student Name', key: 'student', sortable: false, render: (val) => <span className="font-bold text-slate-900 dark:text-white">{val?.firstName} {val?.lastName}</span> },
     { header: 'Roll No', key: 'student2', sortable: false, render: (_, row) => <span className="font-mono font-bold text-indigo-600">{row.student?.rollNumber}</span> },
-    { header: 'Section', key: 'student3', sortable: false, render: (_, row) => row.student?.section?.name || '—' },
+    { header: academic.label('section'), key: 'student3', sortable: false, render: (_, row) => row.student?.section?.name || '—' },
     { header: 'Total', key: 'total', sortable: false, render: (_, row) => <span className="font-mono">{row.total} / {row.maxTotal}</span> },
     { header: 'Percentage', key: 'percentage', render: (val) => <span className="font-mono font-bold text-emerald-600 text-sm">{val}%</span> },
     {

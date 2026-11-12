@@ -11,6 +11,7 @@ import {
   UserPlus, MessageSquare, Eye, Receipt, CheckCircle2, GraduationCap,
   Trash2, X, Loader2, FileText, FileCheck,
 } from 'lucide-react';
+import { useAcademic } from '../../context/InstitutionContext';
 
 const emptyForm = {
   studentFirstName: '', studentLastName: '', dob: '', gender: 'MALE', classAppliedFor: '', courseApplied: '',
@@ -35,6 +36,7 @@ const STATUS_STYLES = {
 /** The Admit modal — converts an accepted applicant into a real Student, reusing the
  * same department → course → semester → section cascade the main admission form uses. */
 const AdmitModal = ({ isOpen, application, onClose, onAdmitted }) => {
+  const academic = useAcademic();
   const { notifySuccess, notifyError } = useNotification();
   const [departments, setDepartments] = useState([]);
   const [courses, setCourses] = useState([]);
@@ -123,7 +125,7 @@ const AdmitModal = ({ isOpen, application, onClose, onAdmitted }) => {
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Department</label>
+              <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">{academic.label('department')}</label>
               <select value={form.departmentId} onChange={(e) => setForm((p) => ({ ...p, departmentId: e.target.value, courseId: '', semesterId: '', sectionId: '' }))}
                 className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white font-medium">
                 <option value="">Select...</option>
@@ -131,7 +133,7 @@ const AdmitModal = ({ isOpen, application, onClose, onAdmitted }) => {
               </select>
             </div>
             <div>
-              <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Course</label>
+              <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">{academic.label('course')}</label>
               <select disabled={!form.departmentId} value={form.courseId} onChange={(e) => setForm((p) => ({ ...p, courseId: e.target.value, semesterId: '', sectionId: '' }))}
                 className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white font-medium disabled:opacity-50">
                 <option value="">Select...</option>
@@ -139,7 +141,7 @@ const AdmitModal = ({ isOpen, application, onClose, onAdmitted }) => {
               </select>
             </div>
             <div>
-              <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Semester</label>
+              <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">{academic.label('semester')}</label>
               <select disabled={!form.courseId} value={form.semesterId} onChange={(e) => setForm((p) => ({ ...p, semesterId: e.target.value, sectionId: '' }))}
                 className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white font-medium disabled:opacity-50">
                 <option value="">Select...</option>
@@ -147,7 +149,7 @@ const AdmitModal = ({ isOpen, application, onClose, onAdmitted }) => {
               </select>
             </div>
             <div>
-              <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Section *</label>
+              <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">{academic.label('section')} *</label>
               <select required disabled={!form.semesterId} value={form.sectionId} onChange={(e) => setForm((p) => ({ ...p, sectionId: e.target.value }))}
                 className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white font-medium disabled:opacity-50">
                 <option value="">Select...</option>
@@ -224,6 +226,7 @@ const ViewModal = ({ isOpen, application, onClose }) => {
 };
 
 export const PreAdmissionListPage = () => {
+  const academic = useAcademic();
   const { notifySuccess, notifyError } = useNotification();
   const [applications, setApplications] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -508,15 +511,15 @@ export const PreAdmissionListPage = () => {
           { name: 'studentLastName', label: 'Student Last Name' },
           { name: 'dob', label: 'Date of Birth', type: 'date' },
           { name: 'gender', label: 'Gender', type: 'select', options: [{ value: 'MALE', label: 'Male' }, { value: 'FEMALE', label: 'Female' }, { value: 'OTHER', label: 'Other' }] },
-          { name: 'classAppliedFor', label: 'Class Applied For' },
-          { name: 'courseApplied', label: 'Course Applied' },
+          { name: 'classAppliedFor', label: `${academic.label('course')} Applied For` },
+          { name: 'courseApplied', label: `${academic.label('program')} Applied` },
           { name: 'academicYear', label: 'Academic Year', placeholder: 'e.g. 2026-2027' },
           { name: 'referenceNumber', label: 'Reference Number' },
           { name: 'parentName', label: 'Parent Name' },
           { name: 'parentPhone', label: 'Parent Phone', required: true },
           { name: 'parentEmail', label: 'Parent Email' },
           { name: 'previousSchool', label: 'Previous School' },
-          { name: 'previousClass', label: 'Previous Class' },
+          { name: 'previousClass', label: `Previous ${academic.label('course')}` },
           { name: 'city', label: 'City' },
           { name: 'state', label: 'State' },
           { name: 'pincode', label: 'Pincode' },

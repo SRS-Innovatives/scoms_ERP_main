@@ -9,6 +9,7 @@ import { useNotification } from '../../context/NotificationContext';
 import { useNavigate } from 'react-router-dom';
 import { Grid, List, Plus, GraduationCap } from 'lucide-react';
 import staffService from '../../services/staffService';
+import { useAcademic } from '../../context/InstitutionContext';
 
 const initialsAvatar = (name) => {
   const initials = (name || '?').split(' ').filter(Boolean).map((w) => w[0]).slice(0, 2).join('').toUpperCase();
@@ -30,6 +31,7 @@ const toCardShape = (s) => ({
 });
 
 export const TeachingStaffPage = () => {
+  const academic = useAcademic();
   const navigate = useNavigate();
   const { notifyError } = useNotification();
   const [search, setSearch] = useState('');
@@ -53,7 +55,7 @@ export const TeachingStaffPage = () => {
 
   const columns = [
     {
-      header: 'Faculty Name',
+      header: `${academic.label('teacher')} Name`,
       key: 'firstName',
       sortable: false,
       render: (_, row) => (
@@ -67,7 +69,7 @@ export const TeachingStaffPage = () => {
       ),
     },
     { header: 'Designation / Role', key: 'designation', render: (val) => <span className="font-bold text-indigo-600 dark:text-indigo-400">{val}</span> },
-    { header: 'Department', key: 'department', sortable: false, render: (val) => val?.name || '—' },
+    { header: academic.label('department'), key: 'department', sortable: false, render: (val) => val?.name || '—' },
     { header: 'Highest Qualification', key: 'qualification', render: (val) => <span className="font-medium text-slate-700 dark:text-slate-300">{val || '—'}</span> },
     { header: 'Experience', key: 'experience', render: (val) => <span className="font-mono">{val || '—'}</span> },
     { header: 'Gross Salary', key: 'salary', sortable: false, render: (val) => val ? <span className="font-mono font-bold">₹{(val.basicPay + val.hra + val.da + val.otherAllowances - val.deductions).toLocaleString()}</span> : '—' },
@@ -78,7 +80,7 @@ export const TeachingStaffPage = () => {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl font-bold text-slate-900 dark:text-white">Teaching Faculty Master</h1>
+          <h1 className="text-xl font-bold text-slate-900 dark:text-white">Teaching {academic.label('teacher')} Master</h1>
           <p className="text-xs text-slate-500 dark:text-slate-400">Directory of Professors, Associate Professors, Assistant Professors & Lecturers</p>
         </div>
 
@@ -100,7 +102,7 @@ export const TeachingStaffPage = () => {
       {error ? (
         <ErrorState onRetry={fetchAll} />
       ) : !loading && filtered.length === 0 ? (
-        <EmptyState title="No Teaching Faculty Yet" description="Register the first teaching staff member." actionLabel="Add Teaching Staff" onAction={() => navigate('/admin/staff/registration')} icon={GraduationCap} />
+        <EmptyState title={`No Teaching ${academic.label('teacher')} Yet`} description="Register the first teaching staff member." actionLabel="Add Teaching Staff" onAction={() => navigate('/admin/staff/registration')} icon={GraduationCap} />
       ) : viewMode === 'table' ? (
         <DataTable columns={columns} data={filtered} loading={loading} />
       ) : (

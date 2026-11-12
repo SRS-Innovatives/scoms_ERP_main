@@ -5,6 +5,7 @@ import { Users, BookOpen, X, Loader2, GraduationCap } from 'lucide-react';
 import staffService from '../../services/staffService';
 import sectionService from '../../services/sectionService';
 import subjectService from '../../services/subjectService';
+import { useAcademic } from '../../context/InstitutionContext';
 
 const TABS = [
   { key: 'class', label: 'Class Teachers', icon: GraduationCap },
@@ -15,6 +16,7 @@ const TABS = [
  * section and subject-teacher assignment per section+subject — the two pieces of "who
  * teaches what" a Staff member's Take Attendance / gradebook screens depend on. */
 export const TeacherAssignmentsPage = () => {
+  const academic = useAcademic();
   const { notifySuccess, notifyError } = useNotification();
   const [tab, setTab] = useState('class');
   const [sections, setSections] = useState([]);
@@ -130,7 +132,7 @@ export const TeacherAssignmentsPage = () => {
                 : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
             }`}
           >
-            <t.icon className="w-4 h-4" /> {t.label}
+            <t.icon className="w-4 h-4" /> {t.key === 'class' ? `${academic.label('classTeacher')}s` : t.label}
           </button>
         ))}
       </div>
@@ -144,9 +146,9 @@ export const TeacherAssignmentsPage = () => {
           <table className="w-full text-xs">
             <thead className="bg-slate-50 dark:bg-slate-800/60 text-slate-500 dark:text-slate-400">
               <tr>
-                <th className="text-left px-4 py-3 font-semibold">Section</th>
+                <th className="text-left px-4 py-3 font-semibold">{academic.label('section')}</th>
                 <th className="text-left px-4 py-3 font-semibold">Students</th>
-                <th className="text-left px-4 py-3 font-semibold">Class Teacher</th>
+                <th className="text-left px-4 py-3 font-semibold">{academic.label('classTeacher')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">

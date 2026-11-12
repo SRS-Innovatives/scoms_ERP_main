@@ -11,7 +11,9 @@ const {
   pushNotificationToMany,
   logger,
   BusinessRuleError,
+  ValidationError,
   attendanceRules,
+  teachingScope,
 } = require('../../../shared');
 
 const { isAttended, assertDateEditable } = attendanceRules;
@@ -45,7 +47,15 @@ const getMyClasses = async (req, res, next) => {
           select: {
             id: true,
             name: true,
-            semester: { select: { name: true, course: { select: { name: true } } } },
+            // Program/batch/department are null for institutions that don't use those
+            // levels (e.g. schools) — the portal shows whichever apply
+            semester: {
+              select: {
+                name: true,
+                batch: { select: { name: true } },
+                course: { select: { name: true, program: { select: { name: true } }, department: { select: { name: true } } } },
+              },
+            },
             _count: { select: { students: true } },
           },
         },
@@ -57,16 +67,32 @@ const getMyClasses = async (req, res, next) => {
   }
 };
 
+/** Sections this staff member is CLASS TEACHER of — they take daily attendance and decide
+ * student leave for these, on top of any subject they teach there. */
+const getClassTeacherSections = async (req, res, next) => {
+  try {
+    const sections = await prisma.section.findMany({
+      where: { classTeacherId: req.user.staffId, semester: { course: { institutionId: req.institutionId } } },
+      select: {
+        id: true,
+        name: true,
+        semester: { select: { name: true, course: { select: { name: true } } } },
+        _count: { select: { students: true } },
+      },
+    });
+    return sendSuccess(res, sections, 'Class teacher sections retrieved successfully');
+  } catch (err) {
+    next(err);
+  }
+};
+
 /** Student roster for a section, in name order — the list a staff member marks attendance against. */
 const getRoster = async (req, res, next) => {
   try {
     const { sectionId } = req.query;
-    if (!sectionId) throw new NotFoundError('sectionId is required');
-
-    const section = await prisma.section.findFirst({
-      where: { id: sectionId, semester: { course: { institutionId: req.institutionId } } },
-    });
-    if (!section) throw new NotFoundError('Section not found or access denied');
+    if (!sectionId) throw new ValidationError('sectionId is required');
+    // Only a class this staff member teaches, class-teaches, or (HOD/Principal) oversees
+    await teachingScope.assertCanViewSection(req.user, req.institutionId, sectionId);
 
     const students = await prisma.student.findMany({
       where: { sectionId, status: 'ACTIVE' },
@@ -105,7 +131,8 @@ const getRoster = async (req, res, next) => {
 const getSession = async (req, res, next) => {
   try {
     const { sectionId, date, periodNumber = 1 } = req.query;
-    if (!sectionId || !date) throw new NotFoundError('sectionId and date are required');
+    if (!sectionId || !date) throw new ValidationError('sectionId and date are required');
+    await teachingScope.assertCanViewSection(req.user, req.institutionId, sectionId);
 
     const session = await prisma.attendanceSession.findFirst({
       where: {
@@ -126,7 +153,15 @@ const getSession = async (req, res, next) => {
 const markAttendance = async (req, res, next) => {
   try {
     const { sectionId, subjectId, date, periodNumber = 1, records } = req.body;
+    if (!sectionId || !date) throw new ValidationError('sectionId and date are required');
+    if (!Array.isArray(records)) throw new ValidationError('records must be a list of { studentId, status }');
     const sessionDate = new Date(date);
+    if (Number.isNaN(sessionDate.getTime())) throw new ValidationError('date is not a valid date');
+    // Subject attendance -> that subject's teacher in this class (or today's approved
+    // substitute); daily attendance (no subject) -> the class teacher. Every student must
+    // belong to this class.
+    await teachingScope.assertCanRecordAttendance(req.user, req.institutionId, { sectionId, subjectId: subjectId || null, date: sessionDate });
+    await teachingScope.assertStudentsInSection(records.map((r) => r.studentId), sectionId);
     await assertDateEditable(sessionDate, req.institutionId);
 
     // Prevent duplicate attendance recording for same section, subject, date, period
@@ -147,7 +182,7 @@ const markAttendance = async (req, res, next) => {
       data: {
         institutionId: req.institutionId,
         sectionId,
-        subjectId,
+        subjectId: subjectId || null,
         takenById: req.user.staffId,
         date: sessionDate,
         periodNumber: Number(periodNumber),
@@ -182,6 +217,10 @@ const updateAttendance = async (req, res, next) => {
       where: { id: sessionId, institutionId: req.institutionId },
     });
     if (!session) throw new NotFoundError('Attendance session not found');
+    if (!Array.isArray(records)) throw new ValidationError('records must be a list of { studentId, status }');
+    // Same rule as recording it in the first place
+    await teachingScope.assertCanRecordAttendance(req.user, req.institutionId, { sectionId: session.sectionId, subjectId: session.subjectId, date: session.date });
+    await teachingScope.assertStudentsInSection(records.map((r) => r.studentId), session.sectionId);
     await assertDateEditable(session.date, req.institutionId);
 
     await prisma.$transaction(
@@ -244,12 +283,8 @@ const getHistory = async (req, res, next) => {
 const getMonthlyGrid = async (req, res, next) => {
   try {
     const { sectionId, month, year } = req.query;
-    if (!sectionId || !month || !year) throw new NotFoundError('sectionId, month and year are required');
-
-    const section = await prisma.section.findFirst({
-      where: { id: sectionId, semester: { course: { institutionId: req.institutionId } } },
-    });
-    if (!section) throw new NotFoundError('Section not found or access denied');
+    if (!sectionId || !month || !year) throw new ValidationError('sectionId, month and year are required');
+    await teachingScope.assertCanViewSection(req.user, req.institutionId, sectionId);
 
     const startDate = new Date(Number(year), Number(month) - 1, 1);
     const endDate = new Date(Number(year), Number(month), 0, 23, 59, 59);
@@ -353,8 +388,10 @@ const createCorrectionRequest = async (req, res, next) => {
     const session = await prisma.attendanceSession.findFirst({ where: { id: sessionId, institutionId: req.institutionId } });
     if (!session) throw new NotFoundError('Attendance session not found');
     if (session.takenById !== req.user.staffId) {
-      const teaches = await prisma.subjectTeacherMapping.findFirst({ where: { staffId: req.user.staffId, sectionId: session.sectionId } });
-      if (!teaches) throw new BusinessRuleError('You can only request corrections for classes you teach');
+      // Not the one who took it -> must be someone who may record it (its subject teacher,
+      // that day's substitute, or the class teacher for daily attendance)
+      await teachingScope.assertCanRecordAttendance(req.user, req.institutionId, { sectionId: session.sectionId, subjectId: session.subjectId, date: session.date })
+        .catch(() => { throw new BusinessRuleError('You can only request corrections for classes you teach'); });
     }
     const { studentId, newStatus, reason } = req.body;
     const request = await attendanceRules.createCorrectionRequest({
@@ -411,6 +448,7 @@ module.exports = {
   reviewCorrectionRequest,
   getSmsStatus,
   getMyClasses,
+  getClassTeacherSections,
   getRoster,
   getSession,
   markAttendance,

@@ -6,8 +6,10 @@ import { User, Briefcase, Award, Save, CheckCircle, IdCard } from 'lucide-react'
 import apiCall from '../../services/api';
 import customFieldService from '../../services/customFieldService';
 import { useNavigate } from 'react-router-dom';
+import { useAcademic } from '../../context/InstitutionContext';
 
 export const StaffRegistrationPage = () => {
+  const academic = useAcademic();
   const { notifySuccess, notifyError } = useNotification();
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
@@ -72,7 +74,7 @@ export const StaffRegistrationPage = () => {
     <form onSubmit={handleSubmit} className="space-y-6 max-w-4xl mx-auto">
       <div>
         <h1 className="text-xl font-bold text-slate-900 dark:text-white">Staff Registration Form</h1>
-        <p className="text-xs text-slate-500 dark:text-slate-400">Onboard Teaching Faculty & Non-Teaching Administrative Staff — an Employee Code is generated automatically on save.</p>
+        <p className="text-xs text-slate-500 dark:text-slate-400">Onboard Teaching {academic.label('teacher')} & Non-Teaching Administrative Staff — an Employee Code is generated automatically on save.</p>
       </div>
 
       <FormSection title="1. Employee Personal Details" icon={User}>
@@ -105,7 +107,7 @@ export const StaffRegistrationPage = () => {
               onChange={(e) => setFormData({ ...formData, staffType: e.target.value })}
               className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border rounded-lg font-medium"
             >
-              <option value="TEACHING">Teaching Faculty</option>
+              <option value="TEACHING">Teaching {academic.label('teacher')}</option>
               <option value="NON_TEACHING">Non-Teaching Staff</option>
             </select>
           </div>
@@ -121,14 +123,14 @@ export const StaffRegistrationPage = () => {
             />
           </div>
           <div>
-            <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Department *</label>
+            <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">{academic.label('department')} *</label>
             <select
               required
               value={formData.departmentId}
               onChange={(e) => setFormData({ ...formData, departmentId: e.target.value })}
               className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border rounded-lg font-medium"
             >
-              <option value="">Select Department</option>
+              <option value="">Select {academic.label('department')}</option>
               {departments.map((dept) => (
                 <option key={dept.id} value={dept.id}>{dept.name}</option>
               ))}
@@ -183,7 +185,7 @@ export const StaffRegistrationPage = () => {
           </div>
         </div>
         <p className="text-[11px] text-slate-400">Salary structure can be configured after registration under Salary Structure & Payroll Matrix.</p>
-        <FileUpload label="Upload Faculty Profile Picture" />
+        <FileUpload label="Upload Staff Profile Picture" />
       </FormSection>
 
       {customFieldDefs.length > 0 && (

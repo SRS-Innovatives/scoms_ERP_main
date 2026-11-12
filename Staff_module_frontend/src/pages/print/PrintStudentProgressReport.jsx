@@ -5,8 +5,10 @@ import examService from '../../services/examService';
 import { useNotification } from '../../context/NotificationContext';
 import { Loader2 } from 'lucide-react';
 import ErrorState from '../../components/common/ErrorState';
+import { useAcademic } from '../../context/InstitutionContext';
 
 export const PrintStudentProgressReport = () => {
+  const academic = useAcademic();
   const { error: showError } = useNotification();
   const [students, setStudents] = useState([]);
   const [studentId, setStudentId] = useState('');
@@ -95,7 +97,7 @@ export const PrintStudentProgressReport = () => {
           <div className="text-xs space-y-4">
             <div className="p-3 bg-slate-100 rounded-lg space-y-1 border border-slate-300">
               <p><span className="font-bold">Student Name:</span> {student?.firstName} {student?.lastName}</p>
-              <p><span className="font-bold">Roll Number:</span> {student?.rollNumber} | <span className="font-bold">Class:</span> {student?.sectionName}</p>
+              <p><span className="font-bold">Roll Number:</span> {student?.rollNumber} | <span className="font-bold">{academic.label('course')} / {academic.label('section')}:</span> {student?.sectionName}</p>
             </div>
 
             {rows.length === 0 ? (

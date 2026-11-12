@@ -8,6 +8,7 @@ const { hashPassword, comparePassword } = require('./password');
 const { sendSuccess } = require('../utils/responseFormatter');
 const { AuthenticationError, NotFoundError, BusinessRuleError } = require('../errors/customErrors');
 const { resolveEnabledModulesForInstitution } = require('../moduleRegistry/resolveModules');
+const { resolveAcademicStructure } = require('../academic/academicStructure');
 
 const handleRefreshToken = async (req, res, next) => {
   try {
@@ -97,6 +98,7 @@ const handleGetMe = async (req, res, next) => {
             type: true,
             logo: true,
             modules: true,
+            academicConfig: true,
             email: true,
             phone: true,
             website: true,
@@ -150,6 +152,9 @@ const handleGetMe = async (req, res, next) => {
           institution: {
             ...user.institution,
             enabledModules: await resolveEnabledModulesForInstitution(user.institution),
+            // Effective academic structure (type defaults + saved overrides) — the one
+            // source every portal reads labels/levels/regulations from
+            academicStructure: resolveAcademicStructure(user.institution.type, user.institution.academicConfig),
           },
         }
       : user;

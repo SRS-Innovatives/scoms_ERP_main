@@ -5,7 +5,7 @@ import EmptyState from '../../components/common/EmptyState';
 import FormModal from '../../components/common/FormModal';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
 import { useNotification } from '../../context/NotificationContext';
-import { useInstitution } from '../../context/InstitutionContext';
+import { useAcademic } from '../../context/InstitutionContext';
 import programService from '../../services/programService';
 import departmentService from '../../services/departmentService';
 import { Layers, Edit, Trash2 } from 'lucide-react';
@@ -15,8 +15,8 @@ const LEVELS = ['UG', 'PG', 'DIPLOMA', 'PHD', 'CERTIFICATE', 'OTHER'];
 
 export const ProgramSetupPage = () => {
   const { notifySuccess, notifyError } = useNotification();
-  const { institution } = useInstitution();
-  const isSchool = institution?.type === 'SCHOOL';
+  const academic = useAcademic();
+  const programUnit = academic.label('program');
   const [programs, setPrograms] = useState([]);
   const [departments, setDepartments] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -63,10 +63,10 @@ export const ProgramSetupPage = () => {
     try {
       if (editingId) {
         await programService.update(editingId, form);
-        notifySuccess(`Program ${form.name} updated successfully!`);
+        notifySuccess(`${programUnit} ${form.name} updated successfully!`);
       } else {
         await programService.create(form);
-        notifySuccess(`Program ${form.name} created successfully!`);
+        notifySuccess(`${programUnit} ${form.name} created successfully!`);
       }
       setModalOpen(false);
       fetchAll();
@@ -81,7 +81,7 @@ export const ProgramSetupPage = () => {
     if (!deleteTarget) return;
     try {
       await programService.remove(deleteTarget.id);
-      notifySuccess(`Program ${deleteTarget.name} deleted.`);
+      notifySuccess(`${programUnit} ${deleteTarget.name} deleted.`);
       setDeleteTarget(null);
       fetchAll();
     } catch (error) {
@@ -91,12 +91,12 @@ export const ProgramSetupPage = () => {
   };
 
   const columns = [
-    { header: 'Program Code', key: 'code', render: (val) => <span className="font-mono font-bold text-indigo-600">{val}</span> },
-    { header: 'Program Name', key: 'name', render: (val) => <span className="font-bold text-slate-900 dark:text-white">{val}</span> },
+    { header: `${programUnit} Code`, key: 'code', render: (val) => <span className="font-mono font-bold text-indigo-600">{val}</span> },
+    { header: `${programUnit} Name`, key: 'name', render: (val) => <span className="font-bold text-slate-900 dark:text-white">{val}</span> },
     { header: 'Level', key: 'level' },
-    { header: 'Department', key: 'department', sortable: false, render: (val) => val?.name || '-' },
+    { header: academic.label('department'), key: 'department', sortable: false, render: (val) => val?.name || '-' },
     { header: 'Duration', key: 'durationYears', render: (val) => `${val} Year${val === 1 ? '' : 's'}` },
-    { header: 'Courses', key: '_count', sortable: false, render: (val) => `${val?.courses ?? 0} Courses` },
+    { header: `${academic.label('course')}s`, key: '_count', sortable: false, render: (val) => `${val?.courses ?? 0} ${academic.label('course')}s` },
     {
       header: 'Actions',
       key: 'actions',
@@ -117,11 +117,12 @@ export const ProgramSetupPage = () => {
   const q = search.toLowerCase();
   const filtered = programs.filter((p) => p.name?.toLowerCase().includes(q) || p.code?.toLowerCase().includes(q));
 
-  if (isSchool) {
+  // Direct URL to a level this institution's structure doesn't use (hidden from the menu)
+  if (!academic.isLevelEnabled('program')) {
     return (
       <EmptyState
-        title="Programs are for colleges"
-        description="Schools organise classes directly under departments. Use Course / Class Setup instead."
+        title={`${programUnit}s are not used by this institution`}
+        description={`This institution organises each ${academic.label('course').toLowerCase()} directly under a ${academic.label('department').toLowerCase()}. Your platform administrator can enable this level if needed.`}
       />
     );
   }
@@ -129,14 +130,14 @@ export const ProgramSetupPage = () => {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-bold text-slate-900 dark:text-white">Program Setup</h1>
+        <h1 className="text-xl font-bold text-slate-900 dark:text-white">{programUnit} Setup</h1>
         <p className="text-xs text-slate-500 dark:text-slate-400">Group courses under degree programs (e.g. B.Tech over B.Tech CSE, B.Tech ECE)</p>
       </div>
 
-      <SearchFilterBar searchQuery={search} onSearchChange={setSearch} placeholder="Search programs..." addLabel="Add Program" onAddClick={openAddModal} onRefreshClick={fetchAll} />
+      <SearchFilterBar searchQuery={search} onSearchChange={setSearch} placeholder={`Search ${programUnit.toLowerCase()}s...`} addLabel={`Add ${programUnit}`} onAddClick={openAddModal} onRefreshClick={fetchAll} />
 
       {!loading && filtered.length === 0 ? (
-        <EmptyState title="No Programs Found" description="Programs are optional. Add one to group related courses. You'll need a department first." actionLabel="Add Program" onAction={openAddModal} />
+        <EmptyState title={`No ${programUnit}s Found`} description={`${programUnit}s are optional. Add one to group related ${academic.label('course').toLowerCase()}s. You'll need a ${academic.label('department').toLowerCase()} first.`} actionLabel={`Add ${programUnit}`} onAction={openAddModal} />
       ) : (
         <DataTable columns={columns} data={filtered} loading={loading} />
       )}
@@ -155,14 +156,14 @@ export const ProgramSetupPage = () => {
         fields={[
           {
             name: 'departmentId',
-            label: 'Department',
+            label: academic.label('department'),
             type: 'select',
             required: true,
             span: 'full',
             options: departments.map((d) => ({ value: d.id, label: `${d.name} (${d.code})` })),
           },
-          { name: 'code', label: 'Program Code (e.g. BTECH)', required: true },
-          { name: 'name', label: 'Program Name', required: true },
+          { name: 'code', label: `${programUnit} Code (e.g. BTECH)`, required: true },
+          { name: 'name', label: `${programUnit} Name`, required: true },
           { name: 'level', label: 'Level', type: 'select', options: LEVELS.map((l) => ({ value: l, label: l })) },
           { name: 'durationYears', label: 'Duration (Years)', type: 'number' },
         ]}
@@ -170,7 +171,7 @@ export const ProgramSetupPage = () => {
 
       <ConfirmDialog
         isOpen={!!deleteTarget}
-        title="Delete Program"
+        title={`Delete ${programUnit}`}
         message={`Are you sure you want to delete "${deleteTarget?.name}"? This cannot be undone.`}
         confirmText="Delete"
         onConfirm={handleDelete}

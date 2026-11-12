@@ -7,8 +7,10 @@ import { Printer, FileText, Loader2 } from 'lucide-react';
 import examService from '../../services/examService';
 import studentService from '../../services/studentService';
 import marksheetService from '../../services/marksheetService';
+import { useAcademic } from '../../context/InstitutionContext';
 
 export const MarksheetTemplatePage = () => {
+  const academic = useAcademic();
   const { notifyError } = useNotification();
   const [exams, setExams] = useState([]);
   const [students, setStudents] = useState([]);
@@ -98,9 +100,9 @@ export const MarksheetTemplatePage = () => {
               <p><span className="text-slate-500">Roll No:</span> <span className="font-mono font-bold text-indigo-900">{sheet.student.rollNumber || '—'}</span></p>
             </div>
             <div className="text-right">
-              <p><span className="text-slate-500">Class/Course:</span> <span className="font-bold">{sheet.student.section?.semester?.course?.name || '—'}</span></p>
-              <p><span className="text-slate-500">Semester:</span> <span className="font-bold">{sheet.student.section?.semester?.name || '—'}</span></p>
-              <p><span className="text-slate-500">Section:</span> <span className="font-bold">{sheet.student.section?.name || '—'}</span></p>
+              <p><span className="text-slate-500">{academic.label('course')}:</span> <span className="font-bold">{sheet.student.section?.semester?.course?.name || '—'}</span></p>
+              <p><span className="text-slate-500">{academic.label('semester')}:</span> <span className="font-bold">{sheet.student.section?.semester?.name || '—'}</span></p>
+              <p><span className="text-slate-500">{academic.label('section')}:</span> <span className="font-bold">{sheet.student.section?.name || '—'}</span></p>
             </div>
           </div>
 
@@ -132,7 +134,7 @@ export const MarksheetTemplatePage = () => {
           </table>
 
           <div className="bg-slate-50 p-4 rounded-xl border flex items-center justify-between text-xs font-bold mb-6 flex-wrap gap-2">
-            <span>Semester GPA (SGPA): <span className="text-indigo-900 font-mono text-sm">{sheet.sgpa !== null ? `${sheet.sgpa} / 10.0` : 'No grade scale configured'}</span></span>
+            <span>{academic.label('semester')} GPA (SGPA): <span className="text-indigo-900 font-mono text-sm">{sheet.sgpa !== null ? `${sheet.sgpa} / 10.0` : 'No grade scale configured'}</span></span>
             <span>Cumulative GPA (CGPA): <span className="text-indigo-900 font-mono text-sm">{sheet.cgpa !== null ? `${sheet.cgpa} / 10.0` : '—'}</span></span>
             {sheet.classification && <span className="text-emerald-700 uppercase">{sheet.classification}</span>}
           </div>

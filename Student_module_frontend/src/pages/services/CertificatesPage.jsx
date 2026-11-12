@@ -6,32 +6,33 @@ import { useNotification } from '../../context/NotificationContext';
 import certificateService from '../../services/certificateService';
 import ErrorState from '../../components/common/ErrorState';
 
-const TYPE_OPTIONS = [
-  { value: 'BONAFIDE', label: 'Bonafide Certificate (Bank & Bus Pass Purpose)' },
-  { value: 'TRANSFER', label: 'Transfer Certificate' },
-  { value: 'CONDUCT', label: 'Conduct & Character Certificate' },
-  { value: 'COURSE_COMPLETION', label: 'Course Completion Certificate' },
-];
-
 const STATUS_LABELS = { PENDING: 'Pending', READY: 'Issued', REJECTED: 'Rejected' };
+
+// "COURSE_COMPLETION" -> "Course Completion" for older requests whose type is no longer offered
+const humanize = (code) => code.toLowerCase().split('_').map((w) => w[0].toUpperCase() + w.slice(1)).join(' ');
 
 export const CertificatesPage = () => {
   const { success, error: showError } = useNotification();
   const [certificates, setCertificates] = useState([]);
   const [requests, setRequests] = useState([]);
+  // Only the certificate types this institution has enabled (from its certificate templates)
+  const [typeOptions, setTypeOptions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
-  const [requestType, setRequestType] = useState(TYPE_OPTIONS[0].value);
+  const [requestType, setRequestType] = useState('');
   const [reason, setReason] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   const load = useCallback(() => {
     setLoading(true);
     setError(false);
-    Promise.all([certificateService.getMyCertificates(), certificateService.getMyCertificateRequests()])
-      .then(([certRes, reqRes]) => {
+    Promise.all([certificateService.getMyCertificates(), certificateService.getMyCertificateRequests(), certificateService.getRequestableTypes()])
+      .then(([certRes, reqRes, typeRes]) => {
         setCertificates(certRes.data || []);
         setRequests(reqRes.data || []);
+        const types = typeRes.data || [];
+        setTypeOptions(types);
+        setRequestType((current) => (types.some((t) => t.value === current) ? current : types[0]?.value || ''));
       })
       .catch((err) => { showError(err.message || 'Failed to load certificates', 'Load Failed'); setError(true); })
       .finally(() => setLoading(false));
@@ -66,9 +67,16 @@ export const CertificatesPage = () => {
     <div className="space-y-6">
       <PageHeader
         title="Student Certificates & Digital Verification"
-        subtitle="Request Bonafide, Transfer, Conduct, or Course Completion certificates."
+        subtitle={typeOptions.length > 0
+          ? `Request ${typeOptions.map((t) => t.label).join(', ')}.`
+          : 'View certificates your institution has issued to you.'}
       />
 
+      {typeOptions.length === 0 ? (
+        <div className="glass-card p-5 rounded-3xl border border-slate-200 dark:border-slate-800 text-xs text-slate-500 max-w-xl">
+          Online certificate requests aren't enabled by your institution — please contact the admin office.
+        </div>
+      ) : (
       <form onSubmit={handleRequest} className="glass-card p-6 rounded-3xl border border-slate-200 dark:border-slate-800 space-y-3 text-xs max-w-xl">
         <h3 className="font-bold text-sm text-slate-900 dark:text-slate-100">Request a New Certificate</h3>
         <select
@@ -76,8 +84,11 @@ export const CertificatesPage = () => {
           onChange={(e) => setRequestType(e.target.value)}
           className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl"
         >
-          {TYPE_OPTIONS.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+          {typeOptions.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
         </select>
+        {typeOptions.find((t) => t.value === requestType)?.description && (
+          <p className="text-[11px] text-slate-500">{typeOptions.find((t) => t.value === requestType).description}</p>
+        )}
         <textarea
           rows={2}
           value={reason}
@@ -89,6 +100,7 @@ export const CertificatesPage = () => {
           {submitting ? 'Submitting...' : 'Submit Request'}
         </button>
       </form>
+      )}
 
       {requests.filter((r) => r.status === 'PENDING' || r.status === 'REJECTED').length > 0 && (
         <div className="space-y-3">
@@ -98,7 +110,7 @@ export const CertificatesPage = () => {
               <div className="flex items-center gap-3">
                 <Inbox className="w-5 h-5 text-slate-400" />
                 <div>
-                  <h4 className="font-bold text-slate-800 dark:text-slate-200">{TYPE_OPTIONS.find((t) => t.value === r.type)?.label || r.type}</h4>
+                  <h4 className="font-bold text-slate-800 dark:text-slate-200">{typeOptions.find((t) => t.value === r.type)?.label || humanize(r.type)}</h4>
                   <p className="text-[11px] text-slate-500">Requested {new Date(r.createdAt).toLocaleDateString()}</p>
                 </div>
               </div>

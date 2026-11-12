@@ -7,6 +7,7 @@ import ErrorState from '../../components/common/ErrorState';
 import { useNotification } from '../../context/NotificationContext';
 import leaveService from '../../services/leaveService';
 
+// Fallback only — real names come from the institution's own leave-type list (/leave/types)
 const TYPE_LABELS = { MEDICAL: 'Medical Leave', CASUAL: 'Casual / Personal Leave', DUTY: 'On Duty (OD)', EARNED: 'Earned Leave' };
 const STATUS_LABELS = { PENDING: 'Pending', APPROVED: 'Approved', REJECTED: 'Rejected', CANCELLED: 'Cancelled' };
 
@@ -18,10 +19,15 @@ export const LeaveRequestPage = () => {
   const [leaves, setLeaves] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [typeLabels, setTypeLabels] = useState(TYPE_LABELS);
 
   const load = useCallback(() => {
     setLoading(true);
     setError(false);
+    // The institution's own leave types (customised names) — never blocks the list if it fails
+    leaveService.getLeaveTypes()
+      .then((res) => setTypeLabels({ ...TYPE_LABELS, ...Object.fromEntries((res.data || []).map((t) => [t.code, t.label])) }))
+      .catch(() => {});
     leaveService.getMyLeaves()
       .then((res) => setLeaves(res.data || []))
       .catch((err) => { showError(err.message || 'Failed to load leave requests', 'Load Failed'); setError(true); })
@@ -31,7 +37,7 @@ export const LeaveRequestPage = () => {
   useEffect(() => { load(); }, [load]);
 
   const columns = [
-    { header: 'Type', key: 'type', render: (v) => <span className="font-bold text-slate-900 dark:text-slate-100">{TYPE_LABELS[v] || v}</span> },
+    { header: 'Type', key: 'type', render: (v) => <span className="font-bold text-slate-900 dark:text-slate-100">{typeLabels[v] || v}</span> },
     { header: 'From Date', key: 'startDate', render: (v) => new Date(v).toLocaleDateString() },
     { header: 'To Date', key: 'endDate', render: (v) => new Date(v).toLocaleDateString() },
     { header: 'Days', key: 'startDate', sortable: false, render: (_v, row) => `${daysBetween(row.startDate, row.endDate)} Day(s)` },

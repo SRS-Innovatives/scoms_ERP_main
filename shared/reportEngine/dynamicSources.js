@@ -11,6 +11,8 @@
  * req.institutionId server-side — the caller never controls that.
  */
 
+const { ValidationError } = require('../errors/customErrors');
+
 const FIELD_TYPES = ['STRING', 'NUMBER', 'DATE', 'ENUM'];
 const OPERATORS_BY_TYPE = {
   STRING: ['equals', 'contains'],
@@ -74,7 +76,7 @@ const DATA_SOURCES = {
 
 const getDataSource = (key) => {
   const source = DATA_SOURCES[key];
-  if (!source) throw new Error(`Unknown data source "${key}"`);
+  if (!source) throw new ValidationError(`Unknown data source "${key}"`);
   return source;
 };
 

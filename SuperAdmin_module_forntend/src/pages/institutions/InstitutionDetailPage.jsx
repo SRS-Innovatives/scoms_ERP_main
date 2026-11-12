@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNotification } from '../../context/NotificationContext';
-import { Building2, Users, GraduationCap, Briefcase, CreditCard, Receipt, Layers, FileText, Activity, Settings, Check, Loader2, Save } from 'lucide-react';
+import { Building2, Users, GraduationCap, Briefcase, CreditCard, Receipt, Layers, FileText, Activity, Settings, Check, Loader2, Save, AlertTriangle } from 'lucide-react';
 import { useParams } from 'react-router-dom';
 import institutionService from '../../services/institutionService';
 import userService from '../../services/userService';
@@ -9,6 +9,8 @@ import auditLogService from '../../services/auditLogService';
 import subscriptionService from '../../services/subscriptionService';
 import StatusBadge from '../../components/common/StatusBadge';
 import ErrorState from '../../components/common/ErrorState';
+import Select from '../../components/common/Select';
+import AcademicStructureEditor, { INSTITUTION_TYPE_OPTIONS, validateAcademicConfig } from '../../components/institutions/AcademicStructureEditor';
 
 const InstitutionUsersTab = ({ institutionId }) => {
   const { error: showError } = useNotification();
@@ -189,7 +191,17 @@ const InstitutionEditForm = ({ inst, onSaved }) => {
   const [form, setForm] = useState(() =>
     Object.fromEntries(EDITABLE_FIELDS.map((f) => [f.key, inst[f.key] ?? '']))
   );
+  const [type, setType] = useState(inst.type);
+  const [academicConfig, setAcademicConfig] = useState(() => inst.academicConfig || {});
+  const [structureCatalog, setStructureCatalog] = useState(null);
   const [saving, setSaving] = useState(false);
+  const typeChanged = type !== inst.type;
+
+  useEffect(() => {
+    institutionService.getAcademicStructureCatalog()
+      .then((res) => setStructureCatalog(res.data || null))
+      .catch((err) => console.error('Failed to load academic structure catalog', err));
+  }, []);
 
   const handleChange = (key, value) => setForm((prev) => ({ ...prev, [key]: value }));
 
@@ -199,11 +211,23 @@ const InstitutionEditForm = ({ inst, onSaved }) => {
       showError('Institution name is required', 'Missing Field');
       return;
     }
+    const structureErrors = validateAcademicConfig(structureCatalog, type, academicConfig);
+    if (structureErrors.length > 0) {
+      showError(structureErrors.join('. '), 'Check Academic Structure');
+      return;
+    }
+    if (typeChanged && !window.confirm(
+      `Change this institution from ${INSTITUTION_TYPE_OPTIONS.find((t) => t.value === inst.type)?.label} to ${INSTITUTION_TYPE_OPTIONS.find((t) => t.value === type)?.label}?\n\n`
+      + 'All existing academic records are kept. Labels, setup screens and regulations will switch to the new type for every portal.'
+    )) {
+      return;
+    }
     setSaving(true);
     try {
-      const payload = { ...form, establishedYear: form.establishedYear ? Number(form.establishedYear) : null };
+      const payload = { ...form, establishedYear: form.establishedYear ? Number(form.establishedYear) : null, type, academicConfig };
       const res = await institutionService.updateInstitution(inst.id, payload);
       onSaved(res.data);
+      setAcademicConfig(res.data?.academicConfig || {});
       success('Institution details updated', 'Saved');
     } catch (err) {
       showError(err.message || 'Failed to update institution', 'Save Failed');
@@ -232,6 +256,25 @@ const InstitutionEditForm = ({ inst, onSaved }) => {
           </div>
         ))}
       </div>
+
+      <div className="pt-4 border-t border-slate-200 dark:border-slate-800 space-y-4">
+        <div>
+          <h3 className="font-bold text-sm text-slate-900 dark:text-slate-100">Institution Type & Academic Structure</h3>
+          <p className="text-[11px] text-slate-500 mt-0.5">Drives the academic levels, terminology and regulations used across the Institute Admin, Staff and Student portals.</p>
+        </div>
+        <div className="max-w-xs">
+          <Select label="Institution Type" required value={type} onChange={setType} options={INSTITUTION_TYPE_OPTIONS} />
+        </div>
+        {typeChanged && (
+          <p className="flex items-start gap-1.5 p-2.5 rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 text-[11px] text-amber-800 dark:text-amber-300">
+            <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+            Changing the type keeps all existing departments, courses, students and records — only the structure, labels and regulations change.
+            {(inst.type === 'COLLEGE' || inst.type === 'AUTONOMOUS_COLLEGE') && type !== 'COLLEGE' && type !== 'AUTONOMOUS_COLLEGE' && ' Its affiliated-university link will be removed.'}
+          </p>
+        )}
+        <AcademicStructureEditor catalog={structureCatalog} type={type} value={academicConfig} onChange={setAcademicConfig} />
+      </div>
+
       <div className="flex justify-end pt-2">
         <button type="submit" disabled={saving} className="flex items-center gap-1.5 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-semibold shadow-sm disabled:opacity-50">
           {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}

@@ -23,7 +23,7 @@ export const StudentListPage = () => {
   const { error: showError } = useNotification();
   const [search, setSearch] = useState('');
   const [filterClass, setFilterClass] = useState('All');
-  const [classOptions, setClassOptions] = useState([{ value: 'All', label: 'All Classes' }]);
+  const [classOptions, setClassOptions] = useState([{ value: 'All', label: 'All' }]);
   const [allStudents, setAllStudents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -35,7 +35,7 @@ export const StudentListPage = () => {
       .then(async (res) => {
         const mappings = res.data || [];
         setClassOptions([
-          { value: 'All', label: 'All Classes' },
+          { value: 'All', label: 'All' },
           ...mappings.map((m) => ({ value: m.section.id, label: `${m.section?.semester?.course?.name || ''} — ${m.section?.name}` })),
         ]);
         const rows = await Promise.all(mappings.map(async (m) => {

@@ -7,10 +7,12 @@ import { Megaphone, Plus, Trash2 } from 'lucide-react';
 import announcementService from '../../services/announcementService';
 import courseService from '../../services/courseService';
 import sectionService from '../../services/sectionService';
+import { useAcademic } from '../../context/InstitutionContext';
 
 const emptyForm = { title: '', content: '', targetRole: 'ALL', targetCourseId: '', targetSectionId: '', priority: 'NORMAL' };
 
 export const AnnouncementsPage = () => {
+  const academic = useAcademic();
   const { notifySuccess, notifyError } = useNotification();
   const [announcements, setAnnouncements] = useState([]);
   const [courses, setCourses] = useState([]);
@@ -153,13 +155,13 @@ export const AnnouncementsPage = () => {
           },
           {
             name: 'targetCourseId',
-            label: 'Course (optional — narrows audience)',
+            label: `${academic.label('course')} (optional — narrows audience)`,
             type: 'select',
             options: courses.map((c) => ({ value: c.id, label: c.name })),
           },
           {
             name: 'targetSectionId',
-            label: 'Section (optional — narrows further)',
+            label: `${academic.label('section')} (optional — narrows further)`,
             type: 'select',
             disabled: !form.targetCourseId,
             options: sections.map((s) => ({ value: s.id, label: `${s.name} — ${s.semester?.course?.name || ''}` })),

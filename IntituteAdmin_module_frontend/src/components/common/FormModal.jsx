@@ -3,7 +3,8 @@ import { X } from 'lucide-react';
 
 /**
  * Generic Add/Edit form modal driven by a `fields` config.
- * field: { name, label, type: 'text'|'number'|'date'|'select'|'checkbox'|'textarea', required, options: [{value,label}], span: 'full' }
+ * field: { name, label, type: 'text'|'number'|'date'|'select'|'checkbox'|'textarea'|'file', required, options: [{value,label}], span: 'full' }
+ * A 'file' field hands onChange the File object (accept / hint are optional).
  */
 export const FormModal = ({
   isOpen,
@@ -74,6 +75,17 @@ export const FormModal = ({
                     onChange={(e) => onChange(f.name, e.target.value)}
                     className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white font-medium"
                   />
+                ) : f.type === 'file' ? (
+                  <div>
+                    <input
+                      type="file"
+                      accept={f.accept}
+                      required={f.required && !values[f.name]}
+                      onChange={(e) => onChange(f.name, e.target.files?.[0] || null)}
+                      className="w-full text-slate-700 dark:text-slate-300 file:mr-3 file:px-3 file:py-1.5 file:rounded-lg file:border-0 file:bg-indigo-50 file:text-indigo-700 file:font-semibold"
+                    />
+                    {f.hint && <p className="mt-1 text-[11px] text-slate-500">{f.hint}</p>}
+                  </div>
                 ) : f.type === 'checkbox' ? (
                   <label className="flex items-center gap-2 font-semibold text-slate-700 dark:text-slate-300 mt-1">
                     <input

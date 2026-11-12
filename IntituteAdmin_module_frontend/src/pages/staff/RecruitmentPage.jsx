@@ -5,6 +5,7 @@ import FormModal from '../../components/common/FormModal';
 import { useNotification } from '../../context/NotificationContext';
 import { Briefcase, Plus, XCircle, Users, CheckCircle2, X, UserPlus } from 'lucide-react';
 import recruitmentService from '../../services/recruitmentService';
+import { useAcademic } from '../../context/InstitutionContext';
 
 const emptyOpeningForm = { title: '', department: '', employmentType: 'FULL_TIME', openings: '1', description: '', requirements: '' };
 const emptyCandidateForm = { candidateName: '', email: '', phone: '', notes: '' };
@@ -19,6 +20,7 @@ const APP_STATUS_STYLES = {
 };
 
 export const RecruitmentPage = () => {
+  const academic = useAcademic();
   const { notifySuccess, notifyError } = useNotification();
   const [openings, setOpenings] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -131,7 +133,7 @@ export const RecruitmentPage = () => {
 
   const columns = [
     { header: 'Title', key: 'title', render: (val) => <span className="font-bold text-slate-900 dark:text-white flex items-center gap-2"><Briefcase className="w-4 h-4 text-indigo-600" />{val}</span> },
-    { header: 'Department', key: 'department', render: (val) => val || '—' },
+    { header: academic.label('department'), key: 'department', render: (val) => val || '—' },
     { header: 'Type', key: 'employmentType', render: (val) => <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-sky-100 text-sky-800">{val.replace('_', ' ')}</span> },
     { header: 'Openings', key: 'openings' },
     { header: 'Applications', key: '_count', sortable: false, render: (val) => <span className="flex items-center gap-1 font-semibold text-indigo-700 dark:text-indigo-300"><Users className="w-3.5 h-3.5" /> {val?.applications ?? 0}</span> },
@@ -181,7 +183,7 @@ export const RecruitmentPage = () => {
         onChange={(name, value) => setForm((prev) => ({ ...prev, [name]: value }))}
         fields={[
           { name: 'title', label: 'Job Title', required: true },
-          { name: 'department', label: 'Department' },
+          { name: 'department', label: academic.label('department') },
           { name: 'employmentType', label: 'Type', type: 'select', required: true, options: [{ value: 'FULL_TIME', label: 'Full Time' }, { value: 'PART_TIME', label: 'Part Time' }, { value: 'CONTRACT', label: 'Contract' }] },
           { name: 'openings', label: 'Number of Openings', type: 'number' },
           { name: 'requirements', label: 'Requirements', span: 'full' },

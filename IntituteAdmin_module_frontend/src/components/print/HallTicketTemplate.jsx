@@ -1,101 +1,62 @@
 import React from 'react';
 import PrintHeader from '../common/PrintHeader';
-import { Printer } from 'lucide-react';
+import { useAcademic } from '../../context/InstitutionContext';
 
-export const HallTicketTemplate = ({ student, examData }) => {
-  const data = student || {
-    name: "Kavitha R. Sharma",
-    rollNo: "21CS101",
-    regNo: "311521104001",
-    course: "B.E. Computer Science & Engineering",
-    semester: "Semester 6",
-    photo: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=150",
-    examCenter: "Main Academic Block - Examination Hall A3",
-    schedule: [
-      { code: "CS8601", title: "Mobile Computing", date: "2025-09-15", session: "FN (09:30 AM - 12:30 PM)" },
-      { code: "CS8602", title: "Compiler Design", date: "2025-09-17", session: "FN (09:30 AM - 12:30 PM)" },
-      { code: "CS8603", title: "Artificial Intelligence", date: "2025-09-19", session: "FN (09:30 AM - 12:30 PM)" },
-      { code: "CS8691", title: "Cloud Computing Laboratory", date: "2025-09-22", session: "AN (01:30 PM - 04:30 PM)" }
-    ]
-  };
+const fmtDate = (d) => new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
 
+/** One printable hall ticket for one student — every value comes from real records
+ * (GET /exams/:examId/hall-tickets). */
+export const HallTicketTemplate = ({ exam, section, schedule, student }) => {
+  const academic = useAcademic();
   return (
-    <div className="w-full">
-      <div className="bg-white text-slate-900 p-8 rounded-2xl border border-slate-300 shadow-xl max-w-4xl mx-auto print-container my-6">
-        <PrintHeader title="UNIVERSITY EXAMINATION HALL TICKET" subtitle="Even Semester End Examinations 2025" documentNo="HT/2025/CS101" />
+    <div className="print-container hall-ticket bg-white text-slate-900 p-6 rounded-2xl border border-slate-300 max-w-3xl" style={{ breakAfter: 'page' }}>
+      <PrintHeader title="EXAMINATION HALL TICKET" subtitle={exam?.name} documentNo={student.admissionNumber} />
 
-        <div className="flex items-start justify-between gap-6 border-b border-slate-200 pb-4 mb-6 text-xs">
-          <div className="space-y-1.5 flex-1">
-            <p><span className="text-slate-500 font-semibold uppercase">Student Name:</span> <span className="font-bold text-sm text-slate-900">{data.name}</span></p>
-            <p><span className="text-slate-500 font-semibold uppercase">Register Number:</span> <span className="font-mono font-bold text-indigo-900 text-sm">{data.regNo}</span></p>
-            <p><span className="text-slate-500 font-semibold uppercase">Roll Number:</span> <span className="font-mono font-bold">{data.rollNo}</span></p>
-            <p><span className="text-slate-500 font-semibold uppercase">Degree / Branch:</span> <span className="font-semibold">{data.course}</span></p>
-            <p><span className="text-slate-500 font-semibold uppercase">Exam Hall / Venue:</span> <span className="font-bold text-slate-900">{data.examCenter}</span></p>
-          </div>
-
-          <div className="text-center shrink-0">
-            <div className="w-28 h-32 border-2 border-slate-400 rounded-lg overflow-hidden p-1 bg-slate-50">
-              <img src={data.photo} alt="Student" className="w-full h-full object-cover rounded" />
-            </div>
-            <p className="text-[10px] text-slate-500 font-semibold mt-1">Student Photo</p>
-          </div>
+      <div className="flex gap-5 mb-4">
+        <div className="flex-1 grid grid-cols-2 gap-x-6 gap-y-1 text-xs">
+          <p><span className="text-slate-500">Candidate:</span> <b>{student.name}</b></p>
+          <p><span className="text-slate-500">Roll No:</span> <b>{student.rollNumber || '—'}</b></p>
+          <p><span className="text-slate-500">Register No:</span> <b>{student.registerNumber || student.admissionNumber}</b></p>
+          <p><span className="text-slate-500">Date of Birth:</span> <b>{student.dob ? fmtDate(student.dob) : '—'}</b></p>
+          <p><span className="text-slate-500">{academic.label('course')}:</span> <b>{section?.className}</b></p>
+          <p><span className="text-slate-500">{academic.label('section')}:</span> <b>{section?.name}</b></p>
         </div>
-
-        {/* Exam Schedule */}
-        <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">Registered Courses & Timetable</h4>
-        <table className="w-full text-xs text-left mb-6 border border-slate-300">
-          <thead>
-            <tr className="bg-slate-100 border-b border-slate-300 font-bold uppercase text-[10px] text-slate-700">
-              <th className="p-2.5 border-r border-slate-300">Course Code</th>
-              <th className="p-2.5 border-r border-slate-300">Course Title</th>
-              <th className="p-2.5 border-r border-slate-300">Date of Exam</th>
-              <th className="p-2.5 border-r border-slate-300">Session & Timing</th>
-              <th className="p-2.5 text-center">Invigilator Sign</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-200">
-            {data.schedule.map((item, idx) => (
-              <tr key={idx}>
-                <td className="p-2.5 font-mono font-bold border-r border-slate-300 text-indigo-900">{item.code}</td>
-                <td className="p-2.5 font-semibold border-r border-slate-300">{item.title}</td>
-                <td className="p-2.5 font-semibold border-r border-slate-300">{item.date}</td>
-                <td className="p-2.5 border-r border-slate-300">{item.session}</td>
-                <td className="p-2.5 border-dashed border-slate-300"></td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-
-        {/* Instructions */}
-        <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 text-[11px] text-slate-700 mb-6 space-y-1">
-          <p className="font-bold text-slate-900 uppercase">Important Candidate Instructions:</p>
-          <p>1. Candidates must present this Hall Ticket along with valid College ID Card at the examination hall entrance.</p>
-          <p>2. Electronic gadgets, smart watches, and programmable calculators are strictly prohibited inside the exam hall.</p>
-          <p>3. Candidates will not be allowed to enter the exam hall 15 minutes after the commencement of examination.</p>
-        </div>
-
-        {/* Signatures */}
-        <div className="pt-8 flex items-end justify-between text-xs">
-          <div className="text-center">
-            <p className="border-t border-slate-400 w-36 pt-1 font-semibold text-slate-700">Student Signature</p>
-          </div>
-          <div className="text-center">
-            <p className="border-t border-slate-400 w-36 pt-1 font-semibold text-slate-700">HOD Signature</p>
-          </div>
-          <div className="text-center">
-            <p className="border-t border-slate-400 w-44 pt-1 font-bold text-slate-900">Controller of Examinations</p>
-          </div>
+        <div className="w-24 h-28 border border-slate-300 rounded flex items-center justify-center overflow-hidden shrink-0">
+          {student.photo ? <img src={student.photo} alt={student.name} className="w-full h-full object-cover" /> : <span className="text-[10px] text-slate-400 text-center px-1">Affix photo</span>}
         </div>
       </div>
 
-      <div className="flex items-center justify-center no-print mt-4">
-        <button
-          onClick={() => window.print()}
-          className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-semibold text-xs shadow-md transition-all"
-        >
-          <Printer className="w-4 h-4" />
-          <span>Print Hall Ticket</span>
-        </button>
+      <table className="w-full text-xs border border-slate-300">
+        <thead className="bg-slate-100">
+          <tr>
+            <th className="p-2 text-left border-b">Date</th>
+            <th className="p-2 text-left border-b">Time</th>
+            <th className="p-2 text-left border-b">Subject Code</th>
+            <th className="p-2 text-left border-b">Subject</th>
+            <th className="p-2 text-left border-b">Venue</th>
+            <th className="p-2 text-left border-b">Invigilator Sign</th>
+          </tr>
+        </thead>
+        <tbody>
+          {schedule.length === 0 ? (
+            <tr><td colSpan={6} className="p-3 text-center text-slate-500">No subjects scheduled for this {academic.label('course').toLowerCase()} yet</td></tr>
+          ) : schedule.map((row, i) => (
+            <tr key={i} className="border-b border-slate-200">
+              <td className="p-2">{fmtDate(row.examDate)}</td>
+              <td className="p-2">{row.startTime} – {row.endTime}</td>
+              <td className="p-2 font-mono">{row.code || '—'}</td>
+              <td className="p-2">{row.subject}</td>
+              <td className="p-2">{row.venue || '—'}</td>
+              <td className="p-2" />
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
+      <p className="text-[10px] text-slate-500 mt-3">Bring this hall ticket and your ID card to every examination. Report 15 minutes before the start time.</p>
+      <div className="flex justify-between mt-8 text-[11px] text-slate-600">
+        <p className="border-t border-slate-400 pt-1 w-40 text-center">Candidate</p>
+        <p className="border-t border-slate-400 pt-1 w-40 text-center">Controller of Examinations</p>
       </div>
     </div>
   );

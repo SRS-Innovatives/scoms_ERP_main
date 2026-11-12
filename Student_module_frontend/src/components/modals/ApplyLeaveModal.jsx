@@ -5,9 +5,11 @@ import Select from '../common/Select';
 import FileUpload from '../common/FileUpload';
 import { useNotification } from '../../context/NotificationContext';
 import leaveService from '../../services/leaveService';
+import { useAcademic } from '../../context/InstitutionContext';
 
 export const ApplyLeaveModal = ({ isOpen, onClose, onSubmitted }) => {
   const { success, error: showError } = useNotification();
+  const academic = useAcademic();
   const [leaveTypes, setLeaveTypes] = useState([]);
   const [leaveType, setLeaveType] = useState('');
   const [fromDate, setFromDate] = useState('');
@@ -31,7 +33,7 @@ export const ApplyLeaveModal = ({ isOpen, onClose, onSubmitted }) => {
     setSubmitting(true);
     try {
       await leaveService.apply({ type: leaveType, startDate: fromDate, endDate: toDate, reason });
-      success('Leave request submitted to your Class Teacher for approval.', 'Leave Submitted');
+      success(`Leave request submitted to your ${academic.label('classTeacher')} for approval.`, 'Leave Submitted');
       setFromDate('');
       setToDate('');
       setReason('');

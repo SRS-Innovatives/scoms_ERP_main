@@ -6,10 +6,12 @@ import { useNotification } from '../../context/NotificationContext';
 import { useNavigate } from 'react-router-dom';
 import { Trash2, AlertTriangle } from 'lucide-react';
 import feeService from '../../services/feeService';
+import { useAcademic } from '../../context/InstitutionContext';
 
 export const FeeStructurePage = () => {
+  const academic = useAcademic();
   const navigate = useNavigate();
-  const { notifyError } = useNotification();
+  const { notifySuccess, notifyError } = useNotification();
   const [search, setSearch] = useState('');
   const [structures, setStructures] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -42,7 +44,7 @@ export const FeeStructurePage = () => {
 
   const columns = [
     { header: 'Structure Name', key: 'name', render: (val) => <span className="font-bold text-slate-900 dark:text-white">{val}</span> },
-    { header: 'Course', key: 'course', sortable: false, render: (val) => val?.name || 'All Courses' },
+    { header: academic.label('course'), key: 'course', sortable: false, render: (val) => val?.name || `All ${academic.label('course')}s` },
     { header: 'Fee Category', key: 'category', render: (val) => <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-slate-100 text-slate-700">{val?.replace('_', ' ')}</span> },
     { header: 'Academic Year', key: 'academicYear', sortable: false, render: (val) => val?.yearName },
     { header: 'Assignments', key: '_count', sortable: false, render: (val) => `${val?.assignments ?? 0} students` },

@@ -5,10 +5,12 @@ import { useNotification } from '../../context/NotificationContext';
 import { Search, CreditCard, CheckCircle2, Loader2, Printer } from 'lucide-react';
 import feeEngineService from '../../services/feeEngineService';
 import studentService from '../../services/studentService';
+import { useAcademic } from '../../context/InstitutionContext';
 
 const PAYMENT_MODES = ['CASH', 'UPI_MANUAL', 'ONLINE_CARD', 'BANK_TRANSFER', 'CHEQUE', 'DD'];
 
 export const FeeCollectionV2Page = () => {
+  const academic = useAcademic();
   const { notifySuccess, notifyError } = useNotification();
   const [searchQuery, setSearchQuery] = useState('');
   const [searching, setSearching] = useState(false);
@@ -147,7 +149,7 @@ export const FeeCollectionV2Page = () => {
             <p className="text-slate-500">{selectedStudent.course?.name}</p>
           </div>
           <div>
-            <p className="text-slate-400 font-semibold">Section</p>
+            <p className="text-slate-400 font-semibold">{academic.label('section')}</p>
             <p className="font-semibold text-slate-800 dark:text-slate-200">{selectedStudent.section?.name || '—'}</p>
           </div>
           <div>

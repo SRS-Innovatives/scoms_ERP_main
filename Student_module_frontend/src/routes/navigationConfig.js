@@ -63,6 +63,7 @@ export const navigationConfig = [
     icon: Building,
     children: [
       { key: 'announcements', title: 'Announcements', path: '/student/announcements', module: 'communication' },
+      { key: 'circulars', title: 'Official Circulars', path: '/student/circulars', module: 'communication' },
       { key: 'events', title: 'Campus Events', path: '/student/events', module: 'events_clubs' },
       { key: 'clubs', title: 'Clubs & Societies', path: '/student/clubs', module: 'events_clubs' },
       { key: 'library', title: 'Digital Library', path: '/student/library', module: 'library' },
@@ -79,7 +80,7 @@ export const navigationConfig = [
       { key: 'certificates', title: 'Certificates & Documents', path: '/student/certificates', module: 'certificates' },
       { key: 'grievances', title: 'Grievances & Complaints', path: '/student/grievances', module: 'grievance_feedback' },
       { key: 'appointments', title: 'Counselling Appointments', path: '/student/appointments', module: 'counselling' },
-      { key: 'feedback', title: 'Faculty Feedback', path: '/student/feedback', module: 'grievance_feedback' }
+      { key: 'feedback', title: 'Faculty Feedback', path: '/student/feedback', module: 'grievance_feedback', titleTemplate: (academic) => `${academic.label('teacher')} Feedback` }
     ]
   },
   {

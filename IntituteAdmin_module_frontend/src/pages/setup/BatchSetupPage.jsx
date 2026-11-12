@@ -6,6 +6,7 @@ import EmptyState from '../../components/common/EmptyState';
 import FormModal from '../../components/common/FormModal';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
 import { useNotification } from '../../context/NotificationContext';
+import { useAcademic } from '../../context/InstitutionContext';
 import batchService from '../../services/batchService';
 import courseService from '../../services/courseService';
 import { Users, Edit, Trash2 } from 'lucide-react';
@@ -15,6 +16,7 @@ const STATUS_LABELS = { ACTIVE: 'Active', GRADUATED: 'Graduated', ARCHIVED: 'Arc
 
 export const BatchSetupPage = () => {
   const { notifySuccess, notifyError } = useNotification();
+  const academic = useAcademic();
   const [batches, setBatches] = useState([]);
   const [courses, setCourses] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -62,10 +64,10 @@ export const BatchSetupPage = () => {
       if (editingId) {
         const { courseId, ...rest } = form;
         await batchService.update(editingId, rest);
-        notifySuccess(`Batch ${form.name} updated successfully!`);
+        notifySuccess(`${academic.label('batch')} ${form.name} updated successfully!`);
       } else {
         await batchService.create(form);
-        notifySuccess('Batch created successfully!');
+        notifySuccess(`${academic.label('batch')} created successfully!`);
       }
       setModalOpen(false);
       fetchAll();
@@ -80,7 +82,7 @@ export const BatchSetupPage = () => {
     if (!deleteTarget) return;
     try {
       await batchService.remove(deleteTarget.id);
-      notifySuccess(`Batch ${deleteTarget.name} deleted.`);
+      notifySuccess(`${academic.label('batch')} ${deleteTarget.name} deleted.`);
       setDeleteTarget(null);
       fetchAll();
     } catch (error) {
@@ -90,8 +92,8 @@ export const BatchSetupPage = () => {
   };
 
   const columns = [
-    { header: 'Batch Name', key: 'name', render: (val) => <span className="font-bold text-slate-900 dark:text-white">{val}</span> },
-    { header: 'Course', key: 'course', sortable: false, render: (val) => val?.name || '-' },
+    { header: `${academic.label('batch')} Name`, key: 'name', render: (val) => <span className="font-bold text-slate-900 dark:text-white">{val}</span> },
+    { header: academic.label('course'), key: 'course', sortable: false, render: (val) => val?.name || '-' },
     { header: 'Passout Year', key: 'endYear', render: (val) => <span className="font-mono">{val}</span> },
     { header: 'Current Term', key: 'semesters', sortable: false, render: (val) => val?.[0]?.name || '-' },
     { header: 'Total Students', key: '_count', sortable: false, render: (val) => `${val?.students ?? 0} Enrolled` },
@@ -116,17 +118,27 @@ export const BatchSetupPage = () => {
   const q = search.toLowerCase();
   const filtered = batches.filter((b) => b.name?.toLowerCase().includes(q) || b.course?.name?.toLowerCase().includes(q));
 
+  // Direct URL to a level this institution's structure doesn't use (hidden from the menu)
+  if (!academic.isLevelEnabled('batch')) {
+    return (
+      <EmptyState
+        title={`${academic.label('batch')}es are not used by this institution`}
+        description={`Students are tracked by ${academic.label('academicYear').toLowerCase()} and ${academic.label('course').toLowerCase()} instead. Your platform administrator can enable this level if needed.`}
+      />
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-bold text-slate-900 dark:text-white">Batch Setup</h1>
+        <h1 className="text-xl font-bold text-slate-900 dark:text-white">{academic.label('batch')} Setup</h1>
         <p className="text-xs text-slate-500 dark:text-slate-400">Manage 4-year / 3-year student admission cohort batches</p>
       </div>
 
-      <SearchFilterBar searchQuery={search} onSearchChange={setSearch} placeholder="Search batches..." addLabel="Create Batch" onAddClick={openAddModal} onRefreshClick={fetchAll} />
+      <SearchFilterBar searchQuery={search} onSearchChange={setSearch} placeholder="Search..." addLabel={`Create ${academic.label('batch')}`} onAddClick={openAddModal} onRefreshClick={fetchAll} />
 
       {!loading && filtered.length === 0 ? (
-        <EmptyState title="No Batches Found" description="Create a batch for each course intake year. You'll need a course first." actionLabel="Create Batch" onAction={openAddModal} />
+        <EmptyState title="Nothing Added Yet" description={`Create a ${academic.label('batch').toLowerCase()} for each ${academic.label('course').toLowerCase()} intake year. You'll need a ${academic.label('course').toLowerCase()} first.`} actionLabel={`Create ${academic.label('batch')}`} onAction={openAddModal} />
       ) : (
         <DataTable columns={columns} data={filtered} loading={loading} />
       )}
@@ -145,7 +157,7 @@ export const BatchSetupPage = () => {
         fields={[
           {
             name: 'courseId',
-            label: 'Course',
+            label: academic.label('course'),
             type: 'select',
             required: true,
             span: 'full',
@@ -154,7 +166,7 @@ export const BatchSetupPage = () => {
           },
           { name: 'startYear', label: 'Intake Year (e.g. 2024)', type: 'number', required: true },
           { name: 'endYear', label: 'Passout Year (e.g. 2028)', type: 'number', required: true },
-          { name: 'name', label: 'Batch Name (optional, defaults to "2024 - 2028")', span: 'full' },
+          { name: 'name', label: `${academic.label('batch')} Name (optional, defaults to "2024 - 2028")`, span: 'full' },
           {
             name: 'status',
             label: 'Status',
@@ -166,7 +178,7 @@ export const BatchSetupPage = () => {
 
       <ConfirmDialog
         isOpen={!!deleteTarget}
-        title="Delete Batch"
+        title={`Delete ${academic.label('batch')}`}
         message={`Are you sure you want to delete "${deleteTarget?.name}"? This cannot be undone.`}
         confirmText="Delete"
         onConfirm={handleDelete}

@@ -6,9 +6,11 @@ import examService from '../../services/examService';
 import { Calendar, Loader2 } from 'lucide-react';
 import { useNotification } from '../../context/NotificationContext';
 import ErrorState from '../../components/common/ErrorState';
+import { useAcademic } from '../../context/InstitutionContext';
 
 export const ExamSchedulePage = () => {
   const { error: showError } = useNotification();
+  const academic = useAcademic();
   const [schedules, setSchedules] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -37,7 +39,7 @@ export const ExamSchedulePage = () => {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Semester Examination Timetable"
+        title={`${academic.label('semester')} Examination Timetable`}
         subtitle="Subject-wise exam date, time, and room allocation"
       />
 

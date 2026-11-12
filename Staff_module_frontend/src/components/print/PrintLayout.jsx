@@ -1,8 +1,10 @@
 import React from 'react';
 import PrintHeader from './PrintHeader';
 import { Printer } from 'lucide-react';
+import { useAcademic } from '../../context/InstitutionContext';
 
 export const PrintLayout = ({ title, documentNo, children }) => {
+  const academic = useAcademic();
   const handlePrint = () => {
     window.print();
   };
@@ -37,7 +39,7 @@ export const PrintLayout = ({ title, documentNo, children }) => {
           </div>
           <div className="text-center">
             <div className="w-36 border-b border-slate-400 mb-1"></div>
-            <p>HOD / Class Teacher Signature</p>
+            <p>HOD / {academic.label('classTeacher')} Signature</p>
           </div>
           <div className="text-center">
             <div className="w-36 border-b border-slate-400 mb-1"></div>

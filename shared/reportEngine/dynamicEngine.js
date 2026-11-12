@@ -12,6 +12,7 @@
  */
 const prisma = require('../database/client');
 const { getDataSource, OPERATORS_BY_TYPE } = require('./dynamicSources');
+const { ValidationError } = require('../errors/customErrors');
 
 const buildWhereClause = (source, filters, institutionId) => {
   // Not every model has its own institutionId column (StudentFeeAssignment doesn't —
@@ -22,9 +23,9 @@ const buildWhereClause = (source, filters, institutionId) => {
     : { [source.tenantScope.relation]: { institutionId } };
   for (const filter of filters || []) {
     const fieldDef = source.fields[filter.field];
-    if (!fieldDef || fieldDef.nested) throw new Error(`Field "${filter.field}" is not filterable on this data source`);
+    if (!fieldDef || fieldDef.nested) throw new ValidationError(`Field "${filter.field}" is not filterable on this data source`);
     const allowedOps = OPERATORS_BY_TYPE[fieldDef.type];
-    if (!allowedOps.includes(filter.operator)) throw new Error(`Operator "${filter.operator}" is not valid for field "${filter.field}"`);
+    if (!allowedOps.includes(filter.operator)) throw new ValidationError(`Operator "${filter.operator}" is not valid for field "${filter.field}"`);
 
     const value = fieldDef.type === 'NUMBER' ? Number(filter.value) : fieldDef.type === 'DATE' ? new Date(filter.value) : filter.value;
 
@@ -35,7 +36,7 @@ const buildWhereClause = (source, filters, institutionId) => {
       case 'gte': where[fieldDef.path] = { ...(where[fieldDef.path] || {}), gte: value }; break;
       case 'lt': where[fieldDef.path] = { ...(where[fieldDef.path] || {}), lt: value }; break;
       case 'lte': where[fieldDef.path] = { ...(where[fieldDef.path] || {}), lte: value }; break;
-      default: throw new Error(`Unsupported operator "${filter.operator}"`);
+      default: throw new ValidationError(`Unsupported operator "${filter.operator}"`);
     }
   }
   return where;
@@ -46,7 +47,7 @@ const buildSelect = (source, fieldKeys) => {
   const nestedGroups = {};
   for (const key of fieldKeys) {
     const fieldDef = source.fields[key];
-    if (!fieldDef) throw new Error(`Field "${key}" does not exist on this data source`);
+    if (!fieldDef) throw new ValidationError(`Field "${key}" does not exist on this data source`);
     if (fieldDef.nested) {
       const [relation, subField] = fieldDef.path.split('.');
       nestedGroups[relation] = nestedGroups[relation] || {};
@@ -81,7 +82,7 @@ const flattenRow = (row, fieldKeys, source) => {
 
 const runDynamicReport = async ({ dataSourceKey, fields, filters, sortBy, sortDirection, institutionId }) => {
   const source = getDataSource(dataSourceKey);
-  if (!Array.isArray(fields) || fields.length === 0) throw new Error('At least one field must be selected');
+  if (!Array.isArray(fields) || fields.length === 0) throw new ValidationError('At least one field must be selected');
 
   const where = buildWhereClause(source, filters, institutionId);
   const select = buildSelect(source, fields);
@@ -89,7 +90,7 @@ const runDynamicReport = async ({ dataSourceKey, fields, filters, sortBy, sortDi
   let orderBy;
   if (sortBy) {
     const sortFieldDef = source.fields[sortBy];
-    if (!sortFieldDef || sortFieldDef.nested) throw new Error(`Field "${sortBy}" is not sortable on this data source`);
+    if (!sortFieldDef || sortFieldDef.nested) throw new ValidationError(`Field "${sortBy}" is not sortable on this data source`);
     orderBy = { [sortFieldDef.path]: sortDirection === 'desc' ? 'desc' : 'asc' };
   }
 

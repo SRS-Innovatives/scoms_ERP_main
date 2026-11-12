@@ -4,12 +4,14 @@ import { useNotification } from '../../context/NotificationContext';
 import examSetupService from '../../services/examSetupService';
 import ErrorState from '../../components/common/ErrorState';
 import EmptyState from '../../components/common/EmptyState';
+import { useAcademic } from '../../context/InstitutionContext';
 
 const EXAM_TYPES = ['UNIT_TEST', 'MID_TERM', 'FINAL', 'ANNUAL', 'MODEL'];
 const emptyExam = { name: '', examType: 'UNIT_TEST', academicYearId: '', startDate: '', endDate: '' };
 const emptySchedule = { examId: '', subjectId: '', courseId: '', examDate: '', startTime: '', endTime: '', maxMarks: '', passMarks: '', roomNumber: '' };
 
 export const ExamSetupPage = () => {
+  const academic = useAcademic();
   const { success, error: showError } = useNotification();
   const [exams, setExams] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -130,7 +132,7 @@ export const ExamSetupPage = () => {
               {scheduleFormOpen === exam.id && (
                 <form onSubmit={handleCreateSchedule} className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-800 grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
                   <div><label className="block font-semibold mb-1">Subject ID</label><input required value={scheduleForm.subjectId} onChange={(e) => setScheduleForm({ ...scheduleForm, subjectId: e.target.value })} className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl" /></div>
-                  <div><label className="block font-semibold mb-1">Course ID</label><input required value={scheduleForm.courseId} onChange={(e) => setScheduleForm({ ...scheduleForm, courseId: e.target.value })} className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl" /></div>
+                  <div><label className="block font-semibold mb-1">{academic.label('course')} ID</label><input required value={scheduleForm.courseId} onChange={(e) => setScheduleForm({ ...scheduleForm, courseId: e.target.value })} className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl" /></div>
                   <div><label className="block font-semibold mb-1">Exam Date</label><input type="date" required value={scheduleForm.examDate} onChange={(e) => setScheduleForm({ ...scheduleForm, examDate: e.target.value })} className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl" /></div>
                   <div><label className="block font-semibold mb-1">Start Time</label><input value={scheduleForm.startTime} onChange={(e) => setScheduleForm({ ...scheduleForm, startTime: e.target.value })} placeholder="10:00 AM" className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl" /></div>
                   <div><label className="block font-semibold mb-1">End Time</label><input value={scheduleForm.endTime} onChange={(e) => setScheduleForm({ ...scheduleForm, endTime: e.target.value })} placeholder="1:00 PM" className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl" /></div>

@@ -8,8 +8,10 @@ import { useNavigate } from 'react-router-dom';
 import { Plus, Briefcase } from 'lucide-react';
 import staffService from '../../services/staffService';
 import ErrorState from '../../components/common/ErrorState';
+import { useAcademic } from '../../context/InstitutionContext';
 
 export const NonTeachingStaffPage = () => {
+  const academic = useAcademic();
   const navigate = useNavigate();
   const { notifyError } = useNotification();
   const [search, setSearch] = useState('');
@@ -34,7 +36,7 @@ export const NonTeachingStaffPage = () => {
     { header: 'Staff Name', key: 'firstName', sortable: false, render: (_, row) => <span className="font-bold text-slate-900 dark:text-white">{row.firstName} {row.lastName}</span> },
     { header: 'Emp ID', key: 'employeeCode', render: (val) => <span className="font-mono text-indigo-600">{val}</span> },
     { header: 'Role / Designation', key: 'designation', render: (val) => <span className="font-bold text-indigo-600">{val}</span> },
-    { header: 'Department', key: 'department', sortable: false, render: (val) => val?.name || '—' },
+    { header: academic.label('department'), key: 'department', sortable: false, render: (val) => val?.name || '—' },
     { header: 'Qualification', key: 'qualification', render: (val) => val || '—' },
     { header: 'Monthly Salary', key: 'salary', sortable: false, render: (val) => val ? <span className="font-mono font-bold">₹{(val.basicPay + val.hra + val.da + val.otherAllowances - val.deductions).toLocaleString()}</span> : '—' },
     { header: 'Status', key: 'status', render: (val) => <StatusBadge status={val} /> },

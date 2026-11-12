@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import FormInput from '../../components/common/FormInput';
 import ErrorState from '../../components/common/ErrorState';
 import { useNotification } from '../../context/NotificationContext';
+import { useAcademic } from '../../context/InstitutionContext';
 import { User, Save, Loader2, Camera } from 'lucide-react';
 import studentService from '../../services/studentService';
 
@@ -10,6 +11,7 @@ const MAX_PHOTO_BYTES = 2 * 1024 * 1024; // 2MB
 
 export const MyProfilePage = () => {
   const { success, error: showError } = useNotification();
+  const academic = useAcademic();
   const [activeTab, setActiveTab] = useState('Personal');
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -179,9 +181,18 @@ export const MyProfilePage = () => {
         {activeTab === 'Academic' && (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <FormInput label="Institution" value={profile.institution?.name || '—'} disabled />
-            <FormInput label="Department" value={profile.department?.name || '—'} disabled />
-            <FormInput label="Course" value={profile.course?.name || '—'} disabled />
-            <FormInput label="Section" value={profile.section?.name || '—'} disabled />
+            {/* Levels and their names follow the institution's academic structure */}
+            <FormInput label={academic.label('academicYear')} value={profile.section?.semester?.academicYear?.yearName || '—'} disabled />
+            <FormInput label={academic.label('department')} value={profile.department?.name || '—'} disabled />
+            {academic.isLevelEnabled('program') && (
+              <FormInput label={academic.label('program')} value={profile.course?.program?.name || '—'} disabled />
+            )}
+            <FormInput label={academic.label('course')} value={profile.course?.name || '—'} disabled />
+            {academic.isLevelEnabled('batch') && (
+              <FormInput label={academic.label('batch')} value={profile.batch?.name || '—'} disabled />
+            )}
+            <FormInput label={academic.label('semester')} value={profile.section?.semester?.name || '—'} disabled />
+            <FormInput label={academic.label('section')} value={profile.section?.name || '—'} disabled />
             <FormInput label="Roll Number" value={profile.rollNumber || '—'} disabled />
             <FormInput label="Admission Date" value={profile.admissionDate ? profile.admissionDate.slice(0, 10) : '—'} disabled />
           </div>

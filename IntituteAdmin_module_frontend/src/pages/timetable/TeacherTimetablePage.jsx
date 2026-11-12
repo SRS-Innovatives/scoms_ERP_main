@@ -4,6 +4,7 @@ import { useNotification } from '../../context/NotificationContext';
 import staffService from '../../services/staffService';
 import timetableService from '../../services/timetableService';
 import ErrorState from '../../components/common/ErrorState';
+import { useAcademic } from '../../context/InstitutionContext';
 
 const DAYS = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
 const DAY_LABELS = { MONDAY: 'Monday', TUESDAY: 'Tuesday', WEDNESDAY: 'Wednesday', THURSDAY: 'Thursday', FRIDAY: 'Friday', SATURDAY: 'Saturday' };
@@ -14,6 +15,7 @@ const staffDisplayName = (s) => {
 };
 
 export const TeacherTimetablePage = () => {
+  const academic = useAcademic();
   const { notifyError } = useNotification();
   const [staffList, setStaffList] = useState([]);
   const [staffId, setStaffId] = useState('');
@@ -55,7 +57,7 @@ export const TeacherTimetablePage = () => {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl font-bold text-slate-900 dark:text-white">Faculty Individual Workload & Timetable</h1>
+          <h1 className="text-xl font-bold text-slate-900 dark:text-white">{academic.label('teacher')} Individual Workload & Timetable</h1>
           <p className="text-xs text-slate-500 dark:text-slate-400">Assigned classes per teacher, drawn from the real class timetable</p>
         </div>
 

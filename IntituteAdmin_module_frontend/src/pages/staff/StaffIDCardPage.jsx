@@ -42,7 +42,7 @@ export const StaffIDCardPage = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-xl font-bold text-slate-900 dark:text-white">Staff ID Card Generator</h1>
-          <p className="text-xs text-slate-500 dark:text-slate-400">Faculty photo identity card preview</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400">Staff photo identity card preview</p>
         </div>
         {staffList.length > 0 && (
           <select value={staffId} onChange={(e) => setStaffId(e.target.value)} className="p-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold no-print">

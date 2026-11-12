@@ -6,6 +6,9 @@ const { ROLES, PERMISSIONS } = require('./constants/roles');
 const STATUSES = require('./constants/statuses');
 const { CORE_MODULE_KEYS, MODULE_CATALOG, OPTIONAL_MODULE_KEYS, resolveEnabledModules, resolveStructureType, getRecommendedModules } = require('./constants/institutionModules');
 const errors = require('./errors/customErrors');
+const academicStructure = require('./academic/academicStructure');
+const { getInstitutionAcademicStructure, assertLevelEnabled } = require('./academic/institutionAcademic');
+const teachingScope = require('./academic/teachingScope');
 const logger = require('./utils/logger');
 const responseFormatter = require('./utils/responseFormatter');
 const idGenerators = require('./utils/idGenerators');
@@ -45,6 +48,7 @@ const { resolveRoom, resolveRoomsById } = require('./utils/rooms');
 const resultLifecycle = require('./exams/resultLifecycle');
 const attendanceRules = require('./attendance/attendanceRules');
 const timetableRules = require('./timetable/timetableRules');
+const circularReader = require('./communication/circularReader');
 const {
   handleGetNotifications,
   handleGetUnreadCount,
@@ -62,6 +66,10 @@ module.exports = {
   resolveEnabledModules,
   resolveStructureType,
   getRecommendedModules,
+  ...academicStructure,
+  getInstitutionAcademicStructure,
+  assertLevelEnabled,
+  teachingScope,
   ...errors,
   logger,
   ...responseFormatter,
@@ -123,4 +131,5 @@ module.exports = {
   resultLifecycle,
   attendanceRules,
   timetableRules,
+  circularReader,
 };

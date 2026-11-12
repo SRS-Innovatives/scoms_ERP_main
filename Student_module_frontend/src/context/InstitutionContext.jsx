@@ -1,5 +1,6 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import authService from '../services/authService';
+import { createAcademicHelpers } from '../../../shared/components/academicStructure';
 
 const InstitutionContext = createContext();
 
@@ -27,13 +28,17 @@ export const InstitutionProvider = ({ children }) => {
     return enabledModules.includes(moduleKey);
   };
 
+  // Institution type -> levels/labels/regulations, resolved server-side (see /auth/me)
+  const academic = useMemo(() => createAcademicHelpers(institution?.academicStructure), [institution]);
+
   return (
-    <InstitutionContext.Provider value={{ institution, enabledModules, isModuleEnabled }}>
+    <InstitutionContext.Provider value={{ institution, enabledModules, isModuleEnabled, academic }}>
       {children}
     </InstitutionContext.Provider>
   );
 };
 
 export const useInstitution = () => useContext(InstitutionContext);
+export const useAcademic = () => useContext(InstitutionContext).academic;
 
 export default InstitutionContext;

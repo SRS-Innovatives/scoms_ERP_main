@@ -9,8 +9,10 @@ import { useNotification } from '../../context/NotificationContext';
 import { useNavigate } from 'react-router-dom';
 import { Grid, List, Plus, CreditCard, Users, Loader2 } from 'lucide-react';
 import studentService from '../../services/studentService';
+import { useAcademic } from '../../context/InstitutionContext';
 
 export const StudentListPage = () => {
+  const academic = useAcademic();
   const { notifyError } = useNotification();
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
@@ -67,7 +69,7 @@ export const StudentListPage = () => {
       )
     },
     { header: 'Roll No', key: 'rollNo', render: (val) => <span className="font-mono font-bold text-indigo-600 dark:text-indigo-400">{val}</span> },
-    { header: 'Course & Dept', key: 'course' },
+    { header: `${academic.label('course')} & ${academic.label('department')}`, key: 'course' },
     { header: 'Year / Sem', key: 'yearSem' },
     { header: 'Scholarship', key: 'scholarship', render: (val) => <span className="text-xs font-medium text-slate-700 dark:text-slate-300">{val}</span> },
     { header: 'Fee Status', key: 'feeStatus', render: (val) => <StatusBadge status={val} /> },

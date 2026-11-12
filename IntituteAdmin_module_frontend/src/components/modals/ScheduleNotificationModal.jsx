@@ -3,6 +3,7 @@ import { X, Clock } from 'lucide-react';
 import { useNotification } from '../../context/NotificationContext';
 import notificationSchedulerService from '../../services/notificationSchedulerService';
 import courseService from '../../services/courseService';
+import { useAcademic } from '../../context/InstitutionContext';
 
 const CHANNELS = [
   { value: 'SMS', label: 'SMS' },
@@ -20,6 +21,7 @@ const RECIPIENT_OPTIONS = [
 ];
 
 export const ScheduleNotificationModal = ({ isOpen, onClose }) => {
+  const academic = useAcademic();
   const { notifySuccess, notifyError } = useNotification();
   const [channel, setChannel] = useState('SMS');
   const [recipientGroup, setRecipientGroup] = useState('absentees');
@@ -89,13 +91,13 @@ export const ScheduleNotificationModal = ({ isOpen, onClose }) => {
           <div>
             <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Target Recipients</label>
             <select value={recipientGroup} onChange={(e) => setRecipientGroup(e.target.value)} className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg font-medium">
-              {RECIPIENT_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+              {RECIPIENT_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.value === 'course' ? `By ${academic.label('course')} (choose below)` : o.label}</option>)}
             </select>
           </div>
 
           {recipientGroup === 'course' && (
             <div>
-              <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Course</label>
+              <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">{academic.label('course')}</label>
               <select value={courseId} onChange={(e) => setCourseId(e.target.value)} className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg">
                 <option value="">Select course...</option>
                 {courses.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}

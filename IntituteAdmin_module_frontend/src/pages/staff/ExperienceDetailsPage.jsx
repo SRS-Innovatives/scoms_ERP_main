@@ -5,6 +5,7 @@ import { useNotification } from '../../context/NotificationContext';
 import { Briefcase, Loader2 } from 'lucide-react';
 import staffService from '../../services/staffService';
 import ErrorState from '../../components/common/ErrorState';
+import { useAcademic } from '../../context/InstitutionContext';
 
 const durationLabel = (from, to) => {
   const end = to ? new Date(to) : new Date();
@@ -13,6 +14,7 @@ const durationLabel = (from, to) => {
 };
 
 export const ExperienceDetailsPage = () => {
+  const academic = useAcademic();
   const { notifyError } = useNotification();
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -35,7 +37,7 @@ export const ExperienceDetailsPage = () => {
   useEffect(() => { load(); }, [load]);
 
   const columns = [
-    { header: 'Faculty Name', key: 'staffName', render: (val, row) => <span className="font-bold text-slate-900 dark:text-white">{val} <span className="font-mono text-[10px] text-slate-400">({row.empId})</span></span> },
+    { header: 'Staff Name', key: 'staffName', render: (val, row) => <span className="font-bold text-slate-900 dark:text-white">{val} <span className="font-mono text-[10px] text-slate-400">({row.empId})</span></span> },
     { header: 'Institution / Company', key: 'organization', render: (val) => <span className="font-bold text-slate-900 dark:text-white flex items-center gap-2"><Briefcase className="w-4 h-4 text-indigo-600" />{val}</span> },
     { header: 'Role Held', key: 'roleTitle', render: (val) => <span className="font-semibold text-indigo-600">{val}</span> },
     { header: 'Service Period', key: 'fromDate', sortable: false, render: (_, row) => <span className="font-mono">{new Date(row.fromDate).toLocaleDateString('en-IN')} – {row.toDate ? new Date(row.toDate).toLocaleDateString('en-IN') : 'Present'}</span> },
@@ -53,7 +55,7 @@ export const ExperienceDetailsPage = () => {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-bold text-slate-900 dark:text-white">Faculty Experience & Service History</h1>
+        <h1 className="text-xl font-bold text-slate-900 dark:text-white">Staff Experience & Service History</h1>
         <p className="text-xs text-slate-500 dark:text-slate-400">Prior teaching, industrial & research experience records — add via each staff member's profile</p>
       </div>
 

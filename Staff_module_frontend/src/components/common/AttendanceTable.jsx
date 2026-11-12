@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Check, X, Clock, ShieldAlert, Send } from 'lucide-react';
 import StatusBadge from './StatusBadge';
+import { useAcademic } from '../../context/InstitutionContext';
 
 export const AttendanceTable = ({
   students = [],
@@ -8,6 +9,7 @@ export const AttendanceTable = ({
   onMarkAllPresent,
   onSendSms
 }) => {
+  const academic = useAcademic();
   const [attendanceMap, setAttendanceMap] = useState(() => {
     const initial = {};
     students.forEach(s => {
@@ -70,7 +72,7 @@ export const AttendanceTable = ({
             <tr>
               <th className="px-4 py-3">Roll No</th>
               <th className="px-4 py-3">Student Name</th>
-              <th className="px-4 py-3">Class & Sec</th>
+              <th className="px-4 py-3">{academic.label('course')} & {academic.label('section')}</th>
               <th className="px-4 py-3">Attendance %</th>
               <th className="px-4 py-3">Parent Contact</th>
               <th className="px-4 py-3 text-center">Status Toggle</th>

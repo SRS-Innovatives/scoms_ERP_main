@@ -5,8 +5,10 @@ import StatusBadge from '../../components/common/StatusBadge';
 import { useNotification } from '../../context/NotificationContext';
 import { MessageSquare, Loader2, Calendar } from 'lucide-react';
 import attendanceService from '../../services/attendanceService';
+import { useAcademic } from '../../context/InstitutionContext';
 
 export const AbsentStudentsPage = () => {
+  const academic = useAcademic();
   const { notifySuccess, notifyError } = useNotification();
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [absentees, setAbsentees] = useState([]);
@@ -46,7 +48,7 @@ export const AbsentStudentsPage = () => {
   const columns = [
     { header: 'Roll No', key: 'rollNumber', render: (val) => <span className="font-mono font-bold text-rose-600">{val}</span> },
     { header: 'Student Name', key: 'name', render: (val) => <span className="font-bold text-slate-900 dark:text-white">{val}</span> },
-    { header: 'Section', key: 'section' },
+    { header: academic.label('section'), key: 'section' },
     { header: 'Subject', key: 'subject' },
     { header: 'Parent Phone (SMS Target)', key: 'parentPhone', render: (val) => <span className="font-mono font-bold text-indigo-600">{val || 'No contact on file'}</span> },
     { header: 'Status', key: 'studentId', sortable: false, render: () => <StatusBadge status="Absent" /> },

@@ -6,13 +6,7 @@ import { useNotification } from '../../context/NotificationContext';
 import { Check, ChevronRight, ChevronLeft, Building2, CheckCircle2, ShieldCheck, Loader2, X, Sparkles } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import institutionService from '../../services/institutionService';
-
-const TYPE_OPTIONS = [
-  { value: 'SCHOOL', label: 'School' },
-  { value: 'COLLEGE', label: 'College' },
-  { value: 'AUTONOMOUS_COLLEGE', label: 'Autonomous College' },
-  { value: 'UNIVERSITY', label: 'University' },
-];
+import AcademicStructureEditor, { INSTITUTION_TYPE_OPTIONS as TYPE_OPTIONS, previewAcademicStructure, validateAcademicConfig } from '../../components/institutions/AcademicStructureEditor';
 
 export const OnboardingWizardPage = () => {
   const { success, error: showError } = useNotification();
@@ -22,11 +16,15 @@ export const OnboardingWizardPage = () => {
   const [moduleCatalog, setModuleCatalog] = useState([]);
   const [modulesTouched, setModulesTouched] = useState(false); // once the admin manually edits the checklist, stop auto-recommending on type change
   const [universities, setUniversities] = useState([]);
+  const [structureCatalog, setStructureCatalog] = useState(null);
 
   useEffect(() => {
     institutionService.getModuleCatalog()
       .then((res) => setModuleCatalog(res.data || []))
       .catch((err) => console.error('Failed to load module catalog', err));
+    institutionService.getAcademicStructureCatalog()
+      .then((res) => setStructureCatalog(res.data || null))
+      .catch((err) => console.error('Failed to load academic structure catalog', err));
     // Real universities already onboarded in SCOMS — offered as an affiliation target for
     // a College/Autonomous College, so the relationship is a real link, not a text label.
     institutionService.getInstitutions({ type: 'UNIVERSITY', limit: 200 })
@@ -37,7 +35,7 @@ export const OnboardingWizardPage = () => {
   const steps = [
     "Basic Info",
     "Contact Info",
-    "Academic Info",
+    "Academic Structure",
     "Admin Account",
     "Plan",
     "Modules",
@@ -65,8 +63,14 @@ export const OnboardingWizardPage = () => {
     establishmentYear: '',
     accreditation: '',
     modules: [],
-    logo: ''
+    logo: '',
+    // Overrides of the selected type's academic defaults. Kept as-is when the type is
+    // switched (labels/levels still apply); the backend drops regulation overrides for
+    // types whose regulations aren't configurable.
+    academicConfig: {}
   });
+
+  const structurePreview = previewAcademicStructure(structureCatalog, formData.type, formData.academicConfig);
 
   const recommendedKeys = moduleCatalog.filter((m) => m.recommendedFor?.includes(formData.type)).map((m) => m.key);
 
@@ -96,7 +100,7 @@ export const OnboardingWizardPage = () => {
   // required — everything else (contact/address/affiliation/plan/documents) can be filled
   // in later via Institute Profile. Real gating, not just a decorative asterisk.
   const STEP_REQUIREMENTS = {
-    1: [['name', 'Institution Name'], ['code', 'Institution Code']],
+    1: [['name', 'Institution Name'], ['code', 'Institution Code'], ['type', 'Institution Type']],
     4: [['adminName', 'Admin Full Name'], ['adminEmail', 'Admin Official Email'], ['adminPassword', 'Temporary Password']],
   };
 
@@ -107,6 +111,13 @@ export const OnboardingWizardPage = () => {
     if (missing.length > 0) {
       showError(`Please fill in: ${missing.map(([, label]) => label).join(', ')}`, 'Required Fields Missing');
       return;
+    }
+    if (currentStep === 3) {
+      const structureErrors = validateAcademicConfig(structureCatalog, formData.type, formData.academicConfig);
+      if (structureErrors.length > 0) {
+        showError(structureErrors.join('. '), 'Check Academic Structure');
+        return;
+      }
     }
 
     if (currentStep < 9) {
@@ -183,7 +194,7 @@ export const OnboardingWizardPage = () => {
             <FormInput label="Institution Name" required value={formData.name} onChange={(v) => setFormData({ ...formData, name: v })} placeholder="Enter institution name" />
             <div className="grid grid-cols-2 gap-4">
               <FormInput label="Institution Code" required value={formData.code} onChange={(v) => setFormData({ ...formData, code: v })} placeholder="Enter institution code" />
-              <Select label="Institution Type" value={formData.type} onChange={(v) => setFormData({ ...formData, type: v, affiliatedUniversityId: '' })} options={TYPE_OPTIONS} />
+              <Select label="Institution Type" required value={formData.type} onChange={(v) => setFormData({ ...formData, type: v, affiliatedUniversityId: '' })} options={[{ value: '', label: 'Select institution type...' }, ...TYPE_OPTIONS]} />
             </div>
 
             {(formData.type === 'COLLEGE' || formData.type === 'AUTONOMOUS_COLLEGE') && (
@@ -239,12 +250,27 @@ export const OnboardingWizardPage = () => {
 
         {currentStep === 3 && (
           <div className="space-y-4">
-            <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">Step 3: Academic Info</h3>
-            <p className="text-[11px] text-slate-400 -mt-2">Optional — skip and fill in later if not on hand yet.</p>
-            <div className="grid grid-cols-2 gap-4">
-              <FormInput label="Affiliation / University" value={formData.affiliation} onChange={(v) => setFormData({ ...formData, affiliation: v })} placeholder="Enter affiliation / university" />
+            <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">Step 3: Academic Structure</h3>
+            <p className="text-[11px] text-slate-400 -mt-2">
+              Sensible defaults for a {TYPE_OPTIONS.find((t) => t.value === formData.type)?.label || 'this type'} are pre-filled — adjust only what differs. This drives the setup screens, labels and portals for this institution, and can be changed later.
+            </p>
+            <AcademicStructureEditor
+              catalog={structureCatalog}
+              type={formData.type}
+              value={formData.academicConfig}
+              onChange={(academicConfig) => setFormData((prev) => ({ ...prev, academicConfig }))}
+            />
+            <div className="grid grid-cols-2 gap-4 pt-2 border-t border-slate-200 dark:border-slate-800">
+              <FormInput
+                label={formData.type === 'SCHOOL' ? 'Board / Affiliation' : 'Affiliation / University'}
+                value={formData.affiliation}
+                onChange={(v) => setFormData({ ...formData, affiliation: v })}
+                placeholder={formData.type === 'SCHOOL' ? 'e.g. CBSE, State Board' : 'Enter affiliation / university'}
+              />
               <FormInput label="Establishment Year" value={formData.establishmentYear} onChange={(v) => setFormData({ ...formData, establishmentYear: v })} placeholder="Enter establishment year" />
-              <Select label="Accreditation Status" value={formData.accreditation} onChange={(v) => setFormData({ ...formData, accreditation: v })} options={[{ value: 'NAAC A++', label: 'NAAC A++' }, { value: 'NAAC A+', label: 'NAAC A+' }, { value: 'NAAC A', label: 'NAAC A' }, { value: 'NBA', label: 'NBA' }, { value: 'None', label: 'None' }]} placeholder="Select accreditation status" />
+              {formData.type !== 'SCHOOL' && (
+                <Select label="Accreditation Status" value={formData.accreditation} onChange={(v) => setFormData({ ...formData, accreditation: v })} options={[{ value: '', label: 'Select accreditation status...' }, { value: 'NAAC A++', label: 'NAAC A++' }, { value: 'NAAC A+', label: 'NAAC A+' }, { value: 'NAAC A', label: 'NAAC A' }, { value: 'NBA', label: 'NBA' }, { value: 'None', label: 'None' }]} />
+              )}
             </div>
           </div>
         )}
@@ -332,7 +358,15 @@ export const OnboardingWizardPage = () => {
                 )}
                 <p><span className="font-bold">Institution:</span> {formData.name} ({formData.code})</p>
               </div>
-              <p><span className="font-bold">Type:</span> {formData.type} • Location: {formData.city}, {formData.state}</p>
+              <p><span className="font-bold">Type:</span> {TYPE_OPTIONS.find((t) => t.value === formData.type)?.label || formData.type} • Location: {formData.city}, {formData.state}</p>
+              {structurePreview && (
+                <p>
+                  <span className="font-bold">Academic structure:</span>{' '}
+                  {[structurePreview.labels.academicYear, ...structurePreview.hierarchy.map((l) => structurePreview.labels[l])].join(' → ')}
+                  {' '}• {structurePreview.labels.semester}-based
+                  {structurePreview.regulationsConfigurable && ` • Grading: ${structurePreview.regulations.gradingScheme}`}
+                </p>
+              )}
               <p><span className="font-bold">Admin Email:</span> {formData.adminEmail}</p>
               <p><span className="font-bold">Subscription Plan:</span> {formData.plan}</p>
             </div>

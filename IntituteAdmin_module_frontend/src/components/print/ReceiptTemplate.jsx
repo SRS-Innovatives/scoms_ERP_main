@@ -1,8 +1,10 @@
 import React from 'react';
 import PrintHeader from '../common/PrintHeader';
 import { Printer, Download, Share2, Mail, MessageSquare } from 'lucide-react';
+import { useAcademic } from '../../context/InstitutionContext';
 
 export const ReceiptTemplate = ({ receiptData, onPrint }) => {
+  const academic = useAcademic();
   const data = receiptData || {
     receiptNo: "REC/2025/04921",
     date: "2025-08-08",
@@ -44,7 +46,7 @@ export const ReceiptTemplate = ({ receiptData, onPrint }) => {
             <p className="text-[10px] text-slate-500 uppercase font-semibold">Payment Date</p>
             <p className="font-bold text-sm text-slate-900">{data.date}</p>
             <p className="text-slate-600 mt-1">Academic Year: <span className="font-semibold">{data.academicYear}</span></p>
-            <p className="text-slate-600">Semester: <span className="font-semibold">{data.semester}</span></p>
+            <p className="text-slate-600">{academic.label('semester')}: <span className="font-semibold">{data.semester}</span></p>
           </div>
         </div>
 

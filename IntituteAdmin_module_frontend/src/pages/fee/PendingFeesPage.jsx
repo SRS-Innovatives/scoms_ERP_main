@@ -8,8 +8,10 @@ import { useNotification } from '../../context/NotificationContext';
 import { useNavigate } from 'react-router-dom';
 import { CreditCard, Loader2 } from 'lucide-react';
 import feeService from '../../services/feeService';
+import { useAcademic } from '../../context/InstitutionContext';
 
 export const PendingFeesPage = () => {
+  const academic = useAcademic();
   const navigate = useNavigate();
   const { notifyError } = useNotification();
   const [search, setSearch] = useState('');
@@ -36,7 +38,7 @@ export const PendingFeesPage = () => {
   const columns = [
     { header: 'Roll No', key: 'student', sortable: false, render: (val) => <span className="font-mono font-bold text-rose-600">{val?.rollNumber}</span> },
     { header: 'Student Name', key: 'student2', sortable: false, render: (_, row) => <span className="font-bold text-slate-900 dark:text-white">{row.student?.firstName} {row.student?.lastName}</span> },
-    { header: 'Course', key: 'student3', sortable: false, render: (_, row) => row.student?.course?.name },
+    { header: academic.label('course'), key: 'student3', sortable: false, render: (_, row) => row.student?.course?.name },
     { header: 'Fee Structure', key: 'feeStructure', sortable: false, render: (val) => val?.name },
     { header: 'Due Date', key: 'feeStructure2', sortable: false, render: (_, row) => <span className="font-mono">{new Date(row.feeStructure?.dueDate).toLocaleDateString('en-IN')}</span> },
     { header: 'Pending Amount (₹)', key: 'dueAmount', render: (val) => <span className="font-mono font-bold text-rose-600">₹{val.toLocaleString()}</span> },

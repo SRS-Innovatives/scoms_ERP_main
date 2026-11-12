@@ -12,6 +12,7 @@ const {
   NotFoundError,
   ValidationError,
   generateCertificateNumber,
+  certificateEngine,
 } = require('../../../shared');
 
 const TYPE_TITLES = {
@@ -22,13 +23,9 @@ const TYPE_TITLES = {
   FEEPAID: 'Fee Paid Certificate',
 };
 
-/** CertificateRequest.type (student-facing) → Certificate.type (issuance ledger) */
-const REQUEST_TYPE_TO_CERT_TYPE = {
-  BONAFIDE: 'BONAFIDE',
-  TRANSFER: 'TC',
-  CONDUCT: 'CONDUCT',
-  COURSE_COMPLETION: 'COMPLETION',
-};
+/** CertificateRequest.type (student-facing) → Certificate.type (issuance ledger) — the same
+ * mapping the student request form uses (shared/certificateEngine) */
+const REQUEST_TYPE_TO_CERT_TYPE = certificateEngine.REQUEST_TYPE_TO_TEMPLATE_CODE;
 
 const getCertificates = async (req, res, next) => {
   try {

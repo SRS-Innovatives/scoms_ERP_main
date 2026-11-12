@@ -9,6 +9,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import apiCall from '../../services/api';
 import admissionCustomFieldService from '../../services/admissionCustomFieldService';
+import { useAcademic } from '../../context/InstitutionContext';
 
 const MAX_PHOTO_BYTES = 2 * 1024 * 1024; // 2MB
 
@@ -78,6 +79,7 @@ const Field = ({ label, required, as = 'input', type = 'text', value, onChange, 
 );
 
 export const StudentAdmissionPage = () => {
+  const academic = useAcademic();
   const { notifySuccess, notifyError } = useNotification();
   const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState(1);
@@ -247,30 +249,30 @@ export const StudentAdmissionPage = () => {
           <FormSection title="4. Academic Admission & Previous School" subtitle="Choice of branch, class placement, and prior academic record" icon={GraduationCap}>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
               <div>
-                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Department *</label>
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">{academic.label('department')} *</label>
                 <select required value={formData.departmentId} onChange={(e) => setFormData({ ...formData, departmentId: e.target.value, courseId: '', semesterId: '', sectionId: '' })} className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white font-medium">
-                  <option value="">Select Department</option>
+                  <option value="">Select {academic.label('department')}</option>
                   {departments.map((dept) => <option key={dept.id} value={dept.id}>{dept.name} ({dept.code})</option>)}
                 </select>
               </div>
               <div>
-                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Course / Degree Program *</label>
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">{academic.label('course')} *</label>
                 <select required disabled={!formData.departmentId} value={formData.courseId} onChange={(e) => setFormData({ ...formData, courseId: e.target.value, semesterId: '', sectionId: '' })} className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white font-medium">
-                  <option value="">Select Course</option>
+                  <option value="">Select {academic.label('course')}</option>
                   {courses.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
               </div>
               <div>
-                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Semester *</label>
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">{academic.label('semester')} *</label>
                 <select required disabled={!formData.courseId} value={formData.semesterId} onChange={(e) => setFormData({ ...formData, semesterId: e.target.value, sectionId: '' })} className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white font-medium">
-                  <option value="">Select Semester</option>
+                  <option value="">Select {academic.label('semester')}</option>
                   {semesters.map((sem) => <option key={sem.id} value={sem.id}>{sem.name}</option>)}
                 </select>
               </div>
               <div>
-                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Section *</label>
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">{academic.label('section')} *</label>
                 <select required disabled={!formData.semesterId} value={formData.sectionId} onChange={(e) => setFormData({ ...formData, sectionId: e.target.value })} className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white font-medium">
-                  <option value="">Select Section</option>
+                  <option value="">Select {academic.label('section')}</option>
                   {sections.map((sec) => <option key={sec.id} value={sec.id}>{sec.name}</option>)}
                 </select>
               </div>

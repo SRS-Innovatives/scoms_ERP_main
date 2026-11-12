@@ -147,6 +147,7 @@ export const navigationConfig = [
     icon: MessageSquare,
     children: [
       { key: 'send-announcement', title: 'Send Announcement', path: '/staff/communication/announcements' },
+      { key: 'circulars', title: 'Official Circulars', path: '/staff/communication/circulars' },
       { key: 'class-notice', title: 'Class Notice Board', path: '/staff/communication/notices' },
       { key: 'parent-message', title: 'Parent Messaging', path: '/staff/communication/parent-messages' },
       { key: 'student-chat', title: 'Student Chat', path: '/staff/communication/student-chat' },
