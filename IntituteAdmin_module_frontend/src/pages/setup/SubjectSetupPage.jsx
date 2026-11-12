@@ -5,6 +5,7 @@ import EmptyState from '../../components/common/EmptyState';
 import FormModal from '../../components/common/FormModal';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
 import { useNotification } from '../../context/NotificationContext';
+import { useAcademic } from '../../context/InstitutionContext';
 import subjectService from '../../services/subjectService';
 import courseService from '../../services/courseService';
 import { Book, Edit, Trash2, Upload, LayoutGrid, X, AlertTriangle, Check } from 'lucide-react';
@@ -13,7 +14,7 @@ const emptyForm = { code: '', name: '', type: 'THEORY', credits: '' };
 
 /** Multi-select checklist of every class this institution has — used both to map a
  * single subject and (implicitly) as the model for a future bulk matrix view. */
-const ClassMappingModal = ({ subject, courses, onClose, onSave, submitting }) => {
+const ClassMappingModal = ({ subject, courses, onClose, onSave, submitting, unit = 'Class' }) => {
   const [selected, setSelected] = useState([]);
 
   useEffect(() => {
@@ -31,15 +32,15 @@ const ClassMappingModal = ({ subject, courses, onClose, onSave, submitting }) =>
           <div className="flex items-center gap-3">
             <div className="p-2.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/70 text-indigo-600 dark:text-indigo-400"><LayoutGrid className="w-5 h-5" /></div>
             <div>
-              <h3 className="text-base font-bold text-slate-900 dark:text-white">Map "{subject.name}" to Classes</h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400">Select every class that teaches this subject</p>
+              <h3 className="text-base font-bold text-slate-900 dark:text-white">Map "{subject.name}" to {unit}s</h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400">Select every {unit.toLowerCase()} that teaches this subject</p>
             </div>
           </div>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"><X className="w-5 h-5" /></button>
         </div>
 
         {courses.length === 0 ? (
-          <p className="text-xs text-slate-400 py-4">No classes set up yet — add classes under Institution Setup first.</p>
+          <p className="text-xs text-slate-400 py-4">No {unit.toLowerCase()}s set up yet — add them under Institution Setup first.</p>
         ) : (
           <div className="overflow-y-auto flex-1 space-y-1.5 pr-1">
             {courses.map((c) => (
@@ -53,7 +54,7 @@ const ClassMappingModal = ({ subject, courses, onClose, onSave, submitting }) =>
         )}
 
         <div className="flex items-center justify-between gap-2 mt-5 pt-4 border-t border-slate-100 dark:border-slate-800">
-          <span className="text-[11px] text-slate-400">{selected.length} class(es) selected</span>
+          <span className="text-[11px] text-slate-400">{selected.length} {unit.toLowerCase()}(s) selected</span>
           <div className="flex items-center gap-2">
             <button onClick={onClose} className="px-4 py-2 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-lg font-semibold text-xs">Cancel</button>
             <button onClick={() => onSave(selected)} disabled={submitting} className="flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-semibold text-xs disabled:opacity-50">
@@ -68,6 +69,10 @@ const ClassMappingModal = ({ subject, courses, onClose, onSave, submitting }) =>
 
 export const SubjectSetupPage = () => {
   const { notifySuccess, notifyError } = useNotification();
+  const academic = useAcademic();
+  const unit = academic.label('course');
+  // Credits only where the institution's regulations use them (fail-open while loading)
+  const showCredits = academic.regulations ? academic.regulations.creditsEnabled : true;
   const [subjects, setSubjects] = useState([]);
   const [courses, setCourses] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -121,7 +126,7 @@ export const SubjectSetupPage = () => {
         notifySuccess(`Subject ${form.name} updated successfully!`);
       } else {
         await subjectService.create(form);
-        notifySuccess(`Subject ${form.name} created — it won't appear on any class until you map it to one.`);
+        notifySuccess(`Subject ${form.name} created — it won't appear on any ${unit.toLowerCase()} until you map it to one.`);
       }
       setModalOpen(false);
       fetchAll();
@@ -177,22 +182,22 @@ export const SubjectSetupPage = () => {
     { header: 'Subject Code', key: 'code', render: (val) => <span className="font-mono font-bold text-indigo-600">{val}</span> },
     { header: 'Subject Title', key: 'name', render: (val) => <span className="font-bold text-slate-900 dark:text-white">{val}</span> },
     {
-      header: 'Mapped Classes', key: 'classMappings', sortable: false,
+      header: `Mapped ${unit}s`, key: 'classMappings', sortable: false,
       render: (val) => val?.length > 0 ? (
         <div className="flex flex-wrap gap-1">
           {val.map((m) => <span key={m.course?.id} className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-400">{m.course?.name}</span>)}
         </div>
-      ) : <span className="text-[10px] font-semibold text-amber-600 dark:text-amber-400">Not mapped to any class</span>,
+      ) : <span className="text-[10px] font-semibold text-amber-600 dark:text-amber-400">Not mapped to any {unit.toLowerCase()}</span>,
     },
     { header: 'Type', key: 'type', render: (val) => <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-700">{val}</span> },
-    { header: 'Credits', key: 'credits', render: (val) => <span className="font-bold font-mono">{val} Credits</span> },
+    ...(showCredits ? [{ header: 'Credits', key: 'credits', render: (val) => <span className="font-bold font-mono">{val} Credits</span> }] : []),
     {
       header: 'Actions',
       key: 'actions',
       sortable: false,
       render: (_, row) => (
         <div className="flex items-center gap-2">
-          <button onClick={() => setMappingSubject(row)} className="p-1.5 text-slate-500 hover:text-indigo-600 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-950" title="Map to Classes">
+          <button onClick={() => setMappingSubject(row)} className="p-1.5 text-slate-500 hover:text-indigo-600 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-950" title={`Map to ${unit}s`}>
             <LayoutGrid className="w-3.5 h-3.5" />
           </button>
           <button onClick={() => openEditModal(row)} className="p-1.5 text-slate-500 hover:text-indigo-600 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-950" title="Edit">
@@ -216,7 +221,7 @@ export const SubjectSetupPage = () => {
         <div>
           <h1 className="text-xl font-bold text-slate-900 dark:text-white">Subject Setup</h1>
           <p className="text-xs text-slate-500 dark:text-slate-400">
-            Create your subjects once, institution-wide, then map each one to whichever classes teach it
+            Create your subjects once, institution-wide, then map each one to whichever {unit.toLowerCase()}s teach it
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -249,12 +254,12 @@ export const SubjectSetupPage = () => {
               </ul>
             </div>
           )}
-          <p className="text-indigo-600 dark:text-indigo-400 font-semibold">Now use the class icon on each new subject below to map it to the classes that teach it.</p>
+          <p className="text-indigo-600 dark:text-indigo-400 font-semibold">Now use the mapping icon on each new subject below to map it to the {unit.toLowerCase()}s that teach it.</p>
         </div>
       )}
 
       {!loading && filtered.length === 0 ? (
-        <EmptyState title="No Subjects Found" description="Add a subject, or upload several at once, then map them to the classes that teach them." actionLabel="Add Subject" onAction={openAddModal} />
+        <EmptyState title="No Subjects Found" description={`Add a subject, or upload several at once, then map them to the ${unit.toLowerCase()}s that teach them.`} actionLabel="Add Subject" onAction={openAddModal} />
       ) : (
         <DataTable columns={columns} data={filtered} loading={loading} />
       )}
@@ -262,7 +267,7 @@ export const SubjectSetupPage = () => {
       <FormModal
         isOpen={modalOpen}
         title={editingId ? 'Edit Subject' : 'Add Subject'}
-        subtitle={editingId ? undefined : 'Class mapping is a separate step — use the class icon after creating it'}
+        subtitle={editingId ? undefined : `${unit} mapping is a separate step — use the mapping icon after creating it`}
         icon={Book}
         submitLabel={editingId ? 'Save Changes' : 'Create Subject'}
         isSubmitting={submitting}
@@ -284,11 +289,11 @@ export const SubjectSetupPage = () => {
               { value: 'LAB', label: 'Lab' },
             ],
           },
-          { name: 'credits', label: 'Credits', type: 'number', required: true },
+          ...(showCredits ? [{ name: 'credits', label: 'Credits', type: 'number', required: true }] : []),
         ]}
       />
 
-      <ClassMappingModal subject={mappingSubject} courses={courses} onClose={() => setMappingSubject(null)} onSave={handleSaveMapping} submitting={mappingSubmitting} />
+      <ClassMappingModal subject={mappingSubject} courses={courses} onClose={() => setMappingSubject(null)} onSave={handleSaveMapping} submitting={mappingSubmitting} unit={unit} />
 
       <ConfirmDialog
         isOpen={!!deleteTarget}

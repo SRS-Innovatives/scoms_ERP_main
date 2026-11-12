@@ -11,6 +11,7 @@ const attendanceController = require('../controllers/attendanceController');
 const assignmentController = require('../controllers/assignmentController');
 const examController = require('../controllers/examController');
 const announcementController = require('../controllers/announcementController');
+const circularController = require('../controllers/circularController');
 const timetableController = require('../controllers/timetableController');
 const profileController = require('../controllers/profileController');
 const libraryController = require('../controllers/libraryController');
@@ -78,6 +79,7 @@ router.use('/attendance', requireModule('attendance'));
 router.get('/attendance/self', profileController.getMyAttendance);
 router.get('/attendance/sms-status', shadowPermission(PERMISSIONS.ATTENDANCE_VIEW), attendanceController.getSmsStatus);
 router.get('/attendance/my-classes', shadowPermission(PERMISSIONS.ATTENDANCE_VIEW), attendanceController.getMyClasses);
+router.get('/attendance/class-teacher-sections', shadowPermission(PERMISSIONS.ATTENDANCE_VIEW), attendanceController.getClassTeacherSections);
 router.get('/attendance/roster', shadowPermission(PERMISSIONS.ATTENDANCE_VIEW), attendanceController.getRoster);
 router.get('/attendance/session', shadowPermission(PERMISSIONS.ATTENDANCE_VIEW), attendanceController.getSession);
 router.get('/attendance/history', shadowPermission(PERMISSIONS.ATTENDANCE_VIEW), attendanceController.getHistory);
@@ -127,6 +129,10 @@ router.post('/exam-schedules/:scheduleId/approve', requirePermissionStrict(PERMI
 router.use('/announcements', requireModule('communication'));
 router.get('/announcements', announcementController.getAnnouncements);
 router.post('/announcements', shadowPermission(PERMISSIONS.ANNOUNCEMENTS_CREATE), announcementController.createAnnouncement);
+
+// Official circulars from the Institute Admin (audience ALL / STAFF)
+router.get('/circulars', requireModule('communication'), circularController.getCirculars);
+router.get('/circulars/:id', requireModule('communication'), circularController.getCircular);
 
 // Timetable
 router.use('/timetable', requireModule('timetable'));
@@ -195,8 +201,10 @@ router.post('/materials', shadowPermission(PERMISSIONS.MATERIALS_UPLOAD), materi
 router.delete('/materials/:id', shadowPermission(PERMISSIONS.MATERIALS_UPLOAD), materialController.deleteMaterial);
 
 // Student Leave Approval (for sections this staff member teaches)
-router.get('/student-leave', shadowPermission(PERMISSIONS.LEAVE_APPROVE), studentLeaveController.getStudentLeaves);
-router.patch('/student-leave/:id', shadowPermission(PERMISSIONS.LEAVE_APPROVE), studentLeaveController.updateStudentLeaveStatus);
+// Access is decided per section inside the controller (class teacher decides, subject
+// teachers view) — see shared/academic/teachingScope.js — not by a role-wide permission
+router.get('/student-leave', studentLeaveController.getStudentLeaves);
+router.patch('/student-leave/:id', studentLeaveController.updateStudentLeaveStatus);
 
 // Messages
 router.use('/messages', requireModule('messaging'));

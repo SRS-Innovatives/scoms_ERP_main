@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Clock, Loader2, Send, UserCheck } from 'lucide-react';
 import timetableService from '../../services/timetableService';
 import { useNotification } from '../../context/NotificationContext';
+import { useAcademic } from '../../context/InstitutionContext';
 
 const JS_DAYS = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
 const card = 'glass-card p-6 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-4';
@@ -34,6 +35,7 @@ const RequestLine = ({ r, children }) => (
 );
 
 export const SubstituteClassesPage = () => {
+  const academic = useAcademic();
   const { success, error: showError } = useNotification();
   const [loading, setLoading] = useState(true);
   const [classes, setClasses] = useState([]);
@@ -129,7 +131,7 @@ export const SubstituteClassesPage = () => {
         ) : (
           <form onSubmit={submit} className="grid grid-cols-1 md:grid-cols-4 gap-3 items-end text-xs">
             <label className="md:col-span-2">
-              <span className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Class</span>
+              <span className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">{academic.label('course')} / {academic.label('section')}</span>
               <select value={form.timetableEntryId} onChange={(e) => setForm({ ...form, timetableEntryId: e.target.value })} className={input}>
                 <option value="">Select class</option>
                 {classes.map((c) => (

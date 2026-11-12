@@ -9,6 +9,7 @@
 const prisma = require('../database/client');
 const { NotFoundError, ValidationError, AuthorizationError } = require('../errors/customErrors');
 const { REPORT_REGISTRY } = require('./registry');
+const { localizeAcademicLabels } = require('../academic/institutionAcademic');
 
 /** Loads a report's full definition, scoped by what this institution has enabled — never
  * exposes a report the institution doesn't actually have access to. */
@@ -38,7 +39,8 @@ const getReportDefinition = async (code, institutionId) => {
     icon: report.icon,
     allowedFormats: institutionReport?.allowedFormats || report.allowedFormats || ['PREVIEW', 'PDF', 'EXCEL', 'CSV', 'PRINT'],
     allowedRoles: institutionReport?.allowedRoles || report.allowedRoles || null,
-    filters: report.filters.map((f) => ({
+    // Seeded labels are generic ("Course", "Section") — shown in the institution's own terms
+    filters: await localizeAcademicLabels(report.filters.map((f) => ({
       fieldKey: f.fieldKey,
       label: f.label,
       inputType: f.inputType,
@@ -49,8 +51,8 @@ const getReportDefinition = async (code, institutionId) => {
       options: f.options,
       source: f.source,
       dependsOn: f.dependsOn,
-    })),
-    columns: report.columns
+    })), institutionId),
+    columns: await localizeAcademicLabels(report.columns
       .filter((c) => c.visible)
       .map((c) => ({
         fieldKey: c.fieldKey,
@@ -60,7 +62,7 @@ const getReportDefinition = async (code, institutionId) => {
         width: c.width,
         format: c.format,
         aggregation: c.aggregation,
-      })),
+      })), institutionId),
     _internal: { reportId: report.id, handlerKey: report.handlerKey },
   };
 };

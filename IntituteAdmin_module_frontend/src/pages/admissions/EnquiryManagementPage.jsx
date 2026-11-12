@@ -6,6 +6,7 @@ import FormModal from '../../components/common/FormModal';
 import { useNotification } from '../../context/NotificationContext';
 import enquiryService from '../../services/enquiryService';
 import { UserPlus, Phone, Mail } from 'lucide-react';
+import { useAcademic } from '../../context/InstitutionContext';
 
 const emptyForm = {
   studentName: '', parentName: '', phone: '', email: '', classAppliedFor: '', source: 'WALK_IN', followUpDate: '', notes: '',
@@ -23,6 +24,7 @@ const STATUS_STYLES = {
 };
 
 export const EnquiryManagementPage = () => {
+  const academic = useAcademic();
   const { notifySuccess, notifyError } = useNotification();
   const [enquiries, setEnquiries] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -151,7 +153,7 @@ export const EnquiryManagementPage = () => {
           { name: 'parentName', label: 'Parent Name' },
           { name: 'phone', label: 'Phone', required: true },
           { name: 'email', label: 'Email' },
-          { name: 'classAppliedFor', label: 'Class Applied For' },
+          { name: 'classAppliedFor', label: `${academic.label('course')} Applied For` },
           { name: 'source', label: 'Source', type: 'select', options: SOURCES.map((s) => ({ value: s, label: s.replace('_', ' ') })) },
           { name: 'followUpDate', label: 'Follow-up Date', type: 'date' },
           { name: 'notes', label: 'Notes', type: 'textarea', span: 'full' },

@@ -8,13 +8,23 @@ const {
   sendPaginated,
   NotFoundError,
   ValidationError,
+  ConflictError,
   hashPassword,
   ROLES,
   MODULE_CATALOG,
   OPTIONAL_MODULE_KEYS,
   generateUserCode,
   pushNotificationToMany,
+  assertInstitutionType,
+  normalizeAcademicConfig,
+  resolveAcademicStructure,
+  getAcademicStructureCatalog,
 } = require('../../../shared');
+
+const { Prisma } = require('@prisma/client');
+
+/** Types that can carry a real link to an onboarded affiliating university. */
+const AFFILIABLE_TYPES = ['COLLEGE', 'AUTONOMOUS_COLLEGE'];
 
 /** Every platform-level user (Super Admin + Platform Admin) — the audience for
  * institution-onboarded/support-ticket style notifications that aren't tied to one tenant. */
@@ -68,26 +78,34 @@ const createInstitutionOnboarding = async (req, res, next) => {
     const {
       name, code, type, registrationNumber, affiliation, affiliatedUniversityId, email, phone,
       address, city, district, state, pincode, country, logo,
-      establishmentYear, adminName, adminEmail, adminPassword, plan, modules, accreditation
+      establishmentYear, adminName, adminEmail, adminPassword, plan, modules, accreditation,
+      academicConfig,
     } = req.body;
+
+    const institutionType = type || 'COLLEGE';
+    assertInstitutionType(institutionType);
+    const normalizedAcademicConfig = normalizeAcademicConfig(institutionType, academicConfig);
 
     const result = await prisma.$transaction(async (tx) => {
       // 1. Validate if code exists
       const existing = await tx.institution.findUnique({ where: { code } });
       if (existing) {
-        throw new Error('Institution with this code already exists');
+        throw new ConflictError('Institution with this code already exists');
       }
 
       // 2. Validate email for admin early
       if (adminEmail) {
         const existingUser = await tx.user.findUnique({ where: { email: adminEmail } });
         if (existingUser) {
-          throw new Error('User with this admin email already exists');
+          throw new ConflictError('User with this admin email already exists');
         }
       }
 
       // 2b. A real affiliation link must actually point at a University institution
       if (affiliatedUniversityId) {
+        if (!AFFILIABLE_TYPES.includes(institutionType)) {
+          throw new ValidationError('Only a College or Autonomous College can be linked to an affiliating university');
+        }
         const university = await tx.institution.findFirst({ where: { id: affiliatedUniversityId, type: 'UNIVERSITY' } });
         if (!university) throw new NotFoundError('Selected affiliated university not found');
       }
@@ -100,7 +118,8 @@ const createInstitutionOnboarding = async (req, res, next) => {
         data: {
           name,
           code,
-          type: type || 'COLLEGE',
+          type: institutionType,
+          academicConfig: normalizedAcademicConfig ?? undefined,
           registrationNumber,
           affiliation: orNull(affiliation || accreditation), // store accreditation here if needed, or use separate field
           affiliatedUniversityId: orNull(affiliatedUniversityId),
@@ -193,7 +212,7 @@ const createInstituteAdmin = async (req, res, next) => {
 
       // 3. Validate email uniqueness
       const existingUser = await tx.user.findUnique({ where: { email } });
-      if (existingUser) throw new Error('User with this email already exists');
+      if (existingUser) throw new ConflictError('User with this email already exists');
 
       // 4. Hash password
       const hashedPassword = await hashPassword(password);
@@ -268,7 +287,11 @@ const getInstitutionById = async (req, res, next) => {
       throw new NotFoundError('Institution not found');
     }
 
-    return sendSuccess(res, institution, 'Institution details retrieved');
+    return sendSuccess(
+      res,
+      { ...institution, academicStructure: resolveAcademicStructure(institution.type, institution.academicConfig) },
+      'Institution details retrieved'
+    );
   } catch (err) {
     next(err);
   }
@@ -308,17 +331,57 @@ const updateInstitutionStatus = async (req, res, next) => {
   }
 };
 
+// Profile fields the edit form may change. Status and modules have their own endpoints
+// (with their own permission + audit), and code/id/timestamps are never client-editable.
+const UPDATABLE_PROFILE_FIELDS = [
+  'name', 'affiliation', 'registrationNumber', 'gstin', 'email', 'phone', 'website', 'logo',
+  'principalName', 'establishedYear', 'address', 'city', 'district', 'state', 'pincode',
+  'country', 'board', 'university',
+];
+
 const updateInstitution = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const updateData = req.body;
-    
-    // Convert establishedYear to int if present
-    if (updateData.establishedYear) {
-      updateData.establishedYear = parseInt(updateData.establishedYear);
-    }
-    
+    const body = req.body || {};
+
     const oldInstitution = await prisma.institution.findUnique({ where: { id } });
+    if (!oldInstitution) throw new NotFoundError('Institution not found');
+
+    const updateData = {};
+    for (const key of UPDATABLE_PROFILE_FIELDS) {
+      if (body[key] !== undefined) updateData[key] = body[key];
+    }
+    if (updateData.name !== undefined && !String(updateData.name).trim()) {
+      throw new ValidationError('Institution name is required');
+    }
+    if (updateData.establishedYear !== undefined) {
+      const year = updateData.establishedYear === null || updateData.establishedYear === '' ? null : parseInt(updateData.establishedYear, 10);
+      if (year !== null && !Number.isInteger(year)) throw new ValidationError('Established year must be a number');
+      updateData.establishedYear = year;
+    }
+
+    // Type + academic structure: changing type keeps every existing academic record —
+    // only which levels/labels/regulations apply changes (see academicStructure.js).
+    const nextType = body.type !== undefined ? body.type : oldInstitution.type;
+    assertInstitutionType(nextType);
+    if (body.type !== undefined) updateData.type = nextType;
+    if (body.academicConfig !== undefined || body.type !== undefined) {
+      const sourceConfig = body.academicConfig !== undefined ? body.academicConfig : oldInstitution.academicConfig;
+      const normalized = normalizeAcademicConfig(nextType, sourceConfig);
+      updateData.academicConfig = normalized === null ? Prisma.DbNull : normalized;
+    }
+
+    if (body.affiliatedUniversityId !== undefined || body.type !== undefined) {
+      const requested = body.affiliatedUniversityId !== undefined ? body.affiliatedUniversityId : oldInstitution.affiliatedUniversityId;
+      if (requested && AFFILIABLE_TYPES.includes(nextType)) {
+        if (requested === id) throw new ValidationError('An institution cannot be affiliated to itself');
+        const university = await prisma.institution.findFirst({ where: { id: requested, type: 'UNIVERSITY' } });
+        if (!university) throw new NotFoundError('Selected affiliated university not found');
+        updateData.affiliatedUniversityId = requested;
+      } else {
+        updateData.affiliatedUniversityId = null; // only colleges carry an affiliation link
+      }
+    }
 
     const institution = await prisma.institution.update({
       where: { id },
@@ -364,6 +427,14 @@ const deleteInstitution = async (req, res, next) => {
 const getModuleCatalog = async (req, res, next) => {
   try {
     return sendSuccess(res, MODULE_CATALOG, 'Module catalog retrieved');
+  } catch (err) {
+    next(err);
+  }
+};
+
+const getAcademicStructureCatalogHandler = async (req, res, next) => {
+  try {
+    return sendSuccess(res, getAcademicStructureCatalog(), 'Academic structure catalog retrieved');
   } catch (err) {
     next(err);
   }
@@ -460,6 +531,7 @@ module.exports = {
   updateInstitution,
   updateInstitutionModules,
   getModuleCatalog,
+  getAcademicStructureCatalog: getAcademicStructureCatalogHandler,
   deleteInstitution,
   getAuditLogs,
 };

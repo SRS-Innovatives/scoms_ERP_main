@@ -5,10 +5,12 @@ import { Loader2, Paperclip, ClipboardList } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import homeworkService from '../../services/homeworkService';
 import ErrorState from '../../components/common/ErrorState';
+import { useAcademic } from '../../context/InstitutionContext';
 
 /** Read-only, institution-wide view of every homework post — actual posting happens on
  * the Staff side per subject/section, same division as attendance oversight. */
 export const HomeworkListPage = () => {
+  const academic = useAcademic();
   const { error: showError } = useNotification();
   const navigate = useNavigate();
   const [homework, setHomework] = useState([]);
@@ -40,7 +42,7 @@ export const HomeworkListPage = () => {
         </div>
       ),
     },
-    { header: 'Class', key: 'className' },
+    { header: `${academic.label('course')} / ${academic.label('section')}`, key: 'className' },
     {
       header: 'Posted By',
       key: 'staff',

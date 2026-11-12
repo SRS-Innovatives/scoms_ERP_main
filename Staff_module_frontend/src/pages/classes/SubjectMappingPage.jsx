@@ -2,10 +2,12 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { BookOpen, CheckCircle, Loader2 } from 'lucide-react';
 import attendanceService from '../../services/attendanceService';
 import { useNotification } from '../../context/NotificationContext';
+import { useAcademic } from '../../context/InstitutionContext';
 import ErrorState from '../../components/common/ErrorState';
 
 export const SubjectMappingPage = () => {
   const { error: showError } = useNotification();
+  const academic = useAcademic();
   const [mappings, setMappings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -42,7 +44,7 @@ export const SubjectMappingPage = () => {
           <table className="w-full text-left text-xs">
             <thead className="bg-slate-100 dark:bg-slate-800 uppercase font-semibold text-slate-600 dark:text-slate-400">
               <tr>
-                <th className="p-3">Class Name</th>
+                <th className="p-3">{academic.label('course')} / {academic.label('section')}</th>
                 <th className="p-3">Subject Name</th>
                 <th className="p-3">Subject Code</th>
                 <th className="p-3">Students Enrolled</th>

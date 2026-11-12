@@ -56,6 +56,10 @@ model Institution {
   establishedYear        Int?
   planName               String?
   modules                Json?
+  // Per-institution overrides of its type's academic structure (enabled levels, labels,
+  // period type, regulations) — null = the type's defaults. Always read through
+  // shared/academic/academicStructure.js resolveAcademicStructure(), never directly.
+  academicConfig         Json?
   status                 InstitutionStatus @default(ACTIVE)
   createdAt              DateTime          @default(now())
   updatedAt              DateTime          @updatedAt
@@ -64,6 +68,9 @@ model Institution {
   // Relations
   users                           User[]
   academicYears                   AcademicYear[]
+  faculties                       Faculty[]
+  circulars                       Circular[]
+  houses                          House[]
   departments                     Department[]
   courses                         Course[]
   programs                        Program[]
@@ -638,7 +645,10 @@ model AcademicCalendarEvent {
   @@index([institutionId, startDate])
 }
 
-model Department {
+/// University-level grouping above Department (e.g. "School of Engineering"). Optional —
+/// only used when the institution's academic structure enables the "faculty" level, and a
+/// Department with no facultyId behaves exactly as before.
+model Faculty {
   id            String   @id @default(uuid())
   institutionId String
   code          String
@@ -647,13 +657,31 @@ model Department {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
+  institution Institution  @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  departments Department[]
+
+  @@unique([institutionId, code])
+}
+
+model Department {
+  id            String   @id @default(uuid())
+  institutionId String
+  facultyId     String?
+  code          String
+  name          String
+  description   String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
   institution Institution @relation(fields: [institutionId], references: [id])
+  faculty     Faculty?    @relation(fields: [facultyId], references: [id], onDelete: SetNull)
   courses     Course[]
   programs    Program[]
   staff       Staff[]
   students    Student[]
 
   @@unique([institutionId, code])
+  @@index([facultyId])
 }
 
 /// College-only grouping above Course (e.g. "B.Tech" over "B.Tech CSE", "B.Tech ECE").
@@ -1017,6 +1045,7 @@ model Student {
   semesterId   String?
   sectionId    String?
   batchId      String?
+  houseId      String? // House / group the student belongs to (optional)
 
   // Institution-specific extra admission fields — only ever populated from fields that
   // were APPROVED by SuperAdmin at the time of submission (see AdmissionCustomField).
@@ -1030,6 +1059,7 @@ model Student {
   course                Course?                       @relation(fields: [courseId], references: [id])
   section               Section?                      @relation(fields: [sectionId], references: [id])
   batch                 Batch?                        @relation(fields: [batchId], references: [id], onDelete: SetNull)
+  house                 House?                        @relation(fields: [houseId], references: [id], onDelete: SetNull)
   markCorrections       MarkCorrectionRequest[]
   attendanceCorrections AttendanceCorrectionRequest[]
   parents               ParentStudent[]
@@ -1150,6 +1180,7 @@ model Staff {
   department                Department?               @relation(fields: [departmentId], references: [id])
   subjectTeacherMappings    SubjectTeacherMapping[]
   classTeacherOf            Section[]                 @relation("SectionClassTeacher")
+  mentoredHouses            House[]                   @relation("HouseMentor")
   attendanceSessions        AttendanceSession[]
   timetableEntries          TimetableEntry[]
   substitutesRequested      SubstituteRequest[]       @relation("SubstituteOriginal")
@@ -3997,4 +4028,60 @@ model InstitutionCustomList {
 
   @@unique([institutionId, listType, code])
   @@index([institutionId, listType])
+}
+
+/// Official circulars issued by the institution (reference number, signatory, PDF) —
+/// shown read-only in the Staff and Student/Parent portals according to `audience`.
+model Circular {
+  id             String   @id @default(uuid())
+  institutionId  String
+  refNo          String
+  title          String
+  description    String?
+  issuedBy       String // signatory, e.g. "Principal"
+  issueDate      DateTime @default(now())
+  audience       String   @default("ALL") // ALL, STAFF, STUDENTS, PARENTS
+  attachment     String? // base64 data URI (PDF or image), same convention as other uploads
+  attachmentName String?
+  createdById    String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  institution Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+
+  @@unique([institutionId, refNo])
+  @@index([institutionId, issueDate])
+}
+
+/// Houses / groups (e.g. Ruby, Sapphire) with a mentor teacher, member students and a
+/// points log — totals are always summed from HousePointEntry, never stored.
+model House {
+  id            String   @id @default(uuid())
+  institutionId String
+  name          String
+  color         String   @default("#6366f1")
+  description   String?
+  mentorStaffId String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  institution Institution       @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  mentor      Staff?            @relation("HouseMentor", fields: [mentorStaffId], references: [id], onDelete: SetNull)
+  students    Student[]
+  points      HousePointEntry[]
+
+  @@unique([institutionId, name])
+}
+
+model HousePointEntry {
+  id          String   @id @default(uuid())
+  houseId     String
+  points      Int // may be negative (a deduction)
+  reason      String
+  awardedById String? // User.id
+  createdAt   DateTime @default(now())
+
+  house House @relation(fields: [houseId], references: [id], onDelete: Cascade)
+
+  @@index([houseId, createdAt])
 }

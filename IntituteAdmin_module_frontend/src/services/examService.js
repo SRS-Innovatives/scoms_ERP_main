@@ -9,6 +9,10 @@ const getConsolidatedReport = (examId, sectionId) =>
   apiCall(`/exams/${examId}/consolidated-report${sectionId ? `?sectionId=${sectionId}` : ''}`);
 
 const getSchedules = (examId) => apiCall(`/exam-schedules${examId ? `?examId=${examId}` : ''}`);
+// Read-only insights built from real exam records
+const getSubjectAnalysis = (examId) => apiCall(`/exams/${examId}/subject-analysis`);
+const getHallTickets = (examId, sectionId) => apiCall(`/exams/${examId}/hall-tickets?sectionId=${sectionId}`);
+const getProgressReport = (studentId, examId) => apiCall(`/students/${studentId}/progress-report${examId ? `?examId=${examId}` : ''}`);
 const createSchedule = (payload) => apiCall('/exam-schedules', { method: 'POST', body: payload });
 const deleteSchedule = (id) => apiCall(`/exam-schedules/${id}`, { method: 'DELETE' });
 const getMarksRoster = (scheduleId) => apiCall(`/exam-schedules/${scheduleId}/marks`);
@@ -35,6 +39,7 @@ const reviewCorrectionRequest = (id, decision, remarks) =>
 export const examService = {
   getExams, createExam, updateExamStatus, getRankList, getConsolidatedReport,
   getSchedules, createSchedule, deleteSchedule, getMarksRoster, saveMarks, publishResults,
+  getSubjectAnalysis, getHallTickets, getProgressReport,
   unlockSchedule, importMarksCsv,
   submitMarks, verifyMarks, approveMarks, returnMarks, getReviewQueue,
   createCorrectionRequest, getCorrectionRequests, reviewCorrectionRequest,

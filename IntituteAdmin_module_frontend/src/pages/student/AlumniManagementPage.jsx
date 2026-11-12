@@ -7,6 +7,7 @@ import ConfirmDialog from '../../components/common/ConfirmDialog';
 import { useNotification } from '../../context/NotificationContext';
 import alumniService from '../../services/alumniService';
 import { GraduationCap, Edit, Trash2, Link2, Mail } from 'lucide-react';
+import { useAcademic } from '../../context/InstitutionContext';
 
 const emptyForm = {
   studentId: '', fullName: '', graduationYear: new Date().getFullYear(), courseName: '',
@@ -14,6 +15,7 @@ const emptyForm = {
 };
 
 export const AlumniManagementPage = () => {
+  const academic = useAcademic();
   const { notifySuccess, notifyError } = useNotification();
   const [alumni, setAlumni] = useState([]);
   const [eligibleStudents, setEligibleStudents] = useState([]);
@@ -108,7 +110,7 @@ export const AlumniManagementPage = () => {
       ),
     },
     { header: 'Graduation Year', key: 'graduationYear', render: (val) => <span className="font-mono font-bold text-indigo-600">{val}</span> },
-    { header: 'Course', key: 'courseName', render: (val) => val || '—' },
+    { header: academic.label('course'), key: 'courseName', render: (val) => val || '—' },
     { header: 'Current Employer', key: 'currentEmployer', render: (val) => <span className="font-semibold text-slate-800 dark:text-slate-200">{val || '—'}</span> },
     { header: 'Designation', key: 'currentDesignation', render: (val) => val || '—' },
     {
@@ -192,7 +194,7 @@ export const AlumniManagementPage = () => {
           },
           { name: 'fullName', label: 'Full Name', required: true },
           { name: 'graduationYear', label: 'Graduation Year', type: 'number', required: true },
-          { name: 'courseName', label: 'Course / Degree' },
+          { name: 'courseName', label: academic.label('course') },
           { name: 'currentEmployer', label: 'Current Employer' },
           { name: 'currentDesignation', label: 'Current Designation' },
           { name: 'email', label: 'Email' },

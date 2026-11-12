@@ -12,6 +12,7 @@ const {
   sendSuccess,
   NotFoundError,
   ValidationError,
+  ConflictError,
   hashPassword,
   sendEmailNotification,
   sendSMSNotification,
@@ -129,7 +130,7 @@ const createStaff = async (req, res, next) => {
       // 2. Validate email if provided
       if (email) {
         const existingUser = await tx.user.findUnique({ where: { email } });
-        if (existingUser) throw new Error('Email already registered');
+        if (existingUser) throw new ConflictError('Email already registered');
       }
 
       // 3. Validate department if provided
@@ -137,7 +138,7 @@ const createStaff = async (req, res, next) => {
         const dept = await tx.department.findFirst({
           where: { id: departmentId, institutionId: req.institutionId }
         });
-        if (!dept) throw new Error('Department not found or access denied');
+        if (!dept) throw new NotFoundError('Department not found or access denied');
       }
 
       // 4. Create user
@@ -464,13 +465,28 @@ const assignTeacher = async (req, res, next) => {
     const staff = await prisma.staff.findFirst({
       where: { id: staffId, institutionId: req.institutionId }
     });
-    if (!staff) throw new Error('Staff not found or access denied');
+    if (!staff) throw new NotFoundError('Staff not found or access denied');
 
     // Validate subject belongs to tenant
     const subject = await prisma.subject.findFirst({
       where: { id: subjectId, institutionId: req.institutionId }
     });
-    if (!subject) throw new Error('Subject not found or access denied');
+    if (!subject) throw new NotFoundError('Subject not found or access denied');
+
+    // The class must be this institution's, and the subject must be one set up for that
+    // class (Subject Setup -> map to class). A subject with no class mapping at all is
+    // still accepted, so institutions that never mapped subjects keep working.
+    if (sectionId) {
+      const section = await prisma.section.findFirst({
+        where: { id: sectionId, semester: { course: { institutionId: req.institutionId } } },
+        select: { semester: { select: { courseId: true } } },
+      });
+      if (!section) throw new NotFoundError('Class/section not found or access denied');
+      const classMappings = await prisma.subjectClassMapping.findMany({ where: { subjectId }, select: { courseId: true } });
+      if (classMappings.length > 0 && !classMappings.some((m) => m.courseId === section.semester.courseId)) {
+        throw new ValidationError('This subject is not set up for that class. Map it to the class in Subject Setup first.');
+      }
+    }
 
     // A subject can only have one teacher per section — re-assigning replaces the
     // previous mapping instead of leaving two teachers silently attached to one class.
@@ -491,7 +507,7 @@ const removeTeacherAssignment = async (req, res, next) => {
     const existing = await prisma.subjectTeacherMapping.findFirst({
       where: { id, staff: { institutionId: req.institutionId } },
     });
-    if (!existing) throw new Error('Assignment not found or access denied');
+    if (!existing) throw new NotFoundError('Assignment not found or access denied');
     await prisma.subjectTeacherMapping.delete({ where: { id } });
     return sendSuccess(res, null, 'Teacher assignment removed successfully');
   } catch (err) {

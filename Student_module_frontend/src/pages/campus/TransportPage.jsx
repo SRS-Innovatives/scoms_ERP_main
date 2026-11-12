@@ -33,7 +33,7 @@ export const TransportPage = () => {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="College Transport & Bus Pass" subtitle="Your assigned route, boarding stop, and vehicle details." />
+      <PageHeader title="Transport & Bus Pass" subtitle="Your assigned route, boarding stop, and vehicle details." />
 
       {!mapping ? (
         <div className="glass-card p-8 rounded-3xl border border-slate-200 dark:border-slate-800 text-center text-xs text-slate-500 max-w-2xl">

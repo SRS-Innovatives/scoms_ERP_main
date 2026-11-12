@@ -5,6 +5,7 @@ import { CreditCard, QrCode, Building, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import feeService from '../../services/feeService';
 import { useStudentAuth } from '../../context/StudentAuthContext';
+import { useInstitution } from '../../context/InstitutionContext';
 import ErrorState from '../../components/common/ErrorState';
 
 const PAYMENT_MODES = [
@@ -35,6 +36,7 @@ export const PayFeesPage = () => {
   const { success, error: showError } = useNotification();
   const navigate = useNavigate();
   const { student } = useStudentAuth();
+  const { institution } = useInstitution();
   const [assignments, setAssignments] = useState([]);
   const [assignmentId, setAssignmentId] = useState('');
   const [amount, setAmount] = useState('');
@@ -108,7 +110,7 @@ export const PayFeesPage = () => {
           key: order.key,
           amount: Math.round(Number(amount) * 100),
           currency: order.currency || 'INR',
-          name: 'SCOMS Fee Payment',
+          name: institution?.name || 'Fee Payment',
           description: selected?.feeStructure?.name || 'Fee Payment',
           order_id: order.orderId,
           prefill: {

@@ -4,11 +4,13 @@ import { PlusCircle, Save, Loader2, Paperclip, FileText as FileIcon, Image as Im
 import { useNavigate } from 'react-router-dom';
 import assignmentService from '../../services/assignmentService';
 import ErrorState from '../../components/common/ErrorState';
+import { useAcademic } from '../../context/InstitutionContext';
 
 const MAX_ATTACHMENT_BYTES = 5 * 1024 * 1024; // 5MB
 const ACCEPTED_TYPES = ['image/png', 'image/jpeg', 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
 
 export const CreateAssignmentPage = () => {
+  const academic = useAcademic();
   const { success, error: showError } = useNotification();
   const navigate = useNavigate();
   const [classes, setClasses] = useState([]);
@@ -135,7 +137,7 @@ export const CreateAssignmentPage = () => {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Target Class & Subject</label>
+            <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Target {academic.label('course')} / {academic.label('section')} & Subject</label>
             <select
               value={formData.classKey}
               onChange={(e) => setFormData({ ...formData, classKey: e.target.value })}

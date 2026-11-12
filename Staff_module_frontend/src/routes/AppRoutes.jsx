@@ -78,6 +78,7 @@ import FreePeriodsPage from '../pages/timetable/FreePeriodsPage';
 
 // Communication
 import SendAnnouncementPage from '../pages/communication/SendAnnouncementPage';
+import CircularsPage from '../pages/communication/CircularsPage';
 import ClassNoticePage from '../pages/communication/ClassNoticePage';
 import ParentMessagePage from '../pages/communication/ParentMessagePage';
 import StudentChatPage from '../pages/communication/StudentChatPage';
@@ -233,6 +234,7 @@ export const AppRoutes = () => {
 
             {/* Communication */}
             <Route path="communication/announcements" element={<SendAnnouncementPage />} />
+            <Route path="communication/circulars" element={<CircularsPage />} />
             <Route path="communication/notices" element={<ClassNoticePage />} />
             <Route path="communication/parent-messages" element={<ParentMessagePage />} />
             <Route path="communication/student-chat" element={<StudentChatPage />} />

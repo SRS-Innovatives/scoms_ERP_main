@@ -4,8 +4,10 @@ import { Loader2, ClipboardX } from 'lucide-react';
 import { useNotification } from '../../context/NotificationContext';
 import attendanceService from '../../services/attendanceService';
 import ErrorState from '../../components/common/ErrorState';
+import { useAcademic } from '../../context/InstitutionContext';
 
 export const AttendanceReportPage = () => {
+  const academic = useAcademic();
   const { error: showError } = useNotification();
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -56,7 +58,7 @@ export const AttendanceReportPage = () => {
               <thead className="bg-slate-100 dark:bg-slate-800 uppercase font-semibold text-slate-600 dark:text-slate-400">
                 <tr>
                   <th className="p-3">Date</th>
-                  <th className="p-3">Section</th>
+                  <th className="p-3">{academic.label('section')}</th>
                   <th className="p-3">Subject</th>
                   <th className="p-3">Present</th>
                   <th className="p-3">Absent</th>

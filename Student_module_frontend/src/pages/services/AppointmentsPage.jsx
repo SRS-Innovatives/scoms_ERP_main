@@ -5,9 +5,11 @@ import { useNotification } from '../../context/NotificationContext';
 import { Loader2, CalendarPlus, Inbox } from 'lucide-react';
 import ErrorState from '../../components/common/ErrorState';
 import appointmentService from '../../services/appointmentService';
+import { useAcademic } from '../../context/InstitutionContext';
 
 export const AppointmentsPage = () => {
   const { success, error: showError } = useNotification();
+  const academic = useAcademic();
   const [teachers, setTeachers] = useState([]);
   const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -56,7 +58,7 @@ export const AppointmentsPage = () => {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Counselling & Faculty Mentorship Appointments" subtitle="Request a 1-on-1 slot with a teacher who teaches your section." />
+      <PageHeader title={`Counselling & ${academic.label('teacher')} Mentorship Appointments`} subtitle={`Request a 1-on-1 slot with a teacher who teaches your ${academic.label('section').toLowerCase()}.`} />
 
       {teachers.length === 0 ? (
         <div className="glass-card p-8 rounded-3xl border border-slate-200 dark:border-slate-800 text-center text-xs text-slate-500">

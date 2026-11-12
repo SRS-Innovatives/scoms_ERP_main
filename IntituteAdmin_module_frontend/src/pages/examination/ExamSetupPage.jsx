@@ -9,10 +9,12 @@ import { Award } from 'lucide-react';
 import examService from '../../services/examService';
 import academicYearService from '../../services/academicYearService';
 import customListService from '../../services/customListService';
+import { useAcademic } from '../../context/InstitutionContext';
 
 const emptyForm = { name: '', examType: '', academicYearId: '', startDate: '', endDate: '' };
 
 export const ExamSetupPage = () => {
+  const academic = useAcademic();
   const { notifySuccess, notifyError } = useNotification();
   const [search, setSearch] = useState('');
   const [exams, setExams] = useState([]);
@@ -100,7 +102,7 @@ export const ExamSetupPage = () => {
     <div className="space-y-6">
       <div>
         <h1 className="text-xl font-bold text-slate-900 dark:text-white">Examination Setup Master</h1>
-        <p className="text-xs text-slate-500 dark:text-slate-400">Configure End Semester Exams, Internal Assessment Tests (CAT/IA), and Unit Tests</p>
+        <p className="text-xs text-slate-500 dark:text-slate-400">Configure End {academic.label('semester')} Exams, Internal Assessment Tests (CAT/IA), and Unit Tests</p>
       </div>
 
       <SearchFilterBar searchQuery={search} onSearchChange={setSearch} addLabel="Create New Exam" onAddClick={() => setModalOpen(true)} />

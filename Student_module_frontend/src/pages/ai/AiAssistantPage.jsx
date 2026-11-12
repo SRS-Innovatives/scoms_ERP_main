@@ -3,9 +3,11 @@ import PageHeader from '../../components/common/PageHeader';
 import { useNotification } from '../../context/NotificationContext';
 import { aiService } from '../../services/aiService';
 import { Bot, Send, Sparkles, User, BookOpen, AlertTriangle } from 'lucide-react';
+import { useAcademic } from '../../context/InstitutionContext';
 
 export const AiAssistantPage = () => {
   const { error: showError } = useNotification();
+  const academic = useAcademic();
   const [topics, setTopics] = useState([]);
   const [classGrade, setClassGrade] = useState('');
   const [subject, setSubject] = useState('');
@@ -68,9 +70,9 @@ export const AiAssistantPage = () => {
       {topics.length > 0 && (
         <div className="glass-card p-4 rounded-2xl border border-slate-200 dark:border-slate-800 grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
           <div>
-            <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Class</label>
+            <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">{academic.label('course')}</label>
             <select value={classGrade} onChange={(e) => { setClassGrade(e.target.value); setSubject(''); setLanguage(''); }} className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl">
-              {classOptions.map((c) => <option key={c} value={c}>Class {c}</option>)}
+              {classOptions.map((c) => <option key={c} value={c}>{academic.label('course')} {c}</option>)}
             </select>
           </div>
           <div>

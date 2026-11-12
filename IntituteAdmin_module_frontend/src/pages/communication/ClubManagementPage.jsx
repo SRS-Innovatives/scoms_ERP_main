@@ -5,10 +5,12 @@ import FormModal from '../../components/common/FormModal';
 import { useNotification } from '../../context/NotificationContext';
 import { Sparkles, Plus, Trash2, Users } from 'lucide-react';
 import clubService from '../../services/clubService';
+import { useAcademic } from '../../context/InstitutionContext';
 
 const emptyForm = { name: '', description: '', inchargeName: '' };
 
 export const ClubManagementPage = () => {
+  const academic = useAcademic();
   const { notifySuccess, notifyError } = useNotification();
   const [clubs, setClubs] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -61,7 +63,7 @@ export const ClubManagementPage = () => {
   const columns = [
     { header: 'Club Name', key: 'name', render: (val) => <span className="font-bold text-slate-900 dark:text-white flex items-center gap-2"><Sparkles className="w-4 h-4 text-indigo-600" />{val}</span> },
     { header: 'Description', key: 'description', sortable: false, render: (val) => <span className="line-clamp-1 max-w-xs inline-block">{val || '—'}</span> },
-    { header: 'Faculty In-charge', key: 'inchargeName', render: (val) => val || '—' },
+    { header: `${academic.label('teacher')} In-charge`, key: 'inchargeName', render: (val) => val || '—' },
     { header: 'Members', key: '_count', sortable: false, render: (val) => <span className="flex items-center gap-1 font-semibold text-indigo-700 dark:text-indigo-300"><Users className="w-3.5 h-3.5" /> {val?.members ?? 0}</span> },
     {
       header: 'Actions',
@@ -108,7 +110,7 @@ export const ClubManagementPage = () => {
         fields={[
           { name: 'name', label: 'Club Name', required: true, span: 'full' },
           { name: 'description', label: 'Description', type: 'textarea', span: 'full' },
-          { name: 'inchargeName', label: 'Faculty In-charge' },
+          { name: 'inchargeName', label: `${academic.label('teacher')} In-charge` },
         ]}
       />
     </div>

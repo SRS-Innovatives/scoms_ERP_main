@@ -118,10 +118,17 @@ const admitStudentWithinTx = async (tx, institutionId, actingUserId, data) => {
 
   // 1. Validate Academic setup belongs to Tenant. Blank course/semester/department/batch
   //    are filled from the chosen section; values the caller sent are kept as-is.
+  //    The form sends an unpicked dropdown as '' — that means "not chosen", never an id.
+  const blankToNull = (v) => (v === '' || v === undefined ? null : v);
   let { departmentId, courseId, semesterId, batchId } = data;
-  if (sectionId) {
+  departmentId = blankToNull(departmentId);
+  courseId = blankToNull(courseId);
+  semesterId = blankToNull(semesterId);
+  batchId = blankToNull(batchId);
+  const sectionChoice = blankToNull(sectionId);
+  if (sectionChoice) {
     const section = await tx.section.findFirst({
-      where: { id: sectionId, semester: { course: { institutionId } } },
+      where: { id: sectionChoice, semester: { course: { institutionId } } },
       select: { semester: { select: { id: true, batchId: true, course: { select: { id: true, departmentId: true } } } } },
     });
     if (!section) throw new NotFoundError('Invalid section or access denied');
@@ -133,6 +140,16 @@ const admitStudentWithinTx = async (tx, institutionId, actingUserId, data) => {
   if (batchId) {
     const batch = await tx.batch.findFirst({ where: { id: batchId, institutionId }, select: { id: true } });
     if (!batch) throw new NotFoundError('Invalid batch or access denied');
+  }
+  // Ids that did NOT come from the chosen section must still be this institution's own
+  if (departmentId && !(await tx.department.findFirst({ where: { id: departmentId, institutionId }, select: { id: true } }))) {
+    throw new NotFoundError('Invalid department or access denied');
+  }
+  if (courseId && !(await tx.course.findFirst({ where: { id: courseId, institutionId }, select: { id: true } }))) {
+    throw new NotFoundError('Invalid course or access denied');
+  }
+  if (semesterId && !(await tx.semester.findFirst({ where: { id: semesterId, course: { institutionId } }, select: { id: true } }))) {
+    throw new NotFoundError('Invalid semester or access denied');
   }
 
   // 2. Generate admission number (sequential, tenant-scoped, embeds this institution's own
@@ -181,7 +198,7 @@ const admitStudentWithinTx = async (tx, institutionId, actingUserId, data) => {
       departmentId,
       courseId,
       semesterId,
-      sectionId,
+      sectionId: sectionChoice,
       batchId,
       // Identity & personal
       religion,
@@ -348,7 +365,7 @@ const createStudentAdmission = async (req, res, next) => {
     const { password: _hash, ...userWithoutPassword } = result.user;
     return sendSuccess(
       res,
-      { ...result, user: userWithoutPassword, temporaryPassword: studentPlainPassword },
+      { ...result, user: userWithoutPassword, temporaryPassword: password || 'Student@123' },
       'Student admitted successfully',
       201
     );

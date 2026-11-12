@@ -3,8 +3,10 @@ import DataTable from '../../components/common/DataTable';
 import EmptyState from '../../components/common/EmptyState';
 import { MessageSquareHeart, Star } from 'lucide-react';
 import feedbackService from '../../services/feedbackService';
+import { useAcademic } from '../../context/InstitutionContext';
 
 export const FeedbackSummaryPage = () => {
+  const academic = useAcademic();
   const [summary, setSummary] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -16,7 +18,7 @@ export const FeedbackSummaryPage = () => {
 
   const columns = [
     { header: 'Subject', key: 'subjectName', render: (v) => <span className="font-bold text-slate-900 dark:text-white">{v}</span> },
-    { header: 'Course', key: 'courseName' },
+    { header: academic.label('course'), key: 'courseName' },
     { header: 'Responses', key: 'responseCount' },
     {
       header: 'Average Rating',
@@ -32,7 +34,7 @@ export const FeedbackSummaryPage = () => {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-bold text-slate-900 dark:text-white">Anonymous Faculty & Course Feedback Summary</h1>
+        <h1 className="text-xl font-bold text-slate-900 dark:text-white">Anonymous {academic.label('teacher')} & Subject Feedback Summary</h1>
         <p className="text-xs text-slate-500 dark:text-slate-400">Aggregated ratings only — individual student submissions are never shown, preserving anonymity.</p>
       </div>
 

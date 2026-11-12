@@ -6,8 +6,24 @@ import { useInstitution } from '../../context/InstitutionContext';
 
 export const Sidebar = ({ isCollapsed, isMobileOpen, onCloseMobile }) => {
   const location = useLocation();
-  const { institution, isModuleEnabled } = useInstitution();
-  const visibleNavigation = navigationConfig.filter((item) => isModuleEnabled(item.key));
+  const { institution, isModuleEnabled, academic } = useInstitution();
+  // Hide setup items for academic levels / institution types that don't apply, and use the
+  // institution's own terms for level-bound titles (e.g. "Standard Setup" for a school).
+  const visibleNavigation = navigationConfig
+    .filter((item) => isModuleEnabled(item.key))
+    .map((item) => (item.children
+      ? {
+          ...item,
+          children: item.children
+            .filter((child) => (!child.level || academic.isLevelEnabled(child.level))
+              && (!child.types || !academic.type || child.types.includes(academic.type)))
+            .map((child) => {
+              const titleKey = child.labelKey || child.level;
+              if (child.titleTemplate) return { ...child, title: child.titleTemplate(academic) };
+              return titleKey && academic.structure ? { ...child, title: `${academic.label(titleKey)} Setup` } : child;
+            }),
+        }
+      : item));
   const [openMenus, setOpenMenus] = useState({
     setup: location.pathname.includes('/admin/setup'),
     student: location.pathname.includes('/admin/student'),

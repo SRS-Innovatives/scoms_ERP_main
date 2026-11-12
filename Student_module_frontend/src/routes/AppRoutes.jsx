@@ -41,6 +41,7 @@ import ScholarshipsPage from '../pages/scholarships/ScholarshipsPage';
 
 // Campus
 import AnnouncementsPage from '../pages/campus/AnnouncementsPage';
+import CircularsPage from '../pages/campus/CircularsPage';
 import EventsPage from '../pages/campus/EventsPage';
 import ClubsPage from '../pages/campus/ClubsPage';
 import DigitalLibraryPage from '../pages/campus/DigitalLibraryPage';
@@ -114,6 +115,7 @@ export const AppRoutes = () => {
               <Route path="student/fees/receipts" element={<FeeReceiptsPage />} />
               <Route path="student/scholarships" element={<ScholarshipsPage />} />
               <Route path="student/announcements" element={<AnnouncementsPage />} />
+              <Route path="student/circulars" element={<CircularsPage />} />
               <Route path="student/events" element={<EventsPage />} />
               <Route path="student/clubs" element={<ClubsPage />} />
               <Route path="student/library" element={<DigitalLibraryPage />} />

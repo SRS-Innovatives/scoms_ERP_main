@@ -5,7 +5,7 @@ import EmptyState from '../../components/common/EmptyState';
 import FormModal from '../../components/common/FormModal';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
 import { useNotification } from '../../context/NotificationContext';
-import { useInstitution } from '../../context/InstitutionContext';
+import { useAcademic } from '../../context/InstitutionContext';
 import courseService from '../../services/courseService';
 import departmentService from '../../services/departmentService';
 import programService from '../../services/programService';
@@ -15,11 +15,13 @@ const emptyForm = { departmentId: '', code: '', name: '', durationYears: '', pro
 
 export const CourseClassSetupPage = () => {
   const { notifySuccess, notifyError } = useNotification();
-  const { institution } = useInstitution();
-  // A School sets up Classes (Class 10, Class 12...), not degree Courses — same underlying
-  // Course table, just the label an admin actually sees matching what they're really configuring.
-  const isSchool = institution?.type === 'SCHOOL';
-  const unit = isSchool ? 'Class' : 'Course';
+  const academic = useAcademic();
+  // Same underlying Course table for every institution type — a school configures its
+  // Standards/Classes here, a college its degree Courses. Terms and whether Programs
+  // apply both come from the institution's academic structure.
+  const unit = academic.label('course');
+  const usesPrograms = academic.isLevelEnabled('program');
+  const isSchool = academic.type === 'SCHOOL'; // example text only
   const [courses, setCourses] = useState([]);
   const [departments, setDepartments] = useState([]);
   const [programs, setPrograms] = useState([]);
@@ -38,17 +40,17 @@ export const CourseClassSetupPage = () => {
       const [courseRes, deptRes, programRes] = await Promise.all([
         courseService.getAll(),
         departmentService.getAll(),
-        isSchool ? Promise.resolve({ data: [] }) : programService.getAll(),
+        usesPrograms ? programService.getAll() : Promise.resolve({ data: [] }),
       ]);
       setCourses(courseRes.data || []);
       setDepartments(deptRes.data || []);
       setPrograms(programRes.data || []);
     } catch (error) {
-      notifyError(`Failed to load courses: ${error.message}`);
+      notifyError(`Failed to load ${unit.toLowerCase()}s: ${error.message}`);
     } finally {
       setLoading(false);
     }
-  }, [notifyError, isSchool]);
+  }, [notifyError, usesPrograms, unit]);
 
   useEffect(() => {
     fetchAll();
@@ -70,7 +72,7 @@ export const CourseClassSetupPage = () => {
     e.preventDefault();
     setSubmitting(true);
     const { programId, ...rest } = form;
-    const payload = isSchool ? rest : { ...rest, programId: programId || null };
+    const payload = usesPrograms ? { ...rest, programId: programId || null } : rest;
     try {
       if (editingId) {
         await courseService.update(editingId, payload);
@@ -104,8 +106,8 @@ export const CourseClassSetupPage = () => {
   const columns = [
     { header: `${unit} Code`, key: 'code', render: (val) => <span className="font-mono font-bold text-indigo-600">{val}</span> },
     { header: `${unit} Name`, key: 'name', render: (val) => <span className="font-bold text-slate-900 dark:text-white">{val}</span> },
-    { header: 'Department', key: 'department', sortable: false, render: (val) => val?.name || '-' },
-    ...(isSchool ? [] : [{ header: 'Program', key: 'program', sortable: false, render: (val) => val?.name || '-' }]),
+    { header: academic.label('department'), key: 'department', sortable: false, render: (val) => val?.name || '-' },
+    ...(usesPrograms ? [{ header: academic.label('program'), key: 'program', sortable: false, render: (val) => val?.name || '-' }] : []),
     { header: 'Duration', key: 'durationYears', render: (val) => `${val} Year${val === 1 ? '' : 's'}` },
     { header: 'Students', key: '_count', sortable: false, render: (val) => `${val?.students ?? 0} Enrolled` },
     { header: 'Subjects', key: '_countSub', sortable: false, render: (_, row) => `${row._count?.subjectClassMappings ?? 0} Subjects` },
@@ -131,9 +133,9 @@ export const CourseClassSetupPage = () => {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-bold text-slate-900 dark:text-white">{isSchool ? 'Class Setup' : 'Course Setup'}</h1>
+        <h1 className="text-xl font-bold text-slate-900 dark:text-white">{unit} Setup</h1>
         <p className="text-xs text-slate-500 dark:text-slate-400">
-          {isSchool ? 'Configure classes/grades and their duration' : 'Configure UG/PG degree programs and duration'}
+          {isSchool ? `Configure each ${unit.toLowerCase()} (e.g. ${unit} 1 to ${unit} 12) and its duration` : `Configure each ${unit.toLowerCase()} and its duration`}
         </p>
       </div>
 
@@ -147,7 +149,7 @@ export const CourseClassSetupPage = () => {
       />
 
       {!loading && filtered.length === 0 ? (
-        <EmptyState title={`No ${unit}s Found`} description={`Add a ${unit.toLowerCase()} to get started. You'll need a department first.`} actionLabel={`Add New ${unit}`} onAction={openAddModal} />
+        <EmptyState title={`No ${unit}s Found`} description={`Add a ${unit.toLowerCase()} to get started. You'll need a ${academic.label('department').toLowerCase()} first.`} actionLabel={`Add New ${unit}`} onAction={openAddModal} />
       ) : (
         <DataTable columns={columns} data={filtered} loading={loading} />
       )}
@@ -155,7 +157,7 @@ export const CourseClassSetupPage = () => {
       <FormModal
         isOpen={modalOpen}
         title={editingId ? `Edit ${unit}` : `Add ${unit}`}
-        subtitle={`Define ${unit.toLowerCase()} code, name, department and duration`}
+        subtitle={`Define ${unit.toLowerCase()} code, name, ${academic.label('department').toLowerCase()} and duration`}
         icon={GraduationCap}
         submitLabel={editingId ? 'Save Changes' : `Create ${unit}`}
         isSubmitting={submitting}
@@ -166,21 +168,21 @@ export const CourseClassSetupPage = () => {
         fields={[
           {
             name: 'departmentId',
-            label: 'Department',
+            label: academic.label('department'),
             type: 'select',
             required: true,
             span: 'full',
             options: departments.map((d) => ({ value: d.id, label: `${d.name} (${d.code})` })),
           },
-          { name: 'code', label: isSchool ? 'Class Code (e.g. CLASS-10)' : 'Course Code (e.g. BTECH-CSE)', required: true },
+          { name: 'code', label: `${unit} Code (e.g. ${isSchool ? 'STD-10' : 'BTECH-CSE'})`, required: true },
           { name: 'name', label: `${unit} Name`, required: true },
           { name: 'durationYears', label: 'Duration (Years)', type: 'number', required: true },
-          ...(isSchool
+          ...(!usesPrograms
             ? []
             : [
                 {
                   name: 'programId',
-                  label: 'Program (optional)',
+                  label: `${academic.label('program')} (optional)`,
                   type: 'select',
                   span: 'full',
                   placeholder: '- None -',
@@ -194,7 +196,7 @@ export const CourseClassSetupPage = () => {
 
       <ConfirmDialog
         isOpen={!!deleteTarget}
-        title="Delete Course"
+        title={`Delete ${unit}`}
         message={`Are you sure you want to delete "${deleteTarget?.name}"? This cannot be undone.`}
         confirmText="Delete"
         onConfirm={handleDelete}

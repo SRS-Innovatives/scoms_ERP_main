@@ -5,12 +5,13 @@
  */
 const prisma = require('../../database/client');
 const { sendPushToTokens } = require('./sender');
+const { ValidationError } = require('@scoms/shared');
 
 const VALID_PLATFORMS = ['ANDROID', 'IOS'];
 
 function assertValidPlatform(platform) {
   if (!VALID_PLATFORMS.includes(platform)) {
-    throw new Error(`platform must be one of: ${VALID_PLATFORMS.join(', ')}`);
+    throw new ValidationError(`platform must be one of: ${VALID_PLATFORMS.join(', ')}`);
   }
 }
 

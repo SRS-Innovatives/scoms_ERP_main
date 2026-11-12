@@ -6,8 +6,10 @@ import { useNotification } from '../../context/NotificationContext';
 import { Printer, Loader2 } from 'lucide-react';
 import studentService from '../../services/studentService';
 import ErrorState from '../../components/common/ErrorState';
+import { useAcademic } from '../../context/InstitutionContext';
 
 export const AdmissionReportPage = () => {
+  const academic = useAcademic();
   const { notifyError } = useNotification();
   const [search, setSearch] = useState('');
   const [students, setStudents] = useState([]);
@@ -43,8 +45,8 @@ export const AdmissionReportPage = () => {
     { header: 'Reg No', key: 'registerNumber', render: (val, row) => <span className="font-mono font-bold text-indigo-600">{val || row.admissionNumber}</span> },
     { header: 'Student Name', key: 'firstName', sortable: false, render: (_, row) => <span className="font-bold text-slate-900 dark:text-white">{row.firstName} {row.lastName}</span> },
     { header: 'Gender', key: 'gender' },
-    { header: 'Course', key: 'course', sortable: false, render: (val) => val?.name || '—' },
-    { header: 'Department', key: 'department', sortable: false, render: (val) => val?.name || '—' },
+    { header: academic.label('course'), key: 'course', sortable: false, render: (val) => val?.name || '—' },
+    { header: academic.label('department'), key: 'department', sortable: false, render: (val) => val?.name || '—' },
     { header: 'Admission Date', key: 'admissionDate', render: (val) => <span className="font-mono">{new Date(val).toLocaleDateString('en-IN')}</span> },
     { header: 'Status', key: 'status' },
   ];
@@ -72,7 +74,7 @@ export const AdmissionReportPage = () => {
         <>
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2">
-              <ChartCard title="Admissions by Course" type="bar" data={courseBreakdown} height={200} />
+              <ChartCard title={`Admissions by ${academic.label('course')}`} type="bar" data={courseBreakdown} height={200} />
             </div>
             <ChartCard title="Gender Distribution" type="pie" data={genderBreakdown} height={200} />
           </div>

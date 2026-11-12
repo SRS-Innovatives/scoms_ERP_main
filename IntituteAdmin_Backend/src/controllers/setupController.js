@@ -8,6 +8,7 @@ const {
   NotFoundError,
   BusinessRuleError,
   ValidationError,
+  assertLevelEnabled,
 } = require('../../../shared');
 const ExcelJS = require('exceljs');
 
@@ -107,13 +108,96 @@ const deleteAcademicYear = async (req, res, next) => {
 };
 
 // ============================================================
+// Faculties / Schools (university-level grouping above Department —
+// only when the institution's academic structure enables the "faculty" level)
+// ============================================================
+const getFaculties = async (req, res, next) => {
+  try {
+    const faculties = await prisma.faculty.findMany({
+      where: { institutionId: req.institutionId },
+      include: { _count: { select: { departments: true } } },
+      orderBy: { name: 'asc' },
+    });
+    return sendSuccess(res, faculties, 'Faculties retrieved');
+  } catch (err) {
+    next(err);
+  }
+};
+
+const createFaculty = async (req, res, next) => {
+  try {
+    const { code, name, description } = req.body;
+    if (!code || !name) throw new ValidationError('Code and name are required');
+    await assertLevelEnabled(req.institutionId, 'faculty');
+    const faculty = await prisma.faculty.create({
+      data: { institutionId: req.institutionId, code, name, description },
+    });
+    return sendSuccess(res, faculty, 'Faculty created successfully', 201);
+  } catch (err) {
+    next(err);
+  }
+};
+
+const updateFaculty = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { code, name, description } = req.body;
+    const existing = await prisma.faculty.findFirst({ where: { id, institutionId: req.institutionId } });
+    if (!existing) throw new NotFoundError('Faculty not found');
+    const faculty = await prisma.faculty.update({
+      where: { id },
+      data: {
+        ...(code !== undefined && { code }),
+        ...(name !== undefined && { name }),
+        ...(description !== undefined && { description }),
+      },
+    });
+    return sendSuccess(res, faculty, 'Faculty updated successfully');
+  } catch (err) {
+    next(err);
+  }
+};
+
+const deleteFaculty = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const existing = await prisma.faculty.findFirst({
+      where: { id, institutionId: req.institutionId },
+      include: { _count: { select: { departments: true } } },
+    });
+    if (!existing) throw new NotFoundError('Faculty not found');
+    if (existing._count.departments > 0) {
+      throw new BusinessRuleError('Cannot delete a Faculty with departments linked to it');
+    }
+    await prisma.faculty.delete({ where: { id } });
+    return sendSuccess(res, null, 'Faculty deleted successfully');
+  } catch (err) {
+    next(err);
+  }
+};
+
+// undefined = field not sent (leave as-is), null = explicitly cleared. Linking a
+// department to a faculty requires the faculty level to be enabled.
+const resolveFacultyId = async (facultyId, institutionId) => {
+  if (facultyId === undefined) return undefined;
+  if (!facultyId) return null;
+  const faculty = await prisma.faculty.findFirst({ where: { id: facultyId, institutionId } });
+  if (!faculty) throw new NotFoundError('Faculty not found or access denied');
+  await assertLevelEnabled(institutionId, 'faculty');
+  return facultyId;
+};
+
+// ============================================================
 // Departments
 // ============================================================
 const getDepartments = async (req, res, next) => {
   try {
     const departments = await prisma.department.findMany({
       where: { institutionId: req.institutionId },
-      include: { _count: { select: { courses: true, staff: true, students: true } } },
+      include: {
+        faculty: { select: { id: true, code: true, name: true } },
+        _count: { select: { courses: true, staff: true, students: true } },
+      },
       orderBy: { name: 'asc' },
     });
     return sendSuccess(res, departments, 'Departments retrieved');
@@ -124,13 +208,15 @@ const getDepartments = async (req, res, next) => {
 
 const createDepartment = async (req, res, next) => {
   try {
-    const { code, name, description } = req.body;
+    const { code, name, description, facultyId } = req.body;
+    const resolvedFacultyId = await resolveFacultyId(facultyId, req.institutionId);
     const department = await prisma.department.create({
       data: {
         institutionId: req.institutionId,
         code,
         name,
         description,
+        ...(resolvedFacultyId && { facultyId: resolvedFacultyId }),
       },
     });
     return sendSuccess(res, department, 'Department created successfully', 201);
@@ -142,12 +228,14 @@ const createDepartment = async (req, res, next) => {
 const updateDepartment = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { code, name, description } = req.body;
+    const { code, name, description, facultyId } = req.body;
 
     const existing = await prisma.department.findFirst({
       where: { id, institutionId: req.institutionId },
     });
     if (!existing) throw new NotFoundError('Department not found');
+    // Re-sending the department's current faculty is a no-op, not a new link
+    const resolvedFacultyId = facultyId === existing.facultyId ? undefined : await resolveFacultyId(facultyId, req.institutionId);
 
     const department = await prisma.department.update({
       where: { id },
@@ -155,6 +243,7 @@ const updateDepartment = async (req, res, next) => {
         ...(code !== undefined && { code }),
         ...(name !== undefined && { name }),
         ...(description !== undefined && { description }),
+        ...(resolvedFacultyId !== undefined && { facultyId: resolvedFacultyId }),
       },
     });
     return sendSuccess(res, department, 'Department updated successfully');
@@ -433,6 +522,7 @@ const createProgram = async (req, res, next) => {
     const { departmentId, code, name, level, durationYears } = req.body;
     if (!code || !name) throw new ValidationError('Program code and name are required');
     if (level && !PROGRAM_LEVELS.includes(level)) throw new ValidationError(`Level must be one of ${PROGRAM_LEVELS.join(', ')}`);
+    await assertLevelEnabled(req.institutionId, 'program');
 
     const department = await prisma.department.findFirst({ where: { id: departmentId, institutionId: req.institutionId } });
     if (!department) throw new NotFoundError('Department not found or access denied');
@@ -530,6 +620,7 @@ const createBatch = async (req, res, next) => {
       throw new ValidationError('Valid start and end years are required (end year >= start year)');
     }
     if (status && !BATCH_STATUSES.includes(status)) throw new ValidationError(`Status must be one of ${BATCH_STATUSES.join(', ')}`);
+    await assertLevelEnabled(req.institutionId, 'batch');
 
     const course = await prisma.course.findFirst({ where: { id: courseId, institutionId: req.institutionId } });
     if (!course) throw new NotFoundError('Course not found or access denied');
@@ -917,6 +1008,10 @@ module.exports = {
   createAcademicYear,
   updateAcademicYear,
   deleteAcademicYear,
+  getFaculties,
+  createFaculty,
+  updateFaculty,
+  deleteFaculty,
   getDepartments,
   createDepartment,
   updateDepartment,

@@ -8,8 +8,10 @@ import courseService from '../../services/courseService';
 import semesterService from '../../services/semesterService';
 import sectionService from '../../services/sectionService';
 import studentService from '../../services/studentService';
+import { useAcademic } from '../../context/InstitutionContext';
 
 export const BulkAdmissionPage = () => {
+  const academic = useAcademic();
   const { notifySuccess, notifyError } = useNotification();
   const [selectedFile, setSelectedFile] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -72,7 +74,7 @@ export const BulkAdmissionPage = () => {
   const handleUpload = async () => {
     if (!selectedFile) return;
     if (!classAssignment.courseId || !classAssignment.sectionId) {
-      notifyError('Select Department, Course, Semester and Section — every uploaded student is assigned to this class.');
+      notifyError(`Select ${academic.label('department')}, ${academic.label('course')}, ${academic.label('semester')} and ${academic.label('section')} — every uploaded student is assigned to it.`);
       return;
     }
     setIsProcessing(true);
@@ -115,24 +117,24 @@ export const BulkAdmissionPage = () => {
         </div>
       </FormSection>
 
-      <FormSection title="1. Select Target Class" subtitle="Every student in the uploaded file will be assigned to this Department / Course / Semester / Section" icon={Layers}>
+      <FormSection title={`1. Select Target ${academic.label('course')} / ${academic.label('section')}`} subtitle={`Every student in the uploaded file will be assigned to this ${academic.label('department')} / ${academic.label('course')} / ${academic.label('semester')} / ${academic.label('section')}`} icon={Layers}>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
           <div>
-            <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Department *</label>
+            <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">{academic.label('department')} *</label>
             <select
               required
               value={classAssignment.departmentId}
               onChange={(e) => setClassAssignment({ departmentId: e.target.value, courseId: '', semesterId: '', sectionId: '' })}
               className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white font-medium"
             >
-              <option value="">Select Department</option>
+              <option value="">Select {academic.label('department')}</option>
               {departments.map((d) => (
                 <option key={d.id} value={d.id}>{d.name} ({d.code})</option>
               ))}
             </select>
           </div>
           <div>
-            <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Course *</label>
+            <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">{academic.label('course')} *</label>
             <select
               required
               disabled={!classAssignment.departmentId}
@@ -140,14 +142,14 @@ export const BulkAdmissionPage = () => {
               onChange={(e) => setClassAssignment({ ...classAssignment, courseId: e.target.value, semesterId: '', sectionId: '' })}
               className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white font-medium disabled:opacity-50"
             >
-              <option value="">Select Course</option>
+              <option value="">Select {academic.label('course')}</option>
               {courses.map((c) => (
                 <option key={c.id} value={c.id}>{c.name}</option>
               ))}
             </select>
           </div>
           <div>
-            <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Semester *</label>
+            <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">{academic.label('semester')} *</label>
             <select
               required
               disabled={!classAssignment.courseId}
@@ -155,14 +157,14 @@ export const BulkAdmissionPage = () => {
               onChange={(e) => setClassAssignment({ ...classAssignment, semesterId: e.target.value, sectionId: '' })}
               className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white font-medium disabled:opacity-50"
             >
-              <option value="">Select Semester</option>
+              <option value="">Select {academic.label('semester')}</option>
               {semesters.map((s) => (
                 <option key={s.id} value={s.id}>{s.name}</option>
               ))}
             </select>
           </div>
           <div>
-            <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Section *</label>
+            <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">{academic.label('section')} *</label>
             <select
               required
               disabled={!classAssignment.semesterId}
@@ -170,7 +172,7 @@ export const BulkAdmissionPage = () => {
               onChange={(e) => setClassAssignment({ ...classAssignment, sectionId: e.target.value })}
               className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white font-medium disabled:opacity-50"
             >
-              <option value="">Select Section</option>
+              <option value="">Select {academic.label('section')}</option>
               {sections.map((s) => (
                 <option key={s.id} value={s.id}>{s.name}</option>
               ))}

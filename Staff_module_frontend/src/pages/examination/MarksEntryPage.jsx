@@ -2,10 +2,12 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import examService from '../../services/examService';
 import { useNotification } from '../../context/NotificationContext';
+import { useAcademic } from '../../context/InstitutionContext';
 import { Save, Loader2, Lock, Upload, AlertTriangle } from 'lucide-react';
 
 export const MarksEntryPage = () => {
   const { success, error: showError } = useNotification();
+  const academic = useAcademic();
   const [searchParams] = useSearchParams();
   const scheduleId = searchParams.get('scheduleId');
 
@@ -136,7 +138,7 @@ export const MarksEntryPage = () => {
             <tr>
               <th className="p-3">Roll No</th>
               <th className="p-3">Student Name</th>
-              <th className="p-3">Section</th>
+              <th className="p-3">{academic.label('section')}</th>
               <th className="p-3">Marks Obtained (Out of {schedule?.maxMarks})</th>
               <th className="p-3">Absent</th>
               <th className="p-3">Grade</th>

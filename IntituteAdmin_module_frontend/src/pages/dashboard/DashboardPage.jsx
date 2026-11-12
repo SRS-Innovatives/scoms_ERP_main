@@ -19,10 +19,12 @@ import {
   CalendarDays
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useAcademic } from '../../context/InstitutionContext';
 
 const TODAY_LABEL = new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
 
 export const DashboardPage = () => {
+  const academic = useAcademic();
   const navigate = useNavigate();
   const { error: showError } = useNotification();
   const { profile } = useAuth();
@@ -57,8 +59,8 @@ export const DashboardPage = () => {
         </div>
       )
     },
-    { header: 'Course', key: 'course' },
-    { header: 'Section', key: 'section' },
+    { header: academic.label('course'), key: 'course' },
+    { header: academic.label('section'), key: 'section' },
     {
       header: 'Fee Status',
       key: 'feeStatus',
@@ -196,7 +198,7 @@ export const DashboardPage = () => {
         </div>
         <div>
           <ChartCard
-            title="Department Student Distribution"
+            title={`${academic.label('department')} Student Distribution`}
             subtitle="Current Active Enrollment Breakdown"
             type="pie"
             data={departmentChartData}

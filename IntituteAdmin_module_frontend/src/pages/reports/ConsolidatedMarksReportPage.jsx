@@ -6,6 +6,7 @@ import { useNotification } from '../../context/NotificationContext';
 import { FileBarChart, Printer, Loader2, RefreshCw } from 'lucide-react';
 import examService from '../../services/examService';
 import sectionService from '../../services/sectionService';
+import { useAcademic } from '../../context/InstitutionContext';
 
 const DEFAULT_THRESHOLDS = [
   { pct: 35, color: '#fecaca' }, // below 35% — red
@@ -24,6 +25,7 @@ const colorForPercentage = (pct, thresholds) => {
 };
 
 export const ConsolidatedMarksReportPage = () => {
+  const academic = useAcademic();
   const { notifyError } = useNotification();
   const [exams, setExams] = useState([]);
   const [sections, setSections] = useState([]);
@@ -119,7 +121,7 @@ export const ConsolidatedMarksReportPage = () => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 no-print">
-        <ReportConfigBox title="Class & Exam">
+        <ReportConfigBox title={`${academic.label('section')} & Exam`}>
           <div>
             <label className="block text-slate-500 mb-1">Exam</label>
             <select value={examId} onChange={(e) => setExamId(e.target.value)} className="w-full p-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg">
@@ -128,9 +130,9 @@ export const ConsolidatedMarksReportPage = () => {
             </select>
           </div>
           <div>
-            <label className="block text-slate-500 mb-1">Section</label>
+            <label className="block text-slate-500 mb-1">{academic.label('section')}</label>
             <select value={sectionId} onChange={(e) => setSectionId(e.target.value)} className="w-full p-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg">
-              <option value="">All Sections</option>
+              <option value="">All {academic.label('section')}s</option>
               {sections.map((s) => <option key={s.id} value={s.id}>{sectionLabel(s)}</option>)}
             </select>
           </div>

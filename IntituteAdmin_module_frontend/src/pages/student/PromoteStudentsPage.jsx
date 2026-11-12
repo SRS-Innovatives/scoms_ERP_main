@@ -7,8 +7,10 @@ import { useNotification } from '../../context/NotificationContext';
 import { ArrowUpRight, Users, Loader2 } from 'lucide-react';
 import studentService from '../../services/studentService';
 import sectionService from '../../services/sectionService';
+import { useAcademic } from '../../context/InstitutionContext';
 
 export const PromoteStudentsPage = () => {
+  const academic = useAcademic();
   const { notifySuccess, notifyError } = useNotification();
   const [sections, setSections] = useState([]);
   const [fromSectionId, setFromSectionId] = useState('');
@@ -58,7 +60,7 @@ export const PromoteStudentsPage = () => {
   const columns = [
     { header: 'Roll No', key: 'rollNumber', render: (val) => <span className="font-mono font-bold text-indigo-600">{val || '—'}</span> },
     { header: 'Student Name', key: 'firstName', sortable: false, render: (_v, row) => <span className="font-bold text-slate-900 dark:text-white">{row.firstName} {row.lastName}</span> },
-    { header: 'Current Section', key: 'section', sortable: false, render: (val) => val?.name || '—' },
+    { header: `Current ${academic.label('section')}`, key: 'section', sortable: false, render: (val) => val?.name || '—' },
   ];
 
   const handlePromote = async () => {
@@ -100,19 +102,19 @@ export const PromoteStudentsPage = () => {
       </div>
 
       {sections.length === 0 ? (
-        <EmptyState title="No Sections Set Up" description="Create sections under Institution Setup before promoting students." icon={Users} />
+        <EmptyState title={`No ${academic.label('section')}s Set Up`} description={`Create ${academic.label('section').toLowerCase()}s under Institution Setup before promoting students.`} icon={Users} />
       ) : (
         <>
-          <FormSection title="Select Section Transition" subtitle="Choose the current section and the target section to promote into">
+          <FormSection title={`Select ${academic.label('section')} Transition`} subtitle={`Choose the current ${academic.label('section').toLowerCase()} and the target ${academic.label('section').toLowerCase()} to promote into`}>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
               <div>
-                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">From Section</label>
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">From {academic.label('section')}</label>
                 <select value={fromSectionId} onChange={(e) => setFromSectionId(e.target.value)} className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border rounded-lg font-medium">
                   {sections.map((s) => <option key={s.id} value={s.id}>{sectionLabel(s)}</option>)}
                 </select>
               </div>
               <div>
-                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Promote To Section</label>
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Promote To {academic.label('section')}</label>
                 <select value={toSectionId} onChange={(e) => setToSectionId(e.target.value)} className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border rounded-lg font-medium">
                   <option value="">Select target section...</option>
                   {sections.filter((s) => s.id !== fromSectionId).map((s) => <option key={s.id} value={s.id}>{sectionLabel(s)}</option>)}

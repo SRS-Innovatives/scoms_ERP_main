@@ -1,8 +1,10 @@
 import React from 'react';
 import { Printer, Download } from 'lucide-react';
 import { useInstitution } from '../../context/InstitutionContext';
+import { useAcademic } from '../../context/InstitutionContext';
 
 export const ChallanTemplate = ({ challanData }) => {
+  const academic = useAcademic();
   const { institution } = useInstitution();
   const data = challanData || {
     challanNo: "CHLN/2025/849201",
@@ -63,7 +65,7 @@ export const ChallanTemplate = ({ challanData }) => {
                 <div className="space-y-1 mb-3 text-[10px]">
                   <p><span className="text-slate-500">Name:</span> <span className="font-bold text-slate-900">{data.studentName}</span></p>
                   <p><span className="text-slate-500">Roll / Reg No:</span> <span className="font-mono font-semibold">{data.rollNo} / {data.regNo}</span></p>
-                  <p><span className="text-slate-500">Course:</span> <span className="font-semibold">{data.course}</span></p>
+                  <p><span className="text-slate-500">{academic.label('course')}:</span> <span className="font-semibold">{data.course}</span></p>
                   <p><span className="text-slate-500">Issue Date:</span> <span className="font-semibold">{data.issueDate}</span> | <span className="text-rose-600 font-bold">Due: {data.dueDate}</span></p>
                 </div>
 

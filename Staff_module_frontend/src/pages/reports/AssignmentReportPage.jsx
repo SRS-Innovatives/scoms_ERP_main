@@ -3,8 +3,10 @@ import { Loader2, ClipboardList } from 'lucide-react';
 import { useNotification } from '../../context/NotificationContext';
 import assignmentService from '../../services/assignmentService';
 import ErrorState from '../../components/common/ErrorState';
+import { useAcademic } from '../../context/InstitutionContext';
 
 export const AssignmentReportPage = () => {
+  const academic = useAcademic();
   const { error: showError } = useNotification();
   const [assignments, setAssignments] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -43,7 +45,7 @@ export const AssignmentReportPage = () => {
             <thead className="bg-slate-100 dark:bg-slate-800 uppercase font-semibold text-slate-600 dark:text-slate-400">
               <tr>
                 <th className="p-3">Title</th>
-                <th className="p-3">Class</th>
+                <th className="p-3">{academic.label('course')}</th>
                 <th className="p-3">Subject</th>
                 <th className="p-3">Due Date</th>
                 <th className="p-3">Submissions</th>

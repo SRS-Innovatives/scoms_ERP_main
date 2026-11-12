@@ -6,12 +6,14 @@ import { useNotification } from '../../context/NotificationContext';
 import researchService from '../../services/researchService';
 import { FlaskConical, ExternalLink } from 'lucide-react';
 import ErrorState from '../../components/common/ErrorState';
+import { useAcademic } from '../../context/InstitutionContext';
 
 const TYPE_LABELS = { JOURNAL: 'Journal', CONFERENCE: 'Conference', PATENT: 'Patent', BOOK_CHAPTER: 'Book Chapter' };
 
 /** Institution-wide view of every publication faculty have recorded — read-only here,
  * since authoring a publication belongs to the staff member on their own portal. */
 export const ResearchOversightPage = () => {
+  const academic = useAcademic();
   const { notifyError } = useNotification();
   const [publications, setPublications] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -75,7 +77,7 @@ export const ResearchOversightPage = () => {
       {!loading && error ? (
         <ErrorState onRetry={fetchAll} />
       ) : !loading && filtered.length === 0 ? (
-        <EmptyState icon={FlaskConical} title="No Research Records Yet" description="Faculty publications will show up here automatically once staff add them from their own portal." />
+        <EmptyState icon={FlaskConical} title="No Research Records Yet" description={`${academic.label('teacher')} publications will show up here automatically once staff add them from their own portal.`} />
       ) : (
         <DataTable columns={columns} data={filtered} loading={loading} />
       )}

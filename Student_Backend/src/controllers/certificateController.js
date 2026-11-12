@@ -4,9 +4,17 @@
  * Certificates are issued by the Institute Admin (bonafide, TC, conduct, completion,
  * fee-paid, etc.) — a student can only view what has actually been issued to them.
  */
-const { prisma, sendSuccess, ValidationError } = require('../../../shared');
+const { prisma, sendSuccess, ValidationError, certificateEngine } = require('../../../shared');
 
-const VALID_TYPES = ['BONAFIDE', 'TRANSFER', 'CONDUCT', 'COURSE_COMPLETION'];
+/** Certificate types this student's institution has enabled — drives the request form. */
+const getRequestableTypes = async (req, res, next) => {
+  try {
+    const types = await certificateEngine.getRequestableCertificateTypes(req.institutionId);
+    return sendSuccess(res, types, 'Requestable certificate types retrieved');
+  } catch (err) {
+    next(err);
+  }
+};
 
 const getMyCertificates = async (req, res, next) => {
   try {
@@ -35,7 +43,11 @@ const getMyCertificateRequests = async (req, res, next) => {
 const requestCertificate = async (req, res, next) => {
   try {
     const { type, reason } = req.body;
-    if (!type || !VALID_TYPES.includes(type)) throw new ValidationError(`type must be one of ${VALID_TYPES.join(', ')}`);
+    // Only types the institution has actually enabled (a disabled template can't be issued)
+    const allowed = (await certificateEngine.getRequestableCertificateTypes(req.institutionId)).map((t) => t.value);
+    if (!type || !allowed.includes(type)) {
+      throw new ValidationError(allowed.length ? `type must be one of ${allowed.join(', ')}` : 'Certificate requests are not available for your institution');
+    }
 
     const request = await prisma.certificateRequest.create({
       data: { studentId: req.user.studentId, type, reason },
@@ -47,4 +59,4 @@ const requestCertificate = async (req, res, next) => {
   }
 };
 
-module.exports = { getMyCertificates, getMyCertificateRequests, requestCertificate };
+module.exports = { getMyCertificates, getMyCertificateRequests, requestCertificate, getRequestableTypes };

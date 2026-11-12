@@ -4,6 +4,7 @@ import ErrorState from '../../components/common/ErrorState';
 import { useNotification } from '../../context/NotificationContext';
 import { Save, Loader2, Lock, Unlock, Upload, X, AlertTriangle } from 'lucide-react';
 import examService from '../../services/examService';
+import { useAcademic } from '../../context/InstitutionContext';
 
 /** Admin-only: a published result is locked in saveMarks on the backend — this prompts
  * for a reason and calls unlock, exactly mirroring the backend's own requirement. */
@@ -33,6 +34,7 @@ const UnlockModal = ({ isOpen, onClose, onConfirm, submitting }) => {
 };
 
 export const MarksEntryPage = () => {
+  const academic = useAcademic();
   const { notifySuccess, notifyError } = useNotification();
   const [exams, setExams] = useState([]);
   const [examId, setExamId] = useState('');
@@ -220,7 +222,7 @@ export const MarksEntryPage = () => {
               <tr>
                 <th className="p-3">Roll No</th>
                 <th className="p-3">Student Name</th>
-                <th className="p-3">Section</th>
+                <th className="p-3">{academic.label('section')}</th>
                 <th className="p-3">Marks Obtained</th>
                 <th className="p-3">Absent</th>
                 <th className="p-3">Grade</th>

@@ -1,48 +1,121 @@
 import React, { useState } from 'react';
-import FileUpload from '../../components/common/FileUpload';
 import FormSection from '../../components/common/FormSection';
+import DataTable from '../../components/common/DataTable';
 import { useNotification } from '../../context/NotificationContext';
-import { Cpu, RefreshCw, CheckCircle2 } from 'lucide-react';
+import { useAcademic } from '../../context/InstitutionContext';
+import attendanceService from '../../services/attendanceService';
+import { Fingerprint, Upload, Download, CheckCircle2, AlertTriangle, Loader2 } from 'lucide-react';
 
+/**
+ * Import the CSV/Excel export of a biometric / RFID attendance device as daily attendance.
+ * Two steps: Preview (validates, writes nothing) -> Import (writes the class-day sheets).
+ */
 export const BiometricImportPage = () => {
-  const { notifySuccess } = useNotification();
-  const [isSyncing, setIsSyncing] = useState(false);
+  const academic = useAcademic();
+  const { notifySuccess, notifyError } = useNotification();
+  const [file, setFile] = useState(null);
+  const [markAbsent, setMarkAbsent] = useState(false);
+  const [preview, setPreview] = useState(null);
+  const [busy, setBusy] = useState(false);
 
-  const handleSync = () => {
-    setIsSyncing(true);
-    setTimeout(() => {
-      setIsSyncing(false);
-      notifySuccess('Biometric RFID Fingerprint machine logs synced! 3,210 punch entries processed.', 'Biometric Synced');
-    }, 1500);
+  const reset = (f) => { setFile(f); setPreview(null); };
+
+  const run = async (mode) => {
+    if (!file) return;
+    setBusy(true);
+    try {
+      const res = await attendanceService.importBiometric(file, { mode, markAbsent });
+      setPreview(res.data);
+      if (mode === 'commit') {
+        notifySuccess(`${res.data.sessionsCreated} new and ${res.data.sessionsUpdated} updated attendance sheet(s)`, 'Biometric Imported');
+      }
+    } catch (err) {
+      notifyError(err.message, mode === 'commit' ? 'Import failed' : 'Could not read the file');
+    } finally {
+      setBusy(false);
+    }
   };
 
+  const downloadTemplate = async () => {
+    try {
+      const { blob } = await attendanceService.downloadBiometricTemplate();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'biometric_import_template.csv';
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      notifyError(err.message);
+    }
+  };
+
+  const sessionColumns = [
+    { header: 'Date', key: 'date', render: (val) => <span className="font-mono">{val}</span> },
+    { header: `${academic.label('course')} / ${academic.label('section')}`, key: 'className', render: (val) => <span className="font-semibold text-slate-900 dark:text-white">{val}</span> },
+    { header: 'Present', key: 'present', render: (val) => <span className="font-bold text-emerald-600">{val}</span> },
+    { header: 'Absent', key: 'absent', render: (val) => <span className="font-bold text-rose-600">{val}</span> },
+    { header: 'Other (Late/Leave/OD)', key: 'other' },
+  ];
+  const errorColumns = [
+    { header: 'Row', key: 'row', render: (val) => val ?? '—' },
+    { header: 'Admission No', key: 'admissionNumber', render: (val) => <span className="font-mono">{val || '—'}</span> },
+    { header: 'Problem', key: 'error', render: (val) => <span className="text-rose-600">{val}</span> },
+  ];
+
   return (
-    <div className="space-y-6 max-w-4xl mx-auto">
+    <div className="space-y-6 max-w-5xl mx-auto">
       <div>
-        <h1 className="text-xl font-bold text-slate-900 dark:text-white">Biometric Device Integration</h1>
-        <p className="text-xs text-slate-500 dark:text-slate-400">Sync RFID Card / Facial Recognition / Fingerprint turnstile gate logs</p>
+        <h1 className="text-xl font-bold text-slate-900 dark:text-white">Biometric Attendance Import</h1>
+        <p className="text-xs text-slate-500 dark:text-slate-400">Upload the export from your fingerprint / RFID / face-recognition device (eSSL, ZKTeco, Matrix…) — punches become each {academic.label('section').toLowerCase()}'s daily attendance</p>
       </div>
 
-      <FormSection title="Real-time Machine API Sync" subtitle="IP Connection: 192.168.10.45 (Main Gate Turnstiles)" icon={Cpu}>
-        <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-800 rounded-xl border">
-          <div>
-            <p className="font-bold text-slate-900 dark:text-white">ESSL / Matrix / ZKTeco Biometric Machine</p>
-            <p className="text-xs text-emerald-600 font-semibold flex items-center gap-1 mt-0.5"><CheckCircle2 className="w-3.5 h-3.5" /> Machine Online & Listening</p>
+      <FormSection title="1. Upload device export" subtitle="CSV or Excel with columns: Admission Number, Date — optional: In Time, Status (P / A / LATE / LEAVE / HD / OD)" icon={Fingerprint}>
+        <div className="space-y-4 text-xs">
+          <div className="flex flex-wrap items-center gap-3">
+            <label className="flex items-center gap-2 px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-dashed border-slate-300 dark:border-slate-600 rounded-xl cursor-pointer hover:border-indigo-400">
+              <Upload className="w-4 h-4 text-indigo-600" />
+              <span className="font-semibold text-slate-700 dark:text-slate-200">{file ? file.name : 'Choose .csv / .xlsx file'}</span>
+              <input type="file" accept=".csv,.xlsx" className="hidden" onChange={(e) => reset(e.target.files?.[0] || null)} />
+            </label>
+            <button type="button" onClick={downloadTemplate} className="flex items-center gap-1.5 text-indigo-600 font-semibold hover:underline">
+              <Download className="w-3.5 h-3.5" /> Download sample file
+            </button>
           </div>
-          <button
-            onClick={handleSync}
-            disabled={isSyncing}
-            className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-md transition-all"
-          >
-            <RefreshCw className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''}`} />
-            <span>{isSyncing ? 'Syncing Device Logs...' : 'Pull Biometric Logs Now'}</span>
-          </button>
+          <label className="flex items-center gap-2 font-semibold text-slate-700 dark:text-slate-300">
+            <input type="checkbox" checked={markAbsent} onChange={(e) => { setMarkAbsent(e.target.checked); setPreview(null); }} className="w-4 h-4 rounded text-indigo-600" />
+            Mark students with no punch as ABSENT (only for the {academic.label('section').toLowerCase()}s and dates in the file)
+          </label>
+          <p className="text-slate-500">A row with no Status counts as PRESENT. Re-importing the same day updates that day's sheet instead of duplicating it.</p>
+          <div className="flex gap-2">
+            <button type="button" disabled={!file || busy} onClick={() => run('preview')} className="flex items-center gap-1.5 px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-800 dark:text-slate-200 rounded-lg font-semibold disabled:opacity-50">
+              {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : null} Preview
+            </button>
+            <button type="button" disabled={!preview || preview.committed || !preview.sessions?.length || busy} onClick={() => run('commit')} className="flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-semibold disabled:opacity-50">
+              <CheckCircle2 className="w-4 h-4" /> Import {preview?.sessions?.length ? `${preview.sessions.length} sheet(s)` : ''}
+            </button>
+          </div>
         </div>
       </FormSection>
 
-      <FormSection title="Manual Machine Log Upload (.dat / .csv)" subtitle="Import offline USB machine export file">
-        <FileUpload label="Select Biometric File" onFileSelect={() => notifySuccess('File uploaded')} />
-      </FormSection>
+      {preview && (
+        <>
+          <div className={`flex items-center gap-2 p-3 rounded-xl text-xs font-semibold ${preview.committed ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40' : 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950/40'}`}>
+            <CheckCircle2 className="w-4 h-4" />
+            {preview.committed
+              ? `Saved — ${preview.validRows} punch(es), ${preview.sessionsCreated} new and ${preview.sessionsUpdated} updated sheet(s).`
+              : `Preview — ${preview.validRows} valid punch(es) across ${preview.sessions.length} class-day sheet(s). Nothing saved yet.`}
+          </div>
+          <FormSection title="Attendance sheets" subtitle="One row per class per day">
+            <DataTable columns={sessionColumns} data={preview.sessions.map((s) => ({ ...s, id: `${s.sectionId}-${s.date}` }))} />
+          </FormSection>
+          {preview.errors?.length > 0 && (
+            <FormSection title={`${preview.errors.length} row(s) skipped`} subtitle="Fix these in the file and import again" icon={AlertTriangle}>
+              <DataTable columns={errorColumns} data={preview.errors.map((e, i) => ({ ...e, id: i }))} />
+            </FormSection>
+          )}
+        </>
+      )}
     </div>
   );
 };

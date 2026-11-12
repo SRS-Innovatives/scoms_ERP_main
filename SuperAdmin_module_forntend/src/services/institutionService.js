@@ -26,6 +26,11 @@ export const institutionService = {
     return apiCall('/api/v1/super-admin/institutions/modules-catalog');
   },
 
+  // Per-type academic structure defaults + allowed option values (single source: shared/academic)
+  getAcademicStructureCatalog: async () => {
+    return apiCall('/api/v1/super-admin/institutions/academic-structure-catalog');
+  },
+
   updateInstitutionModules: async (id, modules) => {
     return apiCall(`/api/v1/super-admin/institutions/${id}/modules`, { method: 'PATCH', body: { modules } });
   },

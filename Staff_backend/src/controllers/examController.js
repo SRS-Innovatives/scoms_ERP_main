@@ -12,6 +12,7 @@ const {
   resolveGrade,
   resultLifecycle,
   attendanceRules,
+  teachingScope,
 } = require('../../../shared');
 const ExcelJS = require('exceljs');
 
@@ -188,12 +189,12 @@ const getRoster = async (req, res, next) => {
     });
     if (!schedule) throw new NotFoundError('Exam schedule not found');
 
-    const isAssigned = await prisma.subjectTeacherMapping.findFirst({ where: { staffId: req.user.staffId, subjectId: schedule.subjectId } });
-    if (!isAssigned) throw new BusinessRuleError('You are not assigned to teach this subject');
+    // Only students of the classes where this teacher teaches this subject
+    const { where: markable } = await teachingScope.getMarkableStudentFilter(req.user, req.institutionId, schedule);
 
     const [students, marks] = await Promise.all([
       prisma.student.findMany({
-        where: { courseId: schedule.courseId, status: 'ACTIVE' },
+        where: markable,
         select: { id: true, firstName: true, lastName: true, rollNumber: true, section: { select: { name: true } } },
         orderBy: { rollNumber: 'asc' },
       }),
@@ -228,8 +229,9 @@ const saveMarks = async (req, res, next) => {
     const schedule = await prisma.examSchedule.findFirst({ where: { id: scheduleId, exam: { institutionId: req.institutionId } } });
     if (!schedule) throw new NotFoundError('Exam schedule not found');
 
-    const isAssigned = await prisma.subjectTeacherMapping.findFirst({ where: { staffId: req.user.staffId, subjectId: schedule.subjectId } });
-    if (!isAssigned) throw new BusinessRuleError('You are not assigned to teach this subject');
+    // This subject, this class, and every student one this teacher teaches it to
+    const { where: markable } = await teachingScope.getMarkableStudentFilter(req.user, req.institutionId, schedule);
+    await teachingScope.assertStudentsMarkable(marks.map((m) => m.studentId), markable);
     if (schedule.isPublished) {
       throw new BusinessRuleError('These marks are already published and locked. Ask your Institute Admin to unlock this subject for correction, then re-publish once you\'re done.');
     }
@@ -269,8 +271,7 @@ const publishMarks = async (req, res, next) => {
     const schedule = await prisma.examSchedule.findFirst({ where: { id: scheduleId, exam: { institutionId: req.institutionId } } });
     if (!schedule) throw new NotFoundError('Exam schedule not found');
 
-    const isAssigned = await prisma.subjectTeacherMapping.findFirst({ where: { staffId: req.user.staffId, subjectId: schedule.subjectId } });
-    if (!isAssigned) throw new BusinessRuleError('You are not assigned to teach this subject');
+    await teachingScope.getMarkableStudentFilter(req.user, req.institutionId, schedule);
 
     const marksCount = await prisma.studentMark.count({ where: { examScheduleId: scheduleId } });
     if (marksCount === 0) throw new BusinessRuleError('Enter marks for at least one student before publishing');
@@ -301,8 +302,7 @@ const parseMarksImport = async (req, res, next) => {
     });
     if (!schedule) throw new NotFoundError('Exam schedule not found');
 
-    const isAssigned = await prisma.subjectTeacherMapping.findFirst({ where: { staffId: req.user.staffId, subjectId: schedule.subjectId } });
-    if (!isAssigned) throw new BusinessRuleError('You are not assigned to teach this subject');
+    const { where: markable } = await teachingScope.getMarkableStudentFilter(req.user, req.institutionId, schedule);
 
     const workbook = new ExcelJS.Workbook();
     if (req.file.originalname.toLowerCase().endsWith('.csv')) {
@@ -324,8 +324,9 @@ const parseMarksImport = async (req, res, next) => {
       throw new ValidationError('The file must have "Roll Number" and "Marks Obtained" columns (an "Absent" column is optional)');
     }
 
+    // Roll numbers only resolve to students this teacher may mark
     const students = await prisma.student.findMany({
-      where: { courseId: schedule.courseId, status: 'ACTIVE' },
+      where: markable,
       select: { id: true, firstName: true, lastName: true, rollNumber: true },
     });
     const byRoll = new Map(students.filter((s) => s.rollNumber).map((s) => [String(s.rollNumber).trim().toLowerCase(), s]));
@@ -337,7 +338,7 @@ const parseMarksImport = async (req, res, next) => {
       const roll = String(row.values[rollCol] ?? '').trim();
       if (!roll) return;
       const student = byRoll.get(roll.toLowerCase());
-      if (!student) { errors.push({ rowNumber, roll, reason: 'No active student with this roll number in this class' }); return; }
+      if (!student) { errors.push({ rowNumber, roll, reason: 'No active student with this roll number in the classes you teach this subject to' }); return; }
 
       const isAbsent = absentCol > -1 && /^(y|yes|true|1|absent)$/i.test(String(row.values[absentCol] ?? '').trim());
       const rawMarks = row.values[marksCol];
@@ -474,8 +475,8 @@ const getStudentPerformanceSummary = async (req, res, next) => {
 const assertAssignedTeacher = async (req, scheduleId) => {
   const schedule = await prisma.examSchedule.findFirst({ where: { id: scheduleId, exam: { institutionId: req.institutionId } } });
   if (!schedule) throw new NotFoundError('Exam schedule not found');
-  const isAssigned = await prisma.subjectTeacherMapping.findFirst({ where: { staffId: req.user.staffId, subjectId: schedule.subjectId } });
-  if (!isAssigned) throw new BusinessRuleError('You are not assigned to teach this subject');
+  // the subject teacher of this subject for this class (course), not just any class
+  await teachingScope.getMarkableStudentFilter(req.user, req.institutionId, schedule);
   return schedule;
 };
 
@@ -528,8 +529,10 @@ const getReviewQueue = async (req, res, next) => {
 
 const createCorrectionRequest = async (req, res, next) => {
   try {
-    await assertAssignedTeacher(req, req.params.scheduleId);
+    const schedule = await assertAssignedTeacher(req, req.params.scheduleId);
     const { studentId, newMarks, newIsAbsent, reason } = req.body;
+    const { where: markable } = await teachingScope.getMarkableStudentFilter(req.user, req.institutionId, schedule);
+    await teachingScope.assertStudentsMarkable([studentId], markable);
     const request = await resultLifecycle.createCorrectionRequest({
       scheduleId: req.params.scheduleId,
       institutionId: req.institutionId,

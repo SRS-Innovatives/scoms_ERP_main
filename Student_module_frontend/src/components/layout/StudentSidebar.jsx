@@ -8,14 +8,15 @@ import { useInstitution } from '../../context/InstitutionContext';
 export const StudentSidebar = ({ isOpen, setIsOpen }) => {
   const location = useLocation();
   const { student } = useStudentAuth();
-  const { institution, isModuleEnabled } = useInstitution();
+  const { institution, isModuleEnabled, academic } = useInstitution();
 
   // Nav items (or their individual children) can carry a `module` tag matching the
   // Super Admin module catalog — items without one are always visible; a parent with
   // children is dropped once every child under it has been module-gated out.
   const moduleFilteredNav = navigationConfig
     .filter((item) => isModuleEnabled(item.module))
-    .map((item) => (item.children ? { ...item, children: item.children.filter((c) => isModuleEnabled(c.module)) } : item))
+    // titleTemplate: items whose title uses the institution's own academic terms
+    .map((item) => (item.children ? { ...item, children: item.children.filter((c) => isModuleEnabled(c.module)).map((c) => (c.titleTemplate ? { ...c, title: c.titleTemplate(academic) } : c)) } : item))
     .filter((item) => !item.children || item.children.length > 0);
 
   const [openMenus, setOpenMenus] = useState(() => {

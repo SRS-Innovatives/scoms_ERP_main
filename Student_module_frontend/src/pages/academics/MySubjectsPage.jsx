@@ -7,10 +7,12 @@ import studentService from '../../services/studentService';
 import attendanceService from '../../services/attendanceService';
 import examService from '../../services/examService';
 import ErrorState from '../../components/common/ErrorState';
+import { useAcademic } from '../../context/InstitutionContext';
 
 export const MySubjectsPage = () => {
   const navigate = useNavigate();
   const { error: showError } = useNotification();
+  const academic = useAcademic();
   const [subjects, setSubjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -80,7 +82,7 @@ export const MySubjectsPage = () => {
               <div>
                 <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">{sub.name}</h3>
                 <p className="text-xs text-slate-500 mt-1 flex items-center gap-1">
-                  <User className="w-3.5 h-3.5 text-indigo-500" /> Faculty: <span className="font-semibold text-slate-700 dark:text-slate-300">{sub.faculty}</span>
+                  <User className="w-3.5 h-3.5 text-indigo-500" /> {academic.label('teacher')}: <span className="font-semibold text-slate-700 dark:text-slate-300">{sub.faculty}</span>
                 </p>
               </div>
 

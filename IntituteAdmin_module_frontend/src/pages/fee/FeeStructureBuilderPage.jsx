@@ -6,6 +6,7 @@ import courseService from '../../services/courseService';
 import sectionService from '../../services/sectionService';
 import { useNotification } from '../../context/NotificationContext';
 import ErrorState from '../../components/common/ErrorState';
+import { useAcademic } from '../../context/InstitutionContext';
 
 const FREQUENCIES = ['ONE_TIME', 'MONTHLY', 'QUARTERLY', 'HALF_YEARLY', 'ANNUAL', 'SEMESTER', 'INSTALLMENT', 'CUSTOM'];
 const STATUS_STYLE = { DRAFT: 'bg-amber-100 text-amber-700', PUBLISHED: 'bg-emerald-100 text-emerald-700', ARCHIVED: 'bg-slate-200 text-slate-600' };
@@ -17,6 +18,7 @@ const STATUS_STYLE = { DRAFT: 'bg-amber-100 text-amber-700', PUBLISHED: 'bg-emer
  * version, or archived — never silently edited once real students are relying on it.
  */
 export const FeeStructureBuilderPage = () => {
+  const academic = useAcademic();
   const { error: showError, success } = useNotification();
   const [structures, setStructures] = useState([]);
   const [feeHeads, setFeeHeads] = useState([]);
@@ -177,16 +179,16 @@ export const FeeStructureBuilderPage = () => {
               <input required type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg" />
             </div>
             <div>
-              <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">Course (optional)</label>
+              <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">{academic.label('course')} (optional)</label>
               <select value={courseId} onChange={(e) => { setCourseId(e.target.value); setSectionId(''); }} className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg">
-                <option value="">All Courses</option>
+                <option value="">All {academic.label('course')}s</option>
                 {courses.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">Section (optional)</label>
+              <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">{academic.label('section')} (optional)</label>
               <select value={sectionId} onChange={(e) => setSectionId(e.target.value)} disabled={!courseId} className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg disabled:opacity-50">
-                <option value="">All Sections</option>
+                <option value="">All {academic.label('section')}s</option>
                 {sections.filter((s) => s.semester?.course?.id === courseId).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select>
             </div>

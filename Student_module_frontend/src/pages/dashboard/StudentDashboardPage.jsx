@@ -3,6 +3,7 @@ import StatCard from '../../components/common/StatCard';
 import StatusBadge from '../../components/common/StatusBadge';
 import { useStudentAuth } from '../../context/StudentAuthContext';
 import { useNotification } from '../../context/NotificationContext';
+import { useAcademic } from '../../context/InstitutionContext';
 import {
   Clock,
   GraduationCap,
@@ -30,6 +31,7 @@ const TODAY_NAME = new Date().toLocaleDateString('en-US', { weekday: 'long' }).t
 export const StudentDashboardPage = () => {
   const { student, isParent } = useStudentAuth();
   const { error: showError } = useNotification();
+  const academic = useAcademic();
   const navigate = useNavigate();
 
   const [attendance, setAttendance] = useState(null);
@@ -126,7 +128,7 @@ export const StudentDashboardPage = () => {
               </p>
               <h2 className="text-xl sm:text-2xl font-black mt-0.5">{student?.name}</h2>
               <p className="text-xs text-indigo-100 mt-0.5">
-                {student?.course} • {student?.department} ({student?.semester}, Sec {student?.section})
+                {student?.course} • {student?.department} ({academic.label('semester')}: {student?.semester}, {academic.label('section')} {student?.section})
               </p>
             </div>
           </div>

@@ -3,8 +3,10 @@ import { Send, X, Users, Loader2 } from 'lucide-react';
 import { useNotification } from '../../context/NotificationContext';
 import attendanceService from '../../services/attendanceService';
 import smsService from '../../services/smsService';
+import { useAcademic } from '../../context/InstitutionContext';
 
 export const ComposeMessageModal = ({ isOpen, onClose }) => {
+  const academic = useAcademic();
   const { success, error: showError } = useNotification();
   const [mappings, setMappings] = useState([]);
   const [loadingClasses, setLoadingClasses] = useState(true);
@@ -67,7 +69,7 @@ export const ComposeMessageModal = ({ isOpen, onClose }) => {
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Class / Section</label>
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">{academic.label('course')} / {academic.label('section')}</label>
               <select
                 value={sectionId}
                 onChange={(e) => setSectionId(e.target.value)}

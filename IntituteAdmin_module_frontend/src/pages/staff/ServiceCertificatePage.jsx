@@ -4,8 +4,10 @@ import { Printer, Loader2 } from 'lucide-react';
 import { useNotification } from '../../context/NotificationContext';
 import staffService from '../../services/staffService';
 import ErrorState from '../../components/common/ErrorState';
+import { useAcademic } from '../../context/InstitutionContext';
 
 export const ServiceCertificatePage = () => {
+  const academic = useAcademic();
   const { notifyError } = useNotification();
   const [staffList, setStaffList] = useState([]);
   const [staffId, setStaffId] = useState('');
@@ -57,7 +59,7 @@ export const ServiceCertificatePage = () => {
 
             <div className="my-10 text-sm leading-relaxed text-slate-900 font-serif px-6 space-y-6">
               <p className="text-justify text-base">
-                This is to certify that <span className="font-bold underline uppercase">{staff.firstName} {staff.lastName}</span> (Emp ID: <span className="font-mono font-bold">{staff.employeeCode}</span>) has been working in this institution as <span className="font-bold">{staff.designation}</span> in the Department of <span className="font-bold">{staff.department?.name || '—'}</span> since <span className="font-bold">{new Date(staff.joiningDate).toLocaleDateString('en-IN')}</span>.
+                This is to certify that <span className="font-bold underline uppercase">{staff.firstName} {staff.lastName}</span> (Emp ID: <span className="font-mono font-bold">{staff.employeeCode}</span>) has been working in this institution as <span className="font-bold">{staff.designation}</span> in the {academic.label('department')} of <span className="font-bold">{staff.department?.name || '—'}</span> since <span className="font-bold">{new Date(staff.joiningDate).toLocaleDateString('en-IN')}</span>.
               </p>
               <p className="text-justify text-base">
                 During his / her tenure{staff.experience ? ` of ${staff.experience}` : ''}, his / her performance in teaching, academic research, laboratory supervision and institutional administration has been <span className="font-bold text-emerald-800 uppercase">HIGHLY SATISFACTORY</span>.

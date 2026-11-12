@@ -4,9 +4,11 @@ import { useNotification } from '../../context/NotificationContext';
 import { Star, CheckCircle2, Loader2 } from 'lucide-react';
 import feedbackService from '../../services/feedbackService';
 import ErrorState from '../../components/common/ErrorState';
+import { useAcademic } from '../../context/InstitutionContext';
 
 export const FeedbackPage = () => {
   const { success, error: showError } = useNotification();
+  const academic = useAcademic();
   const [subjects, setSubjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -56,7 +58,7 @@ export const FeedbackPage = () => {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Anonymous Faculty & Course Feedback" subtitle="Rate your subjects for this term. Submissions are never linked back to your identity." />
+      <PageHeader title={`Anonymous ${academic.label('teacher')} & Subject Feedback`} subtitle={`Rate your subjects for this ${academic.label('semester').toLowerCase()}. Submissions are never linked back to your identity.`} />
 
       {subjects.length === 0 ? (
         <div className="glass-card p-10 rounded-3xl border border-slate-200 dark:border-slate-800 text-center text-xs text-slate-500">

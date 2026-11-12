@@ -1,8 +1,10 @@
 import React from 'react';
 import StatusBadge from './StatusBadge';
 import { Phone, Mail, MapPin, Award, CreditCard, ShieldCheck } from 'lucide-react';
+import { useAcademic } from '../../context/InstitutionContext';
 
 export const StudentCard = ({ student, onViewDetails, onPrintCard }) => {
+  const academic = useAcademic();
   if (!student) return null;
 
   return (
@@ -27,7 +29,7 @@ export const StudentCard = ({ student, onViewDetails, onPrintCard }) => {
 
       <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800 grid grid-cols-2 gap-2 text-xs">
         <div>
-          <span className="text-[10px] text-slate-400 uppercase font-semibold">Semester</span>
+          <span className="text-[10px] text-slate-400 uppercase font-semibold">{academic.label('semester')}</span>
           <p className="font-semibold text-slate-800 dark:text-slate-200">{student.yearSem}</p>
         </div>
         <div>

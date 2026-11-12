@@ -15,6 +15,7 @@ import ModuleSettingsPage from '../pages/setup/ModuleSettingsPage';
 import AcademicYearSetupPage from '../pages/setup/AcademicYearSetupPage';
 import CampusSetupPage from '../pages/setup/CampusSetupPage';
 import DepartmentSetupPage from '../pages/setup/DepartmentSetupPage';
+import FacultySetupPage from '../pages/setup/FacultySetupPage';
 import CourseClassSetupPage from '../pages/setup/CourseClassSetupPage';
 import SemesterSetupPage from '../pages/setup/SemesterSetupPage';
 import SectionSetupPage from '../pages/setup/SectionSetupPage';
@@ -75,7 +76,6 @@ import AttendanceReportsPage from '../pages/attendance/AttendanceReportsPage';
 import ClassTimetablePage from '../pages/timetable/ClassTimetablePage';
 import TeacherTimetablePage from '../pages/timetable/TeacherTimetablePage';
 import ExamTimetablePage from '../pages/timetable/ExamTimetablePage';
-import TimetableGeneratorPage from '../pages/timetable/TimetableGeneratorPage';
 import SubstituteRequestsPage from '../pages/timetable/SubstituteRequestsPage';
 
 // Examination
@@ -231,6 +231,7 @@ export const AppRoutes = () => {
         <Route path="setup/module-settings" element={<ModuleSettingsPage />} />
         <Route path="setup/academic-year" element={<AcademicYearSetupPage />} />
         <Route path="setup/campus" element={<CampusSetupPage />} />
+        <Route path="setup/faculty" element={<FacultySetupPage />} />
         <Route path="setup/department" element={<DepartmentSetupPage />} />
         <Route path="setup/course" element={<CourseClassSetupPage />} />
         <Route path="setup/semester" element={<SemesterSetupPage />} />
@@ -296,7 +297,8 @@ export const AppRoutes = () => {
         <Route path="timetable/class" element={<ClassTimetablePage />} />
         <Route path="timetable/teacher" element={<TeacherTimetablePage />} />
         <Route path="timetable/exam" element={<ExamTimetablePage />} />
-        <Route path="timetable/generator" element={<TimetableGeneratorPage />} />
+        {/* The auto-generator was a placeholder — old links land on the real class timetable */}
+        <Route path="timetable/generator" element={<Navigate to="/admin/timetable/class" replace />} />
         <Route path="timetable/substitutes" element={<SubstituteRequestsPage />} />
 
         {/* Examination */}

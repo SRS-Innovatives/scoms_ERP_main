@@ -73,6 +73,7 @@ router.patch('/report-requests/:id', shadowPermission(PERMISSIONS.REPORTS_MANAGE
 router.get('/institutions', institutionController.getInstitutions);
 router.post('/institutions', shadowPermission(PERMISSIONS.INSTITUTIONS_CREATE), institutionController.createInstitutionOnboarding);
 router.get('/institutions/modules-catalog', institutionController.getModuleCatalog);
+router.get('/institutions/academic-structure-catalog', institutionController.getAcademicStructureCatalog);
 router.post('/institutions/:institutionId/admin', shadowPermission(PERMISSIONS.INSTITUTIONS_CREATE), institutionController.createInstituteAdmin);
 router.get('/institutions/:id', institutionController.getInstitutionById);
 router.patch('/institutions/:id/status', shadowPermission(PERMISSIONS.INSTITUTIONS_UPDATE), institutionController.updateInstitutionStatus);

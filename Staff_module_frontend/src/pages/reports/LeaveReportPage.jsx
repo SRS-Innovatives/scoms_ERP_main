@@ -4,10 +4,12 @@ import { Loader2, Inbox } from 'lucide-react';
 import { useNotification } from '../../context/NotificationContext';
 import studentLeaveService from '../../services/studentLeaveService';
 import ErrorState from '../../components/common/ErrorState';
+import { useAcademic } from '../../context/InstitutionContext';
 
 const TYPE_LABELS = { MEDICAL: 'Medical', CASUAL: 'Casual', DUTY: 'On Duty', EARNED: 'Earned' };
 
 export const LeaveReportPage = () => {
+  const academic = useAcademic();
   const { error: showError } = useNotification();
   const [leaves, setLeaves] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -47,7 +49,7 @@ export const LeaveReportPage = () => {
             <thead className="bg-slate-100 dark:bg-slate-800 uppercase font-semibold text-slate-600 dark:text-slate-400">
               <tr>
                 <th className="p-3">Student</th>
-                <th className="p-3">Section</th>
+                <th className="p-3">{academic.label('section')}</th>
                 <th className="p-3">Type</th>
                 <th className="p-3">Dates</th>
                 <th className="p-3">Status</th>

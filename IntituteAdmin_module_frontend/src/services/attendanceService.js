@@ -24,8 +24,18 @@ const getCorrections = (status) => apiCall(`/attendance/corrections${status ? `?
 const reviewCorrection = (id, decision, remarks) =>
   apiCall(`/attendance/corrections/${id}/review`, { method: 'POST', body: { decision, remarks } });
 
+// Biometric device export (CSV/Excel) -> daily attendance. mode: 'preview' | 'commit'
+const importBiometric = (file, { mode = 'preview', markAbsent = false } = {}) => {
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('mode', mode);
+  formData.append('markAbsent', String(markAbsent));
+  return apiCall('/attendance/biometric-import', { method: 'POST', body: formData });
+};
+const downloadBiometricTemplate = () => apiCall('/attendance/biometric-import/template', { responseType: 'blob' });
+
 export const attendanceService = {
   getRegister, getAbsentees, notifyAbsentees, getReports, getConsolidatedReport, getDateWiseReport,
-  getCorrections, reviewCorrection,
+  getCorrections, reviewCorrection, importBiometric, downloadBiometricTemplate,
 };
 export default attendanceService;

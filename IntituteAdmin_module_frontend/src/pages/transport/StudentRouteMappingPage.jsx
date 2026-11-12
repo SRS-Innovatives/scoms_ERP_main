@@ -7,10 +7,12 @@ import { MapPin } from 'lucide-react';
 import transportService from '../../services/transportService';
 import studentService from '../../services/studentService';
 import ErrorState from '../../components/common/ErrorState';
+import { useAcademic } from '../../context/InstitutionContext';
 
 const emptyForm = { studentId: '', routeId: '', pickupPoint: '' };
 
 export const StudentRouteMappingPage = () => {
+  const academic = useAcademic();
   const { notifySuccess, notifyError } = useNotification();
   const [mappings, setMappings] = useState([]);
   const [routes, setRoutes] = useState([]);
@@ -55,7 +57,7 @@ export const StudentRouteMappingPage = () => {
   const columns = [
     { header: 'Roll No', key: 'student', sortable: false, render: (val) => <span className="font-mono font-bold text-indigo-600">{val?.rollNumber}</span> },
     { header: 'Student Name', key: 'student2', sortable: false, render: (_, row) => <span className="font-bold text-slate-900 dark:text-white">{row.student?.firstName} {row.student?.lastName}</span> },
-    { header: 'Course', key: 'student3', sortable: false, render: (_, row) => row.student?.course?.name },
+    { header: academic.label('course'), key: 'student3', sortable: false, render: (_, row) => row.student?.course?.name },
     { header: 'Assigned Route', key: 'route', sortable: false, render: (val) => <span className="font-semibold text-slate-800 dark:text-slate-200">{val?.routeName}</span> },
     { header: 'Pickup Point', key: 'pickupPoint' },
     { header: 'Monthly Fee (₹)', key: 'route2', sortable: false, render: (_, row) => <span className="font-mono font-bold text-emerald-600">₹{row.route?.monthlyFare.toLocaleString()}</span> },

@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useNotification } from '../../context/NotificationContext';
+import { useAcademic } from '../../context/InstitutionContext';
 import profileService from '../../services/profileService';
 import attendanceService from '../../services/attendanceService';
 import assignmentService from '../../services/assignmentService';
@@ -38,6 +39,7 @@ const toCardShape = (a) => ({
 export const StaffDashboardPage = () => {
   const navigate = useNavigate();
   const { error: showError } = useNotification();
+  const academic = useAcademic();
   const [profile, setProfile] = useState(null);
   const [myClasses, setMyClasses] = useState([]);
   const [attendanceHistory, setAttendanceHistory] = useState([]);
@@ -132,7 +134,7 @@ export const StaffDashboardPage = () => {
               <div className="flex items-center gap-2">
                 <h2 className="text-xl font-black">Welcome back, {profile?.firstName} {profile?.lastName}! 👋</h2>
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-white/20 backdrop-blur-md">
-                  {profile?.department?.name || 'No Department'}
+                  {profile?.department?.name || `No ${academic.label('department')}`}
                 </span>
               </div>
               <p className="text-xs text-sky-100 mt-1">

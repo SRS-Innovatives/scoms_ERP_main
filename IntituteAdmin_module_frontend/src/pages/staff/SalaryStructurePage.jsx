@@ -5,10 +5,12 @@ import { useNotification } from '../../context/NotificationContext';
 import { CreditCard, Edit3, Loader2 } from 'lucide-react';
 import staffService from '../../services/staffService';
 import ErrorState from '../../components/common/ErrorState';
+import { useAcademic } from '../../context/InstitutionContext';
 
 const emptyForm = { basicPay: '', hra: '', da: '', otherAllowances: '', deductions: '' };
 
 export const SalaryStructurePage = () => {
+  const academic = useAcademic();
   const { notifySuccess, notifyError } = useNotification();
   const [staff, setStaff] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -60,7 +62,7 @@ export const SalaryStructurePage = () => {
     { header: 'Emp ID', key: 'employeeCode', render: (val) => <span className="font-mono font-bold text-indigo-600">{val}</span> },
     { header: 'Staff Name', key: 'firstName', sortable: false, render: (_, row) => <span className="font-bold text-slate-900 dark:text-white">{row.firstName} {row.lastName}</span> },
     { header: 'Role', key: 'designation' },
-    { header: 'Department', key: 'department', sortable: false, render: (val) => val?.name || '—' },
+    { header: academic.label('department'), key: 'department', sortable: false, render: (val) => val?.name || '—' },
     { header: 'Basic Pay', key: 'salary', sortable: false, render: (val) => <span className="font-mono">₹{(val?.basicPay || 0).toLocaleString()}</span> },
     { header: 'HRA + DA + Allowances', key: 'salary2', sortable: false, render: (_, row) => <span className="font-mono text-emerald-600">+₹{((row.salary?.hra || 0) + (row.salary?.da || 0) + (row.salary?.otherAllowances || 0)).toLocaleString()}</span> },
     { header: 'Deductions', key: 'salary3', sortable: false, render: (_, row) => <span className="font-mono text-rose-600">−₹{(row.salary?.deductions || 0).toLocaleString()}</span> },

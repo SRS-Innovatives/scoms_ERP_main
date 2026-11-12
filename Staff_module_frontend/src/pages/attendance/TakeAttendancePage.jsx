@@ -2,13 +2,18 @@ import React, { useState, useEffect, useCallback } from 'react';
 import AttendanceTable from '../../components/common/AttendanceTable';
 import attendanceService from '../../services/attendanceService';
 import { useNotification } from '../../context/NotificationContext';
+import { useAcademic } from '../../context/InstitutionContext';
 import { Calendar, Clock, BookOpen, Save, Loader2 } from 'lucide-react';
 import ErrorState from '../../components/common/ErrorState';
 
 const UI_TO_STATUS = { Present: 'PRESENT', Absent: 'ABSENT', Late: 'LATE', 'On Duty': 'ON_DUTY' };
+// Daily (whole-day) attendance is taken by the class teacher, has no subject, and is
+// stored as period 0 so it never collides with a subject period.
+const DAILY_PERIOD = 0;
 
 export const TakeAttendancePage = () => {
   const { success, error: showError } = useNotification();
+  const academic = useAcademic();
   const [myClasses, setMyClasses] = useState([]);
   const [loadingClasses, setLoadingClasses] = useState(true);
   const [classesError, setClassesError] = useState(false);
@@ -27,8 +32,12 @@ export const TakeAttendancePage = () => {
   const loadClasses = useCallback(() => {
     setLoadingClasses(true);
     setClassesError(false);
-    attendanceService.getMyClasses()
-      .then((res) => setMyClasses(res.data || []))
+    // Subject classes (subject teacher) + daily attendance for sections they class-teach
+    Promise.all([attendanceService.getMyClasses(), attendanceService.getClassTeacherSections().catch(() => ({ data: [] }))])
+      .then(([classRes, ctRes]) => {
+        const daily = (ctRes.data || []).map((section) => ({ id: `daily:${section.id}`, daily: true, section, subject: null }));
+        setMyClasses([...daily, ...(classRes.data || [])]);
+      })
       .catch((err) => { showError(err.message || 'Failed to load assigned classes', 'Load Failed'); setClassesError(true); })
       .finally(() => setLoadingClasses(false));
 
@@ -40,6 +49,8 @@ export const TakeAttendancePage = () => {
   useEffect(() => { loadClasses(); }, [loadClasses]);
 
   const selectedMapping = myClasses.find((m) => m.id === selectedMappingId);
+  const isDaily = !!selectedMapping?.daily;
+  const effectivePeriod = isDaily ? DAILY_PERIOD : periodNumber;
 
   const loadRosterAndSession = useCallback(async () => {
     if (!selectedMapping) return;
@@ -47,7 +58,7 @@ export const TakeAttendancePage = () => {
     try {
       const [rosterRes, sessionRes] = await Promise.all([
         attendanceService.getRoster(selectedMapping.section.id),
-        attendanceService.getSession(selectedMapping.section.id, selectedDate, periodNumber),
+        attendanceService.getSession(selectedMapping.section.id, selectedDate, effectivePeriod),
       ]);
       setRoster(rosterRes.data || []);
       setAlreadyRecorded(!!sessionRes.data);
@@ -59,11 +70,11 @@ export const TakeAttendancePage = () => {
     } finally {
       setLoadingRoster(false);
     }
-  }, [selectedMapping, selectedDate, periodNumber, showError]);
+  }, [selectedMapping, selectedDate, effectivePeriod, showError]);
 
   useEffect(() => {
     if (selectedMapping) loadRosterAndSession();
-  }, [selectedMapping, selectedDate, periodNumber]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [selectedMapping, selectedDate, effectivePeriod]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSaveAttendance = async () => {
     if (!selectedMapping) return;
@@ -75,15 +86,15 @@ export const TakeAttendancePage = () => {
       }));
       await attendanceService.markAttendance({
         sectionId: selectedMapping.section.id,
-        subjectId: selectedMapping.subject.id,
+        subjectId: isDaily ? null : selectedMapping.subject.id,
         date: selectedDate,
-        periodNumber,
+        periodNumber: effectivePeriod,
         records,
       });
       const absentCount = records.filter((r) => r.status === 'ABSENT').length;
       const smsNote = absentCount === 0 ? '' : smsEnabled ? ` SMS alerts sent to ${absentCount} parent(s).` : ` (${absentCount} absent — SMS alerts are turned off by your admin.)`;
       success(
-        `Attendance for ${selectedMapping.section.name} (${selectedMapping.subject.name}) recorded.${smsNote}`,
+        `${isDaily ? 'Daily attendance' : 'Attendance'} for ${selectedMapping.section.name}${isDaily ? '' : ` (${selectedMapping.subject.name})`} recorded.${smsNote}`,
         'Attendance Saved'
       );
       setAlreadyRecorded(true);
@@ -120,7 +131,7 @@ export const TakeAttendancePage = () => {
         </h3>
 
         {myClasses.length === 0 ? (
-          <p className="text-xs text-slate-500">You have no assigned classes yet. Ask your Institute Admin to assign you to a subject/section.</p>
+          <p className="text-xs text-slate-500">Nothing assigned to you yet. Ask your Institute Admin to assign you to a subject/{academic.label('section').toLowerCase()}.</p>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-xs">
             <div>
@@ -139,6 +150,9 @@ export const TakeAttendancePage = () => {
               <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1 flex items-center gap-1">
                 <Clock className="w-3.5 h-3.5 text-indigo-500" /> Period
               </label>
+              {isDaily ? (
+                <p className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-500">Whole day</p>
+              ) : (
               <select
                 value={periodNumber}
                 onChange={(e) => setPeriodNumber(Number(e.target.value))}
@@ -146,20 +160,23 @@ export const TakeAttendancePage = () => {
               >
                 {[1, 2, 3, 4, 5, 6, 7].map((p) => <option key={p} value={p}>Period {p}</option>)}
               </select>
+              )}
             </div>
 
             <div>
               <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1 flex items-center gap-1">
-                <BookOpen className="w-3.5 h-3.5 text-purple-500" /> Class & Subject
+                <BookOpen className="w-3.5 h-3.5 text-purple-500" /> {academic.label('course')} / {academic.label('section')} & Subject
               </label>
               <select
                 value={selectedMappingId}
                 onChange={(e) => setSelectedMappingId(e.target.value)}
                 className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500/20 text-slate-800 dark:text-slate-200"
               >
-                <option value="">Select class...</option>
+                <option value="">Select...</option>
                 {myClasses.map((m) => (
-                  <option key={m.id} value={m.id}>{m.section.name} — {m.subject.name}</option>
+                  <option key={m.id} value={m.id}>
+                    {[m.section.semester?.course?.name, m.section.name].filter(Boolean).join(' - ')} — {m.daily ? `Daily attendance (${academic.label('classTeacher')})` : m.subject.name}
+                  </option>
                 ))}
               </select>
             </div>

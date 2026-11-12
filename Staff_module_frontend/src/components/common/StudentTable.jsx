@@ -1,8 +1,10 @@
 import React from 'react';
 import StatusBadge from './StatusBadge';
 import { Eye, Edit, MessageSquare, PhoneCall } from 'lucide-react';
+import { useAcademic } from '../../context/InstitutionContext';
 
 export const StudentTable = ({ students = [], onViewProfile, onContactParent }) => {
+  const academic = useAcademic();
   return (
     <div className="glass-card rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800">
       <div className="overflow-x-auto">
@@ -12,7 +14,7 @@ export const StudentTable = ({ students = [], onViewProfile, onContactParent }) 
               <th className="px-4 py-3">Roll No</th>
               <th className="px-4 py-3">Student Name</th>
               <th className="px-4 py-3">Gender</th>
-              <th className="px-4 py-3">Class</th>
+              <th className="px-4 py-3">{academic.label('course')}</th>
               <th className="px-4 py-3">Attendance %</th>
               <th className="px-4 py-3">Last Marks</th>
               <th className="px-4 py-3">Status</th>

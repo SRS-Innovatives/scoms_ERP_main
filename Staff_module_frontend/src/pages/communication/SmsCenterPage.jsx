@@ -4,8 +4,10 @@ import { useNotification } from '../../context/NotificationContext';
 import attendanceService from '../../services/attendanceService';
 import smsService from '../../services/smsService';
 import ErrorState from '../../components/common/ErrorState';
+import { useAcademic } from '../../context/InstitutionContext';
 
 export const SmsCenterPage = () => {
+  const academic = useAcademic();
   const { success, error: showError } = useNotification();
   const [mappings, setMappings] = useState([]);
   const [sectionId, setSectionId] = useState('');
@@ -70,7 +72,7 @@ export const SmsCenterPage = () => {
       </div>
 
       <div>
-        <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Class / Section</label>
+        <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">{academic.label('course')} / {academic.label('section')}</label>
         <select value={sectionId} onChange={(e) => setSectionId(e.target.value)} className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl">
           {mappings.map((m) => (
             <option key={m.section.id} value={m.section.id}>{m.section?.semester?.course?.name} — {m.section?.name}</option>

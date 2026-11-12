@@ -5,10 +5,12 @@ import StatusBadge from '../../components/common/StatusBadge';
 import { useNotification } from '../../context/NotificationContext';
 import { Save, Loader2, Users } from 'lucide-react';
 import staffService from '../../services/staffService';
+import { useAcademic } from '../../context/InstitutionContext';
 
 const STATUS_OPTIONS = ['PRESENT', 'ABSENT', 'LATE', 'HALF_DAY', 'LEAVE'];
 
 export const StaffAttendancePage = () => {
+  const academic = useAcademic();
   const { notifySuccess, notifyError } = useNotification();
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [roster, setRoster] = useState([]);
@@ -52,7 +54,7 @@ export const StaffAttendancePage = () => {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl font-bold text-slate-900 dark:text-white">Daily Faculty Attendance Register</h1>
+          <h1 className="text-xl font-bold text-slate-900 dark:text-white">Daily Staff Attendance Register</h1>
           <p className="text-xs text-slate-500 dark:text-slate-400">Daily attendance marking for teaching & admin staff</p>
         </div>
         <div className="flex items-center gap-3">
@@ -75,7 +77,7 @@ export const StaffAttendancePage = () => {
             <thead className="bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold uppercase text-[11px]">
               <tr>
                 <th className="p-3">Emp ID</th>
-                <th className="p-3">Faculty Name</th>
+                <th className="p-3">Staff Name</th>
                 <th className="p-3">Designation & Dept</th>
                 <th className="p-3">Status</th>
               </tr>

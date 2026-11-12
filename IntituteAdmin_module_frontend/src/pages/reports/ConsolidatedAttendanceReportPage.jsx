@@ -6,6 +6,7 @@ import { useNotification } from '../../context/NotificationContext';
 import { CalendarCheck, Printer, Loader2, RefreshCw } from 'lucide-react';
 import attendanceService from '../../services/attendanceService';
 import sectionService from '../../services/sectionService';
+import { useAcademic } from '../../context/InstitutionContext';
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 const now = new Date();
@@ -22,6 +23,7 @@ const STATUS_STYLE = {
 const sectionLabel = (s) => `${s.semester?.course?.name || ''} — ${s.semester?.name || ''} — ${s.name}`;
 
 export const ConsolidatedAttendanceReportPage = () => {
+  const academic = useAcademic();
   const { notifyError } = useNotification();
   const [sections, setSections] = useState([]);
   const [sectionId, setSectionId] = useState('');
@@ -82,7 +84,7 @@ export const ConsolidatedAttendanceReportPage = () => {
       <div className="flex items-center justify-between gap-4 no-print">
         <div>
           <h1 className="text-xl font-bold text-slate-900 dark:text-white">Consolidated Attendance Report</h1>
-          <p className="text-xs text-slate-500 dark:text-slate-400">Class-wise monthly attendance grid — one row per student, one column per day</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400">{academic.label('section')}-wise monthly attendance grid — one row per student, one column per day</p>
         </div>
         <button onClick={() => window.print()} className="flex items-center gap-1.5 px-3 py-2 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl text-xs font-semibold">
           <Printer className="w-4 h-4" /> Print
@@ -90,9 +92,9 @@ export const ConsolidatedAttendanceReportPage = () => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 no-print">
-        <ReportConfigBox title="Class & Period">
+        <ReportConfigBox title={`${academic.label('section')} & Period`}>
           <div>
-            <label className="block text-slate-500 mb-1">Section</label>
+            <label className="block text-slate-500 mb-1">{academic.label('section')}</label>
             <select value={sectionId} onChange={(e) => setSectionId(e.target.value)} className="w-full p-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg">
               {sections.map((s) => <option key={s.id} value={s.id}>{sectionLabel(s)}</option>)}
             </select>
@@ -146,7 +148,7 @@ export const ConsolidatedAttendanceReportPage = () => {
       ) : reportError ? (
         <ErrorState onRetry={generate} />
       ) : !report || report.rows.length === 0 ? (
-        <EmptyState title="No Students in This Section" icon={CalendarCheck} />
+        <EmptyState title={`No Students in This ${academic.label('section')}`} icon={CalendarCheck} />
       ) : filteredRows.length === 0 ? (
         <EmptyState title="No Students Match This Filter" description="Try lowering the minimum percentage." icon={CalendarCheck} />
       ) : (

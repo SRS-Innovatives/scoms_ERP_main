@@ -23,7 +23,9 @@ const getProfile = async (req, res, next) => {
         institution: { select: { name: true, code: true, logo: true } },
         user: { select: { avatar: true } },
         department: true,
-        course: true,
+        // program/batch are null for institutions that don't use those levels (e.g. schools)
+        course: { include: { program: { select: { name: true } } } },
+        batch: { select: { name: true } },
         section: {
           include: {
             semester: {

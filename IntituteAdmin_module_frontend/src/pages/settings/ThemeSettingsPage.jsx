@@ -10,7 +10,7 @@ export const ThemeSettingsPage = () => {
     <div className="space-y-6 max-w-4xl mx-auto">
       <div>
         <h1 className="text-xl font-bold text-slate-900 dark:text-white">Admin Portal Appearance & Color Themes</h1>
-        <p className="text-xs text-slate-500 dark:text-slate-400">Glassmorphism card effects, accent colors & dark/light mode toggle</p>
+        <p className="text-xs text-slate-500 dark:text-slate-400">Switch the admin portal between light and dark mode</p>
       </div>
 
       <FormSection title="Theme Preference" icon={Palette}>
