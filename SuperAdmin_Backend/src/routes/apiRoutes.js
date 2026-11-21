@@ -15,11 +15,15 @@ const aiController = require('../controllers/aiController');
 const analyticsController = require('../controllers/analyticsController');
 const settingsController = require('../controllers/settingsController');
 const securityController = require('../controllers/securityController');
+const sessionsController = require('../controllers/sessionsController');
+const featureFlagController = require('../controllers/featureFlagController');
 const systemController = require('../controllers/systemController');
+const platformInfraController = require('../controllers/platformInfraController');
 const smsController = require('../controllers/smsController');
 const emailController = require('../controllers/emailController');
 const whatsappController = require('../controllers/whatsappController');
 const announcementController = require('../controllers/announcementController');
+const platformBroadcastController = require('../controllers/platformBroadcastController');
 const reportManagementController = require('../controllers/reportManagementController');
 const admissionFieldReviewController = require('../controllers/admissionFieldReviewController');
 const moduleRegistryController = require('../controllers/moduleRegistryController');
@@ -88,6 +92,7 @@ router.post('/admission-fields/bulk-review', shadowPermission(PERMISSIONS.ADMISS
 router.put('/institutions/:id', shadowPermission(PERMISSIONS.INSTITUTIONS_UPDATE), institutionController.updateInstitution);
 router.delete('/institutions/:id', shadowPermission(PERMISSIONS.INSTITUTIONS_DELETE), institutionController.deleteInstitution);
 router.get('/audit-logs', institutionController.getAuditLogs);
+router.get('/audit-logs/modules', institutionController.getAuditLogModules);
 
 // Users
 router.get('/users', userController.getUsers);
@@ -114,6 +119,7 @@ router.post('/subscriptions/:id/remind', shadowPermission(PERMISSIONS.SUBSCRIPTI
 
 // Support
 router.get('/tickets', supportController.getTickets);
+router.get('/tickets/open-count', supportController.getOpenTicketCount);
 router.post('/tickets', shadowPermission(PERMISSIONS.SUPPORT_MANAGE), supportController.createTicket);
 router.patch('/tickets/:id', shadowPermission(PERMISSIONS.SUPPORT_MANAGE), supportController.updateTicket);
 
@@ -132,13 +138,24 @@ router.get('/analytics', analyticsController.getAnalytics);
 
 // Settings
 router.get('/settings', settingsController.getSettings);
+// Feature Flags — platform-wide switches that really turn features on / off
+router.get('/feature-flags', featureFlagController.getFeatureFlags);
+router.put('/feature-flags/:key', shadowPermission(PERMISSIONS.PLATFORM_SETTINGS_MANAGE), featureFlagController.setFeatureFlag);
 router.put('/settings', shadowPermission(PERMISSIONS.PLATFORM_SETTINGS_MANAGE), settingsController.updateSettings);
 
 // Security Center
 router.get('/security/overview', securityController.getSecurityOverview);
+// Active Sessions — real signed-in sessions across all portals; revoke signs a device out
+router.get('/sessions', sessionsController.getSessions);
+router.delete('/sessions/:id', shadowPermission(PERMISSIONS.SECURITY_MANAGE), sessionsController.revokeSession);
+router.post('/sessions/revoke-user', shadowPermission(PERMISSIONS.SECURITY_MANAGE), sessionsController.revokeUserSessions);
 
 // System & Health
 router.get('/system/health', systemController.getSystemHealth);
+// Database & Backups, Storage, API Management — real figures (platformInfraController)
+router.get('/system/database', platformInfraController.getDatabaseOverview);
+router.get('/system/storage', platformInfraController.getStorageOverview);
+router.get('/system/api', platformInfraController.getApiOverview);
 
 // Integration Hub (Phase 12)
 router.get('/integrations/providers', systemController.getIntegrationProviders);
@@ -163,6 +180,11 @@ router.get('/whatsapp-stats', whatsappController.getWhatsappStats);
 router.get('/whatsapp/wallet', whatsappController.getWalletOverview);
 router.post('/whatsapp/purchase', shadowPermission(PERMISSIONS.WHATSAPP_MANAGE), whatsappController.purchaseWhatsappCredits);
 router.post('/whatsapp/allocate', shadowPermission(PERMISSIONS.WHATSAPP_MANAGE), whatsappController.allocateWhatsappCredits);
+
+// Notification Center — platform-wide broadcasts (in-app + optional email / SMS)
+router.get('/broadcasts', platformBroadcastController.getBroadcasts);
+router.post('/broadcasts/preview', shadowPermission(PERMISSIONS.ANNOUNCEMENTS_CREATE), platformBroadcastController.previewBroadcast);
+router.post('/broadcasts', shadowPermission(PERMISSIONS.ANNOUNCEMENTS_CREATE), platformBroadcastController.sendBroadcast);
 
 // Announcements
 router.get('/announcements', announcementController.getAnnouncements);

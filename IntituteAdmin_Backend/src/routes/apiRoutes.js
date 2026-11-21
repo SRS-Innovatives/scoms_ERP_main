@@ -10,9 +10,14 @@ const authController = require('../controllers/authController');
 const setupController = require('../controllers/setupController');
 const infrastructureController = require('../controllers/infrastructureController');
 const staffController = require('../controllers/staffController');
+const studentLeaveController = require('../controllers/studentLeaveController');
 const studentController = require('../controllers/studentController');
 const feeController = require('../controllers/feeController');
 const concessionController = require('../controllers/concessionController');
+const lateFeeController = require('../controllers/lateFeeController');
+const electiveController = require('../controllers/electiveController');
+const feePolicyController = require('../controllers/feePolicyController');
+const feeAutomationController = require('../controllers/feeAutomationController');
 const feeEngineController = require('../controllers/feeEngineController');
 const dashboardController = require('../controllers/dashboardController');
 const announcementController = require('../controllers/announcementController');
@@ -21,6 +26,7 @@ const reportController = require('../controllers/reportController');
 const timetableController = require('../controllers/timetableController');
 const examController = require('../controllers/examController');
 const examInsightsController = require('../controllers/examInsightsController');
+const examDutyController = require('../controllers/examDutyController');
 const circularController = require('../controllers/circularController');
 const houseController = require('../controllers/houseController');
 const biometricController = require('../controllers/biometricController');
@@ -70,7 +76,7 @@ const {
   requireAuth, requireTenant, requireModule, handleForgotPassword, handleVerifyOtp, handleResetPassword,
   loginLimiter, otpLimiter,
   handleGetNotifications, handleGetUnreadCount, handleMarkNotificationRead, handleMarkAllNotificationsRead,
-  shadowPermission, requirePermissionStrict, PERMISSIONS,
+  shadowPermission, requirePermissionStrict, PERMISSIONS, requireRole, ROLES,
 } = require('../../../shared');
 
 // Standalone Auth Routes
@@ -84,6 +90,11 @@ router.post('/auth/logout', authController.logout);
 // Guarded Tenant Routes
 router.use(requireAuth);
 router.use(requireTenant);
+// The Admin API is for the Institute Admin (and platform admins managing an institution)
+// only. Without this, any logged-in user's token — a student's, a teacher's — could call
+// every admin route where their role happens to share a permission (e.g. a student's
+// "view fees", meant for their OWN fees, exposed every student's fee records here).
+router.use(requireRole(ROLES.INSTITUTE_ADMIN, ROLES.SUPER_ADMIN, ROLES.PLATFORM_ADMIN));
 
 router.get('/auth/me', authController.getMe);
 router.post('/auth/change-password', authController.changePassword);
@@ -227,6 +238,10 @@ router.get('/setup/subjects/class-mapping', setupController.getSubjectClassMappi
 router.put('/setup/subjects/:id/class-mapping', setupController.setSubjectClassMapping);
 router.patch('/setup/subjects/:id', setupController.updateSubject);
 router.delete('/setup/subjects/:id', setupController.deleteSubject);
+// Elective allotment — which students take an elective subject in a class
+router.get('/electives', electiveController.getElectives);
+router.get('/electives/:subjectId/students', electiveController.getElectiveStudents);
+router.put('/electives/:subjectId/students', electiveController.setElectiveStudents);
 
 // Houses / groups: mentor teacher, members, points log
 router.get('/setup/houses', houseController.getHouses);
@@ -258,6 +273,8 @@ router.get('/students/:studentId/documents', shadowPermission(PERMISSIONS.STUDEN
 router.post('/students/:studentId/documents', shadowPermission(PERMISSIONS.STUDENTS_UPDATE), studentDocumentController.uploadDocument);
 router.get('/students/documents/:id', shadowPermission(PERMISSIONS.STUDENTS_VIEW), studentDocumentController.getDocumentById);
 router.delete('/students/documents/:id', shadowPermission(PERMISSIONS.STUDENTS_UPDATE), studentDocumentController.deleteDocument);
+// show / hide a document in the student's own My Documents
+router.patch('/students/documents/:id/visibility', shadowPermission(PERMISSIONS.STUDENTS_UPDATE), studentDocumentController.setDocumentVisibility);
 
 // Student Withdrawal / Transfer — /students/exits/:id/... routes only (the two
 // GET/POST /students/exits list/create routes are registered above /students/:id —
@@ -279,6 +296,9 @@ router.post('/staff/attendance', shadowPermission(PERMISSIONS.ATTENDANCE_MARK), 
 router.get('/staff/leave', shadowPermission(PERMISSIONS.LEAVE_VIEW), staffController.getLeaveRequests);
 router.post('/staff/leave', shadowPermission(PERMISSIONS.LEAVE_APPLY), staffController.createLeaveRequest);
 router.patch('/staff/leave/:id', shadowPermission(PERMISSIONS.LEAVE_APPROVE), staffController.updateLeaveStatus);
+// Student leave requests — every one in the institution (class teachers decide theirs in the Staff portal)
+router.get('/student-leave', shadowPermission(PERMISSIONS.LEAVE_VIEW), studentLeaveController.getStudentLeaves);
+router.patch('/student-leave/:id', shadowPermission(PERMISSIONS.LEAVE_APPROVE), studentLeaveController.updateStudentLeaveStatus);
 router.get('/staff/assignments', shadowPermission(PERMISSIONS.STAFF_VIEW), staffController.getTeacherAssignments);
 router.post('/staff/assignments', shadowPermission(PERMISSIONS.STAFF_UPDATE), staffController.assignTeacher);
 router.delete('/staff/assignments/:id', shadowPermission(PERMISSIONS.STAFF_UPDATE), staffController.removeTeacherAssignment);
@@ -313,6 +333,37 @@ router.get('/fees/concessions', shadowPermission(PERMISSIONS.FEES_VIEW), concess
 router.post('/fees/concessions', shadowPermission(PERMISSIONS.FEES_SETUP), concessionController.createApplication);
 router.post('/fees/concessions/:id/review', requirePermissionStrict(PERMISSIONS.FEES_CONCESSION_APPROVE), concessionController.reviewApplication);
 router.post('/fees/concessions/:id/revoke', requirePermissionStrict(PERMISSIONS.FEES_CONCESSION_APPROVE), concessionController.revokeApplication);
+// Late fees — accrue automatically; only the Institute Admin collects or waives them
+router.get('/fees/late-fees', shadowPermission(PERMISSIONS.FEES_VIEW), lateFeeController.getLateFees);
+router.post('/fees/late-fees/:assignmentId/collect', shadowPermission(PERMISSIONS.FEES_COLLECT), lateFeeController.collectLateFee);
+router.post('/fees/late-fees/:assignmentId/waive', requirePermissionStrict(PERMISSIONS.FEES_CONCESSION_APPROVE), lateFeeController.waiveLateFee);
+// Fee Policy — payment rules, holds, credit, reminders (shared/fees/feePolicy.js)
+router.get('/fees/policy', shadowPermission(PERMISSIONS.FEES_VIEW), feePolicyController.getPolicy);
+router.put('/fees/policy', shadowPermission(PERMISSIONS.FEES_SETUP), feePolicyController.updatePolicy);
+router.get('/fees/holds', shadowPermission(PERMISSIONS.FEES_VIEW), feePolicyController.getHolds);
+router.get('/fees/hold-exemptions', shadowPermission(PERMISSIONS.FEES_VIEW), feePolicyController.getExemptions);
+router.post('/fees/hold-exemptions', requirePermissionStrict(PERMISSIONS.FEES_CONCESSION_APPROVE), feePolicyController.createExemption);
+router.post('/fees/hold-exemptions/:id/revoke', requirePermissionStrict(PERMISSIONS.FEES_CONCESSION_APPROVE), feePolicyController.revokeExemption);
+// previous-year dues: one student may pay later fees anyway (management approval, until a date)
+router.get('/fees/dues-exceptions', shadowPermission(PERMISSIONS.FEES_VIEW), feePolicyController.getDuesExceptions);
+router.post('/fees/dues-exceptions', requirePermissionStrict(PERMISSIONS.FEES_CONCESSION_APPROVE), feePolicyController.createDuesException);
+router.post('/fees/dues-exceptions/:id/revoke', requirePermissionStrict(PERMISSIONS.FEES_CONCESSION_APPROVE), feePolicyController.revokeDuesException);
+router.get('/fees/credits', shadowPermission(PERMISSIONS.FEES_VIEW), feePolicyController.getCredits);
+router.get('/fees/students/:studentId/policy-status', shadowPermission(PERMISSIONS.FEES_VIEW), feePolicyController.getStudentPolicyStatus);
+router.post('/fees/students/:studentId/credit/use', shadowPermission(PERMISSIONS.FEES_COLLECT), feePolicyController.useStudentCredit);
+router.post('/fees/students/:studentId/credit/refund', shadowPermission(PERMISSIONS.FEES_REFUND), feePolicyController.refundStudentCredit);
+router.post('/fees/students/:studentId/credit/transfer', shadowPermission(PERMISSIONS.FEES_REFUND), feePolicyController.transferStudentCredit);
+router.post('/fees/reminders/send', shadowPermission(PERMISSIONS.FEES_COLLECT), feePolicyController.sendReminders);
+router.post('/fees/reminders/run', shadowPermission(PERMISSIONS.FEES_SETUP), feePolicyController.runReminders);
+router.get('/fees/reminders/log', shadowPermission(PERMISSIONS.FEES_VIEW), feePolicyController.getReminderLog);
+// Fee rules + automatic assignment (shared/fees/feeRules.js, feeSync.js, leaving.js)
+router.get('/fees/rule-options', shadowPermission(PERMISSIONS.FEES_VIEW), feeAutomationController.getRuleOptions);
+router.get('/fees/students/:studentId/fee-sync', shadowPermission(PERMISSIONS.FEES_VIEW), feeAutomationController.previewStudentSync);
+router.post('/fees/students/:studentId/fee-sync', shadowPermission(PERMISSIONS.FEES_SETUP), feeAutomationController.applyStudentSync);
+router.get('/fees/fee-sync/class', shadowPermission(PERMISSIONS.FEES_VIEW), feeAutomationController.previewClassSync);
+router.post('/fees/fee-sync/class', shadowPermission(PERMISSIONS.FEES_SETUP), feeAutomationController.applyClassSync);
+router.get('/fees/students/:studentId/leaving-settlement', shadowPermission(PERMISSIONS.FEES_VIEW), feeAutomationController.previewLeaving);
+router.post('/fees/students/:studentId/leaving-settlement', requirePermissionStrict(PERMISSIONS.FEES_CONCESSION_APPROVE), feeAutomationController.applyLeaving);
 router.get('/fees/refunds', shadowPermission(PERMISSIONS.FEES_VIEW), feeController.getRefunds);
 router.post('/fees/refunds', shadowPermission(PERMISSIONS.FEES_REFUND), feeController.createRefund);
 router.patch('/fees/refunds/:id', shadowPermission(PERMISSIONS.FEES_REFUND), feeController.processRefund);
@@ -337,6 +388,7 @@ router.post('/fee-structures/:id/publish', shadowPermission(PERMISSIONS.FEES_SET
 router.post('/fee-structures/:id/archive', shadowPermission(PERMISSIONS.FEES_SETUP), feeEngineController.archiveFeeStructure);
 router.post('/fee-structures/:id/duplicate', shadowPermission(PERMISSIONS.FEES_SETUP), feeEngineController.duplicateFeeStructure);
 router.post('/fee-structures/:id/assign', shadowPermission(PERMISSIONS.FEES_SETUP), feeEngineController.assignStructureToStudents);
+router.put('/fee-structures/:id/policy', shadowPermission(PERMISSIONS.FEES_SETUP), feePolicyController.setStructurePolicy);
 
 router.get('/students/:id/fee-items', shadowPermission(PERMISSIONS.FEES_VIEW), feeEngineController.getStudentFeeItems);
 
@@ -655,6 +707,8 @@ router.use('/exam-schedules', requireModule('examination'));
 router.get('/exams', shadowPermission(PERMISSIONS.EXAMS_VIEW), examController.getExams);
 router.post('/exams', shadowPermission(PERMISSIONS.EXAMS_CREATE), examController.createExam);
 router.patch('/exams/:id/status', shadowPermission(PERMISSIONS.EXAMS_CREATE), examController.updateExamStatus);
+router.patch('/exams/:id/hall-tickets', shadowPermission(PERMISSIONS.EXAMS_CREATE), examController.setHallTicketRelease);
+router.patch('/exams/:id/assessment', shadowPermission(PERMISSIONS.EXAMS_CREATE), examController.setExamAssessment);
 router.get('/exams/:examId/rank-list', shadowPermission(PERMISSIONS.RESULTS_VIEW), examController.getRankList);
 router.get('/exams/:examId/consolidated-report', shadowPermission(PERMISSIONS.RESULTS_VIEW), examController.getConsolidatedMarksReport);
 router.get('/students/:studentId/marksheet', requireModule('examination'), shadowPermission(PERMISSIONS.RESULTS_VIEW), examController.getStudentMarksheet);
@@ -671,6 +725,10 @@ router.post('/grade-scale', gradeScaleController.createGrade);
 router.patch('/grade-scale/:id', gradeScaleController.updateGrade);
 router.delete('/grade-scale/:id', gradeScaleController.deleteGrade);
 
+// Exam Duty Allotment — staff duties per paper (the Staff portal prints the duty letter)
+router.get('/exams/:examId/duties', requireModule('examination'), shadowPermission(PERMISSIONS.EXAMS_VIEW), examDutyController.getExamDuties);
+router.post('/exam-duties', requireModule('examination'), shadowPermission(PERMISSIONS.EXAMS_CREATE), examDutyController.assignDuty);
+router.delete('/exam-duties/:id', requireModule('examination'), shadowPermission(PERMISSIONS.EXAMS_CREATE), examDutyController.removeDuty);
 router.get('/exam-schedules', shadowPermission(PERMISSIONS.EXAMS_VIEW), examController.getSchedules);
 router.post('/exam-schedules', shadowPermission(PERMISSIONS.EXAMS_CREATE), examController.createSchedule);
 router.delete('/exam-schedules/:id', shadowPermission(PERMISSIONS.EXAMS_CREATE), examController.deleteSchedule);

@@ -1,112 +1,89 @@
-import React, { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import PageHeader from '../../components/common/PageHeader';
 import StatCard from '../../components/common/StatCard';
-import { HardDrive, ShieldCheck, Settings, FolderOpen, AlertCircle } from 'lucide-react';
-import { useNotification } from '../../context/NotificationContext';
+import { HardDrive, FolderOpen, Database, PieChart, Loader2, RefreshCw, ShieldAlert } from 'lucide-react';
+import infraService, { formatBytes } from '../../services/infraService';
 
+const fmt = (n) => Number(n || 0).toLocaleString('en-IN');
+
+/**
+ * Storage — SCOMS keeps uploaded files (photos, logos, documents, attachments) inside the
+ * database itself, so this shows exactly what is stored, by kind, and how much of the
+ * database it takes. Measured live (and kept for 5 minutes, since it reads those tables).
+ */
 export const StorageManagementPage = () => {
-  const { success } = useNotification();
-  const [maxSize, setMaxSize] = useState(10);
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
-  const handleSave = (e) => {
-    e.preventDefault();
-    success('Storage limits saved successfully!');
-  };
+  const load = useCallback((refresh = false) => {
+    setLoading(true);
+    setError('');
+    infraService.getStorage(refresh)
+      .then((r) => setData(r.data))
+      .catch((e) => setError(e.message || 'Could not measure storage'))
+      .finally(() => setLoading(false));
+  }, []);
+  useEffect(() => { load(); }, [load]);
+
+  if (loading && !data) return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-indigo-600" /></div>;
+  if (error) {
+    return (
+      <div className="glass-card p-10 rounded-2xl border border-rose-200 dark:border-rose-900 text-center space-y-3 text-xs">
+        <ShieldAlert className="w-10 h-10 text-rose-400 mx-auto" />
+        <p className="text-slate-700 dark:text-slate-300">{error}</p>
+        <button onClick={() => load(true)} className="px-3.5 py-2 font-semibold text-white bg-indigo-600 rounded-xl">Try again</button>
+      </div>
+    );
+  }
+
+  const share = data.databaseBytes ? Math.round((data.totalBytes / data.databaseBytes) * 1000) / 10 : 0;
+  const kinds = [...data.kinds].sort((a, b) => b.bytes - a.bytes);
+  const maxBytes = kinds[0]?.bytes || 1;
 
   return (
-    <div className="space-y-6 text-xs font-semibold">
-      <PageHeader title="Storage & CDN Management" subtitle="Inspect object storage bucket size, configure S3 integrations and define tenant upload limits" />
+    <div className="space-y-6">
+      <PageHeader title="Storage" subtitle="Uploaded files — profile photos, logos, documents and attachments. SCOMS keeps them inside the database, so they are backed up with it." />
 
-      {/* KPI Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-slate-900">
-        <StatCard title="AWS S3 Storage" value="156.4 GB" subtitle="Bucket: scoms-docs" icon={HardDrive} color="indigo" />
-        <StatCard title="Total Files Uploaded" value="42,500" subtitle="PDFs, Images, Sheets" icon={FolderOpen} color="indigo" />
-        <StatCard title="CDN Access Latency" value="12ms" subtitle="CloudFront Active" icon={ShieldCheck} color="emerald" />
-        <StatCard title="Daily Upload Vol." value="1.84 GB" subtitle="Last 24 Hours" icon={HardDrive} color="emerald" />
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <StatCard title="Files stored" value={fmt(data.totalFiles)} subtitle="Across every institution" icon={FolderOpen} color="indigo" />
+        <StatCard title="Space used by files" value={formatBytes(data.totalBytes)} subtitle="Inside the database" icon={HardDrive} color="indigo" />
+        <StatCard title="Database size" value={formatBytes(data.databaseBytes)} subtitle="Files + all other records" icon={Database} color="emerald" />
+        <StatCard title="Files' share" value={`${share}%`} subtitle="Of the whole database" icon={PieChart} color="emerald" />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Settings Form */}
-        <div className="lg:col-span-2 glass-card p-6 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-4">
-          <div className="flex items-center gap-2 pb-2 border-b border-slate-100 dark:border-slate-800">
-            <Settings className="w-5 h-5 text-indigo-500" />
-            <h3 className="font-bold text-sm text-slate-800 dark:text-slate-200">S3 Connection Parameters</h3>
-          </div>
-          <form onSubmit={handleSave} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block font-bold text-slate-600 dark:text-slate-400 mb-1">AWS S3 Bucket Name</label>
-              <input type="text" readOnly value="scoms-documents" className="w-full p-2 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-500" />
-            </div>
-            <div>
-              <label className="block font-bold text-slate-600 dark:text-slate-400 mb-1">AWS S3 Region</label>
-              <input type="text" readOnly value="ap-south-1" className="w-full p-2 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-500" />
-            </div>
-            <div>
-              <label className="block font-bold text-slate-600 dark:text-slate-400 mb-1">Max File Size Limit (MB)</label>
-              <input 
-                type="number" 
-                value={maxSize} 
-                onChange={(e) => setMaxSize(e.target.value)} 
-                className="w-full p-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl"
-              />
-            </div>
-            <div>
-              <label className="block font-bold text-slate-600 dark:text-slate-400 mb-1">Allowed File Formats</label>
-              <input type="text" readOnly value="PDF, PNG, JPG, XLSX, CSV" className="w-full p-2 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-500" />
-            </div>
-            <div className="sm:col-span-2 pt-2">
-              <button type="submit" className="px-4 py-2 font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl">
-                Save Storage Settings
-              </button>
-            </div>
-          </form>
-        </div>
-
-        {/* Storage utilization breakdown */}
-        <div className="glass-card p-6 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-4">
-          <div className="flex items-center gap-2 pb-2 border-b border-slate-100 dark:border-slate-800">
-            <AlertCircle className="w-5 h-5 text-indigo-500" />
-            <h3 className="font-bold text-sm text-slate-800 dark:text-slate-200">Storage Usage Breakdown</h3>
-          </div>
-          <div className="space-y-4">
-            <div>
-              <div className="flex justify-between font-bold text-slate-600 dark:text-slate-400 mb-1">
-                <span>PDF Documents</span>
-                <span>84 GB (53%)</span>
-              </div>
-              <div className="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
-                <div className="bg-indigo-600 h-full rounded-full" style={{ width: '53%' }}></div>
-              </div>
-            </div>
-            <div>
-              <div className="flex justify-between font-bold text-slate-600 dark:text-slate-400 mb-1">
-                <span>Avatars & Profile Images</span>
-                <span>42 GB (27%)</span>
-              </div>
-              <div className="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
-                <div className="bg-purple-600 h-full rounded-full" style={{ width: '27%' }}></div>
-              </div>
-            </div>
-            <div>
-              <div className="flex justify-between font-bold text-slate-600 dark:text-slate-400 mb-1">
-                <span>Data Export Templates</span>
-                <span>12 GB (8%)</span>
-              </div>
-              <div className="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
-                <div className="bg-amber-600 h-full rounded-full" style={{ width: '8%' }}></div>
-              </div>
-            </div>
-            <div>
-              <div className="flex justify-between font-bold text-slate-600 dark:text-slate-400 mb-1">
-                <span>System Cache & Other</span>
-                <span>18.4 GB (12%)</span>
-              </div>
-              <div className="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
-                <div className="bg-slate-400 h-full rounded-full" style={{ width: '12%' }}></div>
-              </div>
-            </div>
+      <div className="glass-card p-6 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-3 text-xs">
+        <div className="flex items-center justify-between">
+          <h3 className="font-bold text-sm text-slate-800 dark:text-slate-200">By kind of file</h3>
+          <div className="flex items-center gap-2 text-slate-400">
+            <span>Measured {new Date(data.measuredAt).toLocaleTimeString('en-IN')}</span>
+            <button onClick={() => load(true)} disabled={loading} title="Measure again" className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-40">
+              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+            </button>
           </div>
         </div>
+        <table className="w-full text-left">
+          <thead className="text-[10px] uppercase font-bold text-slate-500 border-b border-slate-200 dark:border-slate-800">
+            <tr><th className="py-2 pr-3">Kind</th><th className="py-2 pr-3 text-right">Files</th><th className="py-2 pr-3 text-right">Stored here</th><th className="py-2 pr-3 text-right">Links</th><th className="py-2 w-1/3">Space</th></tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+            {kinds.map((k) => (
+              <tr key={`${k.table}.${k.column}`}>
+                <td className="py-1.5 pr-3 font-semibold text-slate-800 dark:text-slate-200">{k.label}</td>
+                <td className="py-1.5 pr-3 text-right">{fmt(k.files)}</td>
+                <td className="py-1.5 pr-3 text-right">{fmt(k.embedded)}</td>
+                <td className="py-1.5 pr-3 text-right">{fmt(k.linked)}</td>
+                <td className="py-1.5">
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 h-1.5 rounded-full bg-slate-100 dark:bg-slate-800"><div className="h-1.5 rounded-full bg-indigo-500" style={{ width: `${k.bytes ? Math.max(2, (k.bytes / maxBytes) * 100) : 0}%` }} /></div>
+                    <span className="w-16 text-right">{formatBytes(k.bytes)}</span>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <p className="text-[11px] text-slate-400">"Stored here" are files uploaded into SCOMS; "Links" point to files kept elsewhere (e.g. a shared drive link), which take almost no space here. Upload size limits are set per screen (e.g. photos and logos up to a few MB).</p>
       </div>
     </div>
   );

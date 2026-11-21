@@ -46,7 +46,7 @@ export const MaintenanceModePage = () => {
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
-      <PageHeader title="Platform Maintenance Mode Control" subtitle="Toggle the platform's maintenance flag, persisted to the platform settings record." />
+      <PageHeader title="Platform Maintenance Mode Control" subtitle="Take the Institute Admin, Staff and Student portals (web and mobile) offline while you work on the platform." />
 
       <div className="glass-card p-6 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-4 text-xs">
         <div className="flex items-center justify-between p-4 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-xl">
@@ -54,7 +54,7 @@ export const MaintenanceModePage = () => {
             <ShieldAlert className="w-6 h-6 text-amber-600" />
             <div>
               <h4 className="font-bold text-slate-900 dark:text-slate-100">Maintenance Status</h4>
-              <p className="text-slate-500">{config.maintenanceMode ? 'ACTIVE' : 'OFF — platform operating normally'}</p>
+              <p className="text-slate-500">{config.maintenanceMode ? 'ACTIVE — every portal except Super Admin shows "Under maintenance"' : 'OFF — platform operating normally'}</p>
             </div>
           </div>
           <button
@@ -68,9 +68,11 @@ export const MaintenanceModePage = () => {
           </button>
         </div>
 
-        <p className="text-[11px] text-slate-400">
-          This flag is persisted to the platform settings record but is not yet enforced by any backend middleware — no portal currently checks it before serving requests.
-        </p>
+        <ul className="text-[11px] text-slate-500 dark:text-slate-400 space-y-1 list-disc pl-4">
+          <li>While it is on, Institute Admin, Staff and Student users (web and mobile apps) and the public admission forms get an <b>"Under maintenance"</b> screen — nothing can be viewed or saved, and nobody can sign in to those portals.</li>
+          <li>The Super Admin portal keeps working, so you can always switch it off here.</li>
+          <li>It takes effect within about a minute on every server, and the same when you switch it off.</li>
+        </ul>
       </div>
     </div>
   );

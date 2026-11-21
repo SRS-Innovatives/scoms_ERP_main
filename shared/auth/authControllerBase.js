@@ -4,8 +4,11 @@
 
 const prisma = require('../database/client');
 const { verifyRefreshToken, generateAccessToken, generateRefreshToken } = require('./jwt');
+const { randomUUID } = require('crypto');
+const { clientIp, forgetSessions, SESSION_DAYS } = require('./sessions');
 const { hashPassword, comparePassword } = require('./password');
 const { sendSuccess } = require('../utils/responseFormatter');
+const { isAvatarUrl } = require('../media/mediaUrl');
 const { AuthenticationError, NotFoundError, BusinessRuleError } = require('../errors/customErrors');
 const { resolveEnabledModulesForInstitution } = require('../moduleRegistry/resolveModules');
 const { resolveAcademicStructure } = require('../academic/academicStructure');
@@ -17,10 +20,18 @@ const handleRefreshToken = async (req, res, next) => {
       throw new AuthenticationError('Refresh token is required');
     }
 
-    const decoded = verifyRefreshToken(refreshToken);
+    verifyRefreshToken(refreshToken);
     const storedToken = await prisma.refreshToken.findUnique({
       where: { token: refreshToken },
-      include: { user: true },
+      // only what the new tokens need — the full row includes the base64 profile photo
+      include: {
+        user: {
+          select: {
+            id: true, email: true, role: true, institutionId: true, status: true,
+            student: { select: { id: true } }, staff: { select: { id: true } }, parent: { select: { id: true } },
+          },
+        },
+      },
     });
 
     if (!storedToken || storedToken.expiresAt < new Date()) {
@@ -30,27 +41,31 @@ const handleRefreshToken = async (req, res, next) => {
       throw new AuthenticationError('Invalid or expired refresh token. Please login again.');
     }
 
+    // the same identity a fresh login gives (studentId / staffId / parentId were missing here,
+    // so a renewed token lost who the student or teacher was)
     const payload = {
       id: storedToken.user.id,
       email: storedToken.user.email,
       role: storedToken.user.role,
       institutionId: storedToken.user.institutionId,
+      studentId: storedToken.user.student?.id,
+      staffId: storedToken.user.staff?.id,
+      parentId: storedToken.user.parent?.id,
     };
 
-    const newAccessToken = generateAccessToken(payload);
-    const newRefreshToken = generateRefreshToken(payload);
-
-    // Rotate refresh token
-    await prisma.$transaction([
-      prisma.refreshToken.delete({ where: { id: storedToken.id } }),
-      prisma.refreshToken.create({
-        data: {
-          userId: storedToken.user.id,
-          token: newRefreshToken,
-          expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-        },
-      }),
-    ]);
+    const newRefreshToken = generateRefreshToken({ ...payload, jti: randomUUID() }); // unique even within the same second
+    // Rotate the token but keep the SAME session row — its id is the session (`sid`) the
+    // Super Admin sees and can revoke (shared/auth/sessions.js)
+    await prisma.refreshToken.update({
+      where: { id: storedToken.id },
+      data: {
+        token: newRefreshToken,
+        expiresAt: new Date(Date.now() + SESSION_DAYS * 24 * 60 * 60 * 1000),
+        lastUsedAt: new Date(),
+        ipAddress: clientIp(req) || storedToken.ipAddress,
+      },
+    });
+    const newAccessToken = generateAccessToken({ ...payload, sid: storedToken.id });
 
     return sendSuccess(res, {
       accessToken: newAccessToken,
@@ -65,9 +80,11 @@ const handleLogout = async (req, res, next) => {
   try {
     const { refreshToken } = req.body;
     if (refreshToken) {
-      await prisma.refreshToken.deleteMany({
-        where: { token: refreshToken },
-      });
+      const row = await prisma.refreshToken.findUnique({ where: { token: refreshToken }, select: { id: true } });
+      if (row) {
+        await prisma.refreshToken.deleteMany({ where: { id: row.id } });
+        forgetSessions([row.id]);
+      }
     }
     return sendSuccess(res, null, 'Logged out successfully');
   } catch (err) {
@@ -200,14 +217,15 @@ const handleChangePassword = async (req, res, next) => {
  * pass an empty string to remove the current photo. */
 const handleUpdateProfile = async (req, res, next) => {
   try {
-    const { avatar } = req.body;
+    // The photo URL this API handed out, sent back unchanged, means "keep the current photo"
+    const avatar = isAvatarUrl(req.body.avatar) ? undefined : req.body.avatar;
     if (avatar !== undefined && avatar !== '' && !/^data:image\/(png|jpeg|jpg);base64,/.test(avatar)) {
       throw new BusinessRuleError('Profile photo must be a PNG or JPEG image');
     }
 
     const user = await prisma.user.update({
       where: { id: req.user.id },
-      data: { avatar: avatar === '' ? null : avatar },
+      data: avatar === undefined ? {} : { avatar: avatar === '' ? null : avatar },
       select: { id: true, avatar: true },
     });
 

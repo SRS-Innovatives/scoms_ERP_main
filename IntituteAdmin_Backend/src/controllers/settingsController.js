@@ -100,9 +100,12 @@ const updateSettings = async (req, res, next) => {
       smtpHost, smtpPort, smtpFromEmail, smsProvider, smsSenderId, smsDltEntityId,
       staffAttendanceSmsEnabled, idCardOrientation, idCardTemplate,
       paymentGatewayProvider, paymentKeyId, examApprovalRequired, attendanceLockDays,
+      studentMarksheetEnabled,
     } = req.body;
     const smsToggle = staffAttendanceSmsEnabled === undefined ? undefined : Boolean(staffAttendanceSmsEnabled);
     const examApprovalToggle = examApprovalRequired === undefined ? undefined : examApprovalRequired === true || examApprovalRequired === 'true';
+    // Show students the formal mark card (SGPA/CGPA/classification)? Off by default.
+    const marksheetToggle = studentMarksheetEnabled === undefined ? undefined : studentMarksheetEnabled === true || studentMarksheetEnabled === 'true';
 
     let lockDays;
     if (attendanceLockDays !== undefined) {
@@ -128,12 +131,14 @@ const updateSettings = async (req, res, next) => {
         idCardTemplate: idCardTemplate || 'CLASSIC',
         paymentGatewayProvider, paymentKeyId,
         examApprovalRequired: examApprovalToggle ?? false,
+        studentMarksheetEnabled: marksheetToggle ?? false,
         attendanceLockDays: lockDays ?? null,
       },
       update: {
         smtpHost, smtpPort, smtpFromEmail, smsProvider, smsSenderId, smsDltEntityId,
         ...(smsToggle !== undefined && { staffAttendanceSmsEnabled: smsToggle }),
         ...(examApprovalToggle !== undefined && { examApprovalRequired: examApprovalToggle }),
+        ...(marksheetToggle !== undefined && { studentMarksheetEnabled: marksheetToggle }),
         ...(lockDays !== undefined && { attendanceLockDays: lockDays }),
         ...(idCardOrientation !== undefined && { idCardOrientation }),
         ...(idCardTemplate !== undefined && { idCardTemplate }),

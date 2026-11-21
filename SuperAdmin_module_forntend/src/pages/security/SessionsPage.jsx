@@ -1,58 +1,163 @@
-import React from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import PageHeader from '../../components/common/PageHeader';
 import StatCard from '../../components/common/StatCard';
-import DataTable from '../../components/common/DataTable';
-import { Users, Globe, Monitor, ShieldAlert, Trash2 } from 'lucide-react';
+import { Users, Globe, Monitor, Activity, Trash2, LogOut, Loader2, RefreshCw, ShieldAlert, Search } from 'lucide-react';
 import { useNotification } from '../../context/NotificationContext';
+import sessionService from '../../services/sessionService';
 
+const PORTAL_LABEL = {
+  SUPER_ADMIN: 'Super Admin', INSTITUTE_ADMIN: 'Institute Admin', STAFF: 'Staff', STUDENT: 'Student',
+  MOBILE_STAFF: 'Staff app', MOBILE_STUDENT: 'Student app', UNKNOWN: 'Older sign-in',
+};
+const fmt = (n) => Number(n || 0).toLocaleString('en-IN');
+const ago = (d) => {
+  const s = Math.max(0, Math.round((Date.now() - new Date(d)) / 1000));
+  if (s < 60) return 'just now';
+  if (s < 3600) return `${Math.round(s / 60)} min ago`;
+  if (s < 86400) return `${Math.round(s / 3600)} h ago`;
+  return `${Math.round(s / 86400)} d ago`;
+};
+
+/**
+ * Active Sessions — every signed-in session across the platform (one per login per device):
+ * who, portal, IP, browser / app, signed in, last active. Revoke signs that device out at
+ * once; "Sign out everywhere" ends all of one user's sessions.
+ */
 export const SessionsPage = () => {
-  const { success } = useNotification();
+  const { success, error: showError } = useNotification();
+  const [data, setData] = useState(null);
+  const [meta, setMeta] = useState({ page: 1, totalPages: 1, total: 0 });
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
+  const [portal, setPortal] = useState('');
+  const [search, setSearch] = useState('');
+  const [busy, setBusy] = useState(null);
 
-  const sessions = [
-    { id: 1, email: 'suresh68167@gmail.com', role: 'INSTITUTE_ADMIN', ip: '103.45.68.10', device: 'Chrome / Windows 11', time: '2026-08-22 09:15 PM' },
-    { id: 2, email: 'sunil@gamil.com', role: 'INSTITUTE_ADMIN', ip: '122.180.34.22', device: 'Firefox / macOS Sequoia', time: '2026-08-22 08:44 PM' },
-    { id: 3, email: 'superadmin@scoms.edu.in', role: 'SUPER_ADMIN', ip: '106.220.45.189', device: 'Chrome / Windows 10', time: '2026-08-22 07:10 PM' },
-    { id: 4, email: 'teacher@dpis-delhi.edu.in', role: 'TEACHER', ip: '103.11.23.40', device: 'Safari / iPhone 15 Pro', time: '2026-08-22 04:12 PM' },
-    { id: 5, email: 'arun.kumar@student.dpis.edu.in', role: 'STUDENT', ip: '120.44.89.62', device: 'Chrome / Android 14', time: '2026-08-22 03:05 PM' },
-  ];
+  const load = useCallback((page = 1, q = search, p = portal) => {
+    setLoading(true);
+    setLoadError('');
+    sessionService.getSessions({ page, search: q.trim(), portal: p })
+      .then((r) => { setData(r.data); setMeta(r.meta || { page: 1, totalPages: 1, total: 0 }); })
+      .catch((e) => setLoadError(e.message || 'Could not load sessions'))
+      .finally(() => setLoading(false));
+  }, [search, portal]);
 
-  const handleRevoke = (email) => {
-    success(`Revoked all active sessions for user: ${email}`);
+  useEffect(() => { load(1, search, portal); }, [portal]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const revoke = async (s) => {
+    if (!window.confirm(`Sign ${s.user.email} out of this ${PORTAL_LABEL[s.portal || 'UNKNOWN']} session (${s.client} on ${s.os})?${s.current ? '\n\nThis is YOUR current session — you will be signed out.' : ''}`)) return;
+    setBusy(s.id);
+    try {
+      success((await sessionService.revoke(s.id)).message);
+      load(meta.page);
+    } catch (e) {
+      showError(e.message || 'Could not revoke the session');
+    } finally {
+      setBusy(null);
+    }
   };
 
-  const columns = [
-    { header: 'User Email Address', key: 'email', render: (val) => <span className="font-bold text-slate-800 dark:text-slate-200">{val}</span> },
-    { header: 'Assigned Role', key: 'role', render: (val) => <span className="px-2 py-0.5 rounded font-mono text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold">{val}</span> },
-    { header: 'IP Address', key: 'ip', render: (val) => <code className="bg-slate-50 dark:bg-slate-800 px-1 py-0.5 rounded font-mono text-xs text-indigo-500">{val}</code> },
-    { header: 'Device / Web Browser', key: 'device' },
-    { header: 'Login Timestamp', key: 'time', render: (val) => <span className="font-mono text-xs">{val}</span> },
-    {
-      header: 'Actions',
-      key: 'email',
-      render: (email) => (
-        <button onClick={() => handleRevoke(email)} title="Revoke Session" className="p-1 hover:bg-rose-50 dark:hover:bg-rose-950/50 rounded text-rose-600">
-          <Trash2 className="w-4 h-4" />
-        </button>
-      )
+  const revokeUser = async (s) => {
+    if (!window.confirm(`Sign ${s.user.email} out of ALL their sessions, on every device and portal?`)) return;
+    setBusy(`u:${s.user.id}`);
+    try {
+      success((await sessionService.revokeUser(s.user.id)).message);
+      load(1);
+    } catch (e) {
+      showError(e.message || 'Could not sign the user out');
+    } finally {
+      setBusy(null);
     }
-  ];
+  };
+
+  const stats = data?.stats;
 
   return (
-    <div className="space-y-6 text-xs font-semibold">
-      <PageHeader title="Active Platform Sessions" subtitle="Monitor and manage all active user sessions currently logged into any SCOMS module" />
+    <div className="space-y-6">
+      <PageHeader title="Active Sessions" subtitle="Everyone signed in to SCOMS right now — one row per sign-in on a device. Revoke signs that device out immediately." />
 
-      {/* KPI Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-slate-900">
-        <StatCard title="Active Sessions" value="1,450" subtitle="Across all portals" icon={Users} color="indigo" />
-        <StatCard title="Desktop Clients" value="830 Users" subtitle="Chrome, Firefox, Edge" icon={Monitor} color="indigo" />
-        <StatCard title="Mobile Clients" value="620 Users" subtitle="Safari, Chrome Mobile" icon={Globe} color="indigo" />
-        <StatCard title="Suspicious Sessions" value="0 Alerts" subtitle="No anomalies flagged" icon={ShieldAlert} color="emerald" />
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <StatCard title="Active Sessions" value={stats ? fmt(stats.active) : '—'} subtitle={stats ? `${fmt(stats.users)} people signed in` : 'Across all portals'} icon={Users} color="indigo" />
+        <StatCard title="Active in last 15 min" value={stats ? fmt(stats.activeLast15Min) : '—'} subtitle="Used the platform recently" icon={Activity} color="emerald" />
+        <StatCard title="Desktop / Web" value={stats ? fmt(stats.desktop) : '—'} subtitle="Browsers" icon={Monitor} color="indigo" />
+        <StatCard title="Mobile" value={stats ? fmt(stats.mobile) : '—'} subtitle="Phones & the SCOMS apps" icon={Globe} color="indigo" />
       </div>
 
-      {/* Sessions list */}
-      <div className="glass-card p-6 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-4">
-        <h3 className="font-bold text-sm text-slate-800 dark:text-slate-200">Active User Sessions Log</h3>
-        <DataTable columns={columns} data={sessions} />
+      {stats && Object.keys(stats.byPortal).length > 0 && (
+        <div className="flex flex-wrap gap-2 text-xs">
+          <button onClick={() => setPortal('')} className={`px-3 py-1.5 rounded-xl font-semibold border ${portal === '' ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300' : 'border-slate-200 dark:border-slate-700'}`}>All ({fmt(stats.active)})</button>
+          {Object.entries(stats.byPortal).sort((a, b) => b[1] - a[1]).map(([k, n]) => (
+            <button key={k} onClick={() => setPortal(k)} className={`px-3 py-1.5 rounded-xl font-semibold border ${portal === k ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300' : 'border-slate-200 dark:border-slate-700'}`}>
+              {PORTAL_LABEL[k] || k} ({fmt(n)})
+            </button>
+          ))}
+        </div>
+      )}
+
+      <div className="glass-card p-6 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-4 text-xs">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="relative flex-1 min-w-[220px]">
+            <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
+            <input value={search} onChange={(e) => setSearch(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && load(1)} placeholder="Search by email, institution or IP…" className="w-full pl-9 pr-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl" />
+          </div>
+          <button onClick={() => load(1)} className="px-3.5 py-2 font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl">Search</button>
+          <button onClick={() => load(meta.page)} title="Refresh" className="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800"><RefreshCw className="w-4 h-4" /></button>
+        </div>
+
+        {loading && !data ? (
+          <div className="flex justify-center py-10"><Loader2 className="w-7 h-7 animate-spin text-indigo-600" /></div>
+        ) : loadError ? (
+          <div className="text-center py-8 space-y-2">
+            <ShieldAlert className="w-9 h-9 text-rose-400 mx-auto" />
+            <p className="text-slate-600 dark:text-slate-300">{loadError}</p>
+            <button onClick={() => load(meta.page)} className="px-3 py-1.5 font-semibold text-white bg-indigo-600 rounded-lg">Try again</button>
+          </div>
+        ) : !data?.sessions.length ? (
+          <p className="text-center text-slate-500 py-10">{search || portal ? 'No sessions match.' : 'Nobody is signed in.'}</p>
+        ) : (
+          <>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left">
+                <thead className="text-[10px] uppercase font-bold text-slate-500 border-b border-slate-200 dark:border-slate-800">
+                  <tr><th className="py-2 pr-3">User</th><th className="py-2 pr-3">Portal</th><th className="py-2 pr-3">Device</th><th className="py-2 pr-3">IP address</th><th className="py-2 pr-3">Signed in</th><th className="py-2 pr-3">Last active</th><th className="py-2" /></tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                  {data.sessions.map((s) => (
+                    <tr key={s.id}>
+                      <td className="py-2 pr-3">
+                        <p className="font-bold text-slate-900 dark:text-white">{s.user.email}{s.current && <span className="ml-1.5 px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 text-[9px] font-bold">YOU</span>}</p>
+                        <p className="text-slate-400">{s.user.role.replace(/_/g, ' ').toLowerCase()}{s.user.institution ? ` · ${s.user.institution.name}` : ''}</p>
+                      </td>
+                      <td className="py-2 pr-3">{PORTAL_LABEL[s.portal || 'UNKNOWN']}</td>
+                      <td className="py-2 pr-3">{s.client === 'Unknown' ? '—' : `${s.client} · ${s.os}`}<p className="text-slate-400">{s.device === 'Unknown' ? '' : s.device}</p></td>
+                      <td className="py-2 pr-3 font-mono">{s.ipAddress || '—'}</td>
+                      <td className="py-2 pr-3 whitespace-nowrap">{new Date(s.createdAt).toLocaleString('en-IN')}</td>
+                      <td className="py-2 pr-3 whitespace-nowrap">{ago(s.lastUsedAt)}</td>
+                      <td className="py-2 text-right whitespace-nowrap">
+                        <button onClick={() => revoke(s)} disabled={busy === s.id} title="Sign this device out" className="p-1.5 rounded-lg text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/50 disabled:opacity-40">
+                          {busy === s.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                        </button>
+                        <button onClick={() => revokeUser(s)} disabled={busy === `u:${s.user.id}`} title="Sign this person out everywhere" className="p-1.5 rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-40">
+                          <LogOut className="w-4 h-4" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {meta.totalPages > 1 && (
+              <div className="flex items-center justify-between">
+                <span className="text-slate-500">Page {meta.page} of {meta.totalPages} · {fmt(meta.total)} sessions</span>
+                <div className="flex gap-2">
+                  <button onClick={() => load(meta.page - 1)} disabled={meta.page <= 1} className="px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 disabled:opacity-40">Previous</button>
+                  <button onClick={() => load(meta.page + 1)} disabled={meta.page >= meta.totalPages} className="px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 disabled:opacity-40">Next</button>
+                </div>
+              </div>
+            )}
+            <p className="text-[11px] text-slate-400">"Older sign-in" rows are sessions from before device details were recorded; they end by themselves within 7 days. A revoke takes effect immediately on this server and within about a minute on others.</p>
+          </>
+        )}
       </div>
     </div>
   );

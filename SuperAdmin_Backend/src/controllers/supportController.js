@@ -1,7 +1,7 @@
 /**
  * Super Admin Support Desk Controller
  */
-const { prisma, sendSuccess, NotFoundError, ROLES, pushNotificationToMany } = require('../../../shared');
+const { prisma, sendSuccess, NotFoundError, ROLES, pushNotificationToMany, findList } = require('../../../shared');
 
 const generateTicketNumber = () => `TKT-${Date.now().toString(36).toUpperCase()}`;
 
@@ -9,16 +9,27 @@ const getTickets = async (req, res, next) => {
   try {
     const { status, institutionId } = req.query;
 
-    const tickets = await prisma.supportTicket.findMany({
+    const { rows: tickets, meta: listMeta } = await findList(prisma.supportTicket, {
       where: {
         ...(status && { status }),
         ...(institutionId && { institutionId }),
       },
       include: { institution: { select: { id: true, name: true, code: true } } },
       orderBy: { createdAt: 'desc' },
-    });
+    }, req);
 
-    return sendSuccess(res, tickets, 'Tickets retrieved successfully');
+    return sendSuccess(res, tickets, 'Tickets retrieved successfully', 200, listMeta);
+  } catch (err) {
+    next(err);
+  }
+};
+
+/** GET /tickets/open-count — tickets still waiting on support (OPEN or IN_PROGRESS), for the
+ * Support Desk menu badge. One indexed count, no ticket rows. */
+const getOpenTicketCount = async (req, res, next) => {
+  try {
+    const open = await prisma.supportTicket.count({ where: { status: { in: ['OPEN', 'IN_PROGRESS'] } } });
+    return sendSuccess(res, { open }, 'Open ticket count retrieved');
   } catch (err) {
     next(err);
   }
@@ -81,6 +92,7 @@ const updateTicket = async (req, res, next) => {
 
 module.exports = {
   getTickets,
+  getOpenTicketCount,
   createTicket,
   updateTicket,
 };

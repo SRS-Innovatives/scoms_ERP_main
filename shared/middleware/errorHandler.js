@@ -69,6 +69,12 @@ const errorHandler = (err, req, res, next) => {
     return sendError(res, clean ? `Invalid input: ${clean}` : 'Some submitted values are not valid.', 400, 'VALIDATION_ERROR');
   }
 
+  // Database unreachable (server down, paused/deleted project, wrong DATABASE_URL) — an
+  // infrastructure outage, not a bug in the request, so say so instead of a generic 500
+  if (err.name === 'PrismaClientInitializationError' || ['P1001', 'P1002', 'P1017'].includes(err.code || err.errorCode)) {
+    return sendError(res, 'Service temporarily unavailable: cannot connect to the database. Please try again shortly.', 503, 'DATABASE_UNAVAILABLE');
+  }
+
   // Unhandled standard operational/server error
   return sendError(
     res,

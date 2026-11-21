@@ -16,7 +16,9 @@
   ],
   "scripts": {
     "dev": "concurrently \"npm run start:super-admin\" \"npm run start:institute-admin\" \"npm run start:staff\" \"npm run start:student\" \"npm run start:mobile\"",
-    "test": "node test/tenantIsolation.test.js && node test/rbacMatrix.test.js && node test/mobileTenantIsolation.test.js && node test/staffNavPermissionCoverage.test.js && node test/academicStructure.test.js",
+    "start": "node server/server.js",
+    "start:combined": "node --watch server/server.js",
+    "test":"node test/tenantIsolation.test.js && node test/rbacMatrix.test.js && node test/mobileTenantIsolation.test.js && node test/staffNavPermissionCoverage.test.js && node test/academicStructure.test.js",
     "test:integration": "node test/academicStructure.integration.js",
     "prisma:generate": "prisma generate",
     "prisma:validate": "prisma validate",
@@ -37,5 +39,8 @@
   },
   "prisma": {
     "seed": "node prisma/seed/seed.js"
+  },
+  "dependencies": {
+    "compression": "^1.7.5"
   }
 }

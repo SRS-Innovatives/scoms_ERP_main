@@ -14,13 +14,25 @@
  * Every id a client submits is re-verified against req.institutionId before use — never
  * trusted directly. All money math happens here, never assumed correct from the frontend.
  */
+const { enforcePreviousDues } = require('../../../shared/fees/previousDues');
 const {
   prisma,
   sendSuccess,
   generateReceiptNumber,
   NotFoundError,
   ValidationError,
+  BusinessRuleError,
 } = require('../../../shared');
+const { Prisma } = require('@prisma/client');
+const { parseRule } = require('../../../shared/fees/feeRules');
+const { assignResolvedStructure } = require('../../../shared/fees/feeSync');
+const { versionChainIds, itemsInHeadOrder } = require('../../../shared/fees/feeItems');
+const {
+  getFeePolicy, effectivePolicy, checkPartialRules, checkHeadOrder, olderUnpaidFee, recordLatePart, parseOverride, autoApplyCredit, round2,
+} = require('../../../shared/fees/feePolicy');
+const { parseSchedule, createInstallmentsFromSchedule, recomputeInstallments } = require('../../../shared/fees/installments');
+const { attachInstallments } = require('../../../shared/fees/feeView');
+const { refreshLateFee } = require('../../../shared/fees/lateFee');
 
 // ============================================================
 // Fee Categories (Layer 1 — institution-defined, unlimited)
@@ -142,6 +154,19 @@ const deactivateFeeHead = async (req, res, next) => {
 // Fee Structure Builder (Layer 2 — draft/publish/version)
 // ============================================================
 
+/** Late fee settings from the builder: grace days (whole days, 0-365) and the maximum (₹, empty = no limit). */
+const lateFeeGrace = (v) => {
+  const n = Number(v || 0);
+  if (!Number.isInteger(n) || n < 0 || n > 365) throw new ValidationError('Late fee grace days must be a whole number from 0 to 365');
+  return n;
+};
+const lateFeeCap = (v) => {
+  if (v === undefined || v === null || v === '') return null;
+  const n = Number(v);
+  if (!Number.isFinite(n) || n < 0) throw new ValidationError('Maximum late fee must be 0 or more');
+  return n;
+};
+
 const getFeeStructuresV2 = async (req, res, next) => {
   try {
     const { status } = req.query;
@@ -151,6 +176,7 @@ const getFeeStructuresV2 = async (req, res, next) => {
         academicYear: { select: { yearName: true } },
         course: { select: { name: true } },
         items: { include: { feeHead: { select: { name: true } } }, orderBy: { sortOrder: 'asc' } },
+        installmentSchedule: { orderBy: { installmentNumber: 'asc' } },
         _count: { select: { assignments: true } },
       },
       orderBy: { createdAt: 'desc' },
@@ -170,6 +196,7 @@ const getFeeStructureByIdV2 = async (req, res, next) => {
         course: { select: { name: true } },
         items: { include: { feeHead: true }, orderBy: { sortOrder: 'asc' } },
         versions: { select: { id: true, version: true, status: true } },
+        installmentSchedule: { orderBy: { installmentNumber: 'asc' } },
         _count: { select: { assignments: true } },
       },
     });
@@ -203,6 +230,8 @@ const createFeeStructureV2 = async (req, res, next) => {
     if (heads.length !== new Set(headIds).size) throw new ValidationError('One or more fee heads not found or access denied');
 
     const totalAmount = items.reduce((sum, i) => sum + Number(i.amount), 0);
+    // optional instalment schedule (e.g. Term 1 = 40% by 15 Jun) — percentages add up to 100
+    const schedule = parseSchedule(req.body.installments);
 
     const structure = await prisma.feeStructure.create({
       data: {
@@ -214,6 +243,10 @@ const createFeeStructureV2 = async (req, res, next) => {
         totalAmount,
         dueDate: new Date(dueDate),
         lateFeePerDay: Number(lateFeePerDay) || 0,
+        lateFeeGraceDays: lateFeeGrace(req.body.lateFeeGraceDays),
+        lateFeeMaxAmount: lateFeeCap(req.body.lateFeeMaxAmount),
+        // this fee's own payment rules on top of the Fee Policy (null = follow the policy)
+        ...(req.body.policyOverride !== undefined && { policyOverride: parseOverride(req.body.policyOverride) ?? Prisma.DbNull }),
         frequency: frequency || 'ANNUAL',
         status: 'DRAFT',
         items: {
@@ -224,10 +257,13 @@ const createFeeStructureV2 = async (req, res, next) => {
             dueDate: i.dueDate ? new Date(i.dueDate) : null,
             mandatory: i.mandatory ?? true,
             sortOrder: idx,
+            // who pays this head and how much (shared/fees/feeRules.js)
+            rule: parseRule(i.rule, heads.find((h) => h.id === i.feeHeadId)?.name) ?? Prisma.DbNull,
           })),
         },
+        ...(schedule.length && { installmentSchedule: { create: schedule } }),
       },
-      include: { items: { include: { feeHead: true } } },
+      include: { items: { include: { feeHead: true } }, installmentSchedule: { orderBy: { installmentNumber: 'asc' } } },
     });
 
     return sendSuccess(res, structure, 'Fee structure created as draft', 201);
@@ -246,6 +282,14 @@ const updateFeeStructureV2 = async (req, res, next) => {
 
     const { name, dueDate, lateFeePerDay, frequency, items } = req.body;
 
+    if (req.body.installments !== undefined) {
+      const schedule = parseSchedule(req.body.installments);
+      await prisma.feeStructureInstallment.deleteMany({ where: { feeStructureId: structure.id } });
+      if (schedule.length) {
+        await prisma.feeStructureInstallment.createMany({ data: schedule.map((s) => ({ ...s, feeStructureId: structure.id })) });
+      }
+    }
+
     if (Array.isArray(items)) {
       const headIds = items.map((i) => i.feeHeadId);
       const heads = await prisma.feeHead.findMany({ where: { id: { in: headIds }, institutionId: req.institutionId } });
@@ -261,6 +305,8 @@ const updateFeeStructureV2 = async (req, res, next) => {
           dueDate: i.dueDate ? new Date(i.dueDate) : null,
           mandatory: i.mandatory ?? true,
           sortOrder: idx,
+          // who pays this head and how much (shared/fees/feeRules.js)
+          rule: parseRule(i.rule, heads.find((h) => h.id === i.feeHeadId)?.name) ?? Prisma.DbNull,
         })),
       });
     }
@@ -274,10 +320,13 @@ const updateFeeStructureV2 = async (req, res, next) => {
         ...(name !== undefined && { name }),
         ...(dueDate !== undefined && { dueDate: new Date(dueDate) }),
         ...(lateFeePerDay !== undefined && { lateFeePerDay: Number(lateFeePerDay) }),
+        ...(req.body.lateFeeGraceDays !== undefined && { lateFeeGraceDays: lateFeeGrace(req.body.lateFeeGraceDays) }),
+        ...(req.body.lateFeeMaxAmount !== undefined && { lateFeeMaxAmount: lateFeeCap(req.body.lateFeeMaxAmount) }),
+        ...(req.body.policyOverride !== undefined && { policyOverride: parseOverride(req.body.policyOverride) ?? Prisma.DbNull }),
         ...(frequency !== undefined && { frequency }),
         totalAmount,
       },
-      include: { items: { include: { feeHead: true } } },
+      include: { items: { include: { feeHead: true } }, installmentSchedule: { orderBy: { installmentNumber: 'asc' } } },
     });
 
     return sendSuccess(res, updated, 'Fee structure updated successfully');
@@ -320,7 +369,7 @@ const archiveFeeStructure = async (req, res, next) => {
  * exact version they were created under. */
 const duplicateFeeStructure = async (req, res, next) => {
   try {
-    const source = await prisma.feeStructure.findFirst({ where: { id: req.params.id, institutionId: req.institutionId }, include: { items: true } });
+    const source = await prisma.feeStructure.findFirst({ where: { id: req.params.id, institutionId: req.institutionId }, include: { items: true, installmentSchedule: true } });
     if (!source) throw new NotFoundError('Fee structure not found');
 
     const { name, academicYearId, asNewVersion } = req.body;
@@ -335,15 +384,23 @@ const duplicateFeeStructure = async (req, res, next) => {
         totalAmount: source.totalAmount,
         dueDate: source.dueDate,
         lateFeePerDay: source.lateFeePerDay,
+        lateFeeGraceDays: source.lateFeeGraceDays,
+        lateFeeMaxAmount: source.lateFeeMaxAmount,
+        policyOverride: source.policyOverride ?? Prisma.DbNull,
         frequency: source.frequency,
         status: 'DRAFT',
         version: asNewVersion ? source.version + 1 : 1,
         parentStructureId: asNewVersion ? (source.parentStructureId || source.id) : null,
         items: {
           create: source.items.map((i, idx) => ({
-            feeHeadId: i.feeHeadId, amount: i.amount, frequency: i.frequency, dueDate: i.dueDate, mandatory: i.mandatory, sortOrder: idx,
+            feeHeadId: i.feeHeadId, amount: i.amount, frequency: i.frequency, dueDate: i.dueDate, mandatory: i.mandatory, sortOrder: idx, rule: i.rule ?? Prisma.DbNull,
           })),
         },
+        ...(source.installmentSchedule.length && {
+          installmentSchedule: {
+            create: source.installmentSchedule.map((s) => ({ installmentNumber: s.installmentNumber, label: s.label, percent: s.percent, dueDate: s.dueDate })),
+          },
+        }),
       },
       include: { items: { include: { feeHead: true } } },
     });
@@ -355,27 +412,10 @@ const duplicateFeeStructure = async (req, res, next) => {
 };
 
 /** Creates one student's assignment for a structure (loaded with items.feeHead), snapshotting each fee head. */
-const assignStructureWithinTx = async (tx, structure, studentId) => {
-  const assignment = await tx.studentFeeAssignment.create({
-    data: {
-      feeStructureId: structure.id,
-      studentId,
-      structureVersion: structure.version,
-      totalAmount: structure.totalAmount,
-      dueAmount: structure.totalAmount,
-    },
-  });
-  await tx.studentFeeItem.createMany({
-    data: structure.items.map((item) => ({
-      studentFeeAssignmentId: assignment.id,
-      feeHeadId: item.feeHeadId,
-      feeHeadName: item.feeHead.name,
-      amount: item.amount,
-      dueAmount: item.amount,
-    })),
-  });
-  return assignment;
-};
+/** Assigns one structure to one student under its fee rules (shared/fees/feeRules.js) —
+ * each head at the amount the rules give this student; heads that don't apply are left out.
+ * Returns null when the rules charge this student nothing. */
+const assignStructureWithinTx = (tx, structure, studentId) => assignResolvedStructure(tx, structure, studentId);
 
 /** Assigns a PUBLISHED structure to every matching active student (institution + course +
  * section, whichever are set on the structure), snapshotting each fee head's amount into a
@@ -384,7 +424,7 @@ const assignStructureToStudents = async (req, res, next) => {
   try {
     const structure = await prisma.feeStructure.findFirst({
       where: { id: req.params.id, institutionId: req.institutionId },
-      include: { items: { include: { feeHead: true } } },
+      include: { items: { include: { feeHead: true } }, installmentSchedule: true },
     });
     if (!structure) throw new NotFoundError('Fee structure not found');
     if (structure.status !== 'PUBLISHED') throw new ValidationError('Only a published fee structure can be assigned to students');
@@ -401,24 +441,41 @@ const assignStructureToStudents = async (req, res, next) => {
 
     let assignedCount = 0;
     let skippedCount = 0;
+    let otherVersionCount = 0;
+    let notChargedCount = 0;
+
+    // A student holds ONE version of a fee. Students who already have this structure, or
+    // any other version of it (v1 when assigning v2, ...), are skipped and keep the version
+    // they have — assigning a new version used to charge them for both.
+    // (One query for everyone, not one lookup per student.)
+    const chainIds = await versionChainIds(prisma, structure);
+    const existing = await prisma.studentFeeAssignment.findMany({
+      where: { feeStructureId: { in: chainIds } },
+      select: { studentId: true, feeStructureId: true },
+    });
+    const sameStructure = new Set(existing.filter((a) => a.feeStructureId === structure.id).map((a) => a.studentId));
+    const anyVersion = new Set(existing.map((a) => a.studentId));
 
     for (const student of students) {
-      const existing = await prisma.studentFeeAssignment.findUnique({
-        where: { feeStructureId_studentId: { feeStructureId: structure.id, studentId: student.id } },
-      });
-      if (existing) {
-        skippedCount += 1;
+      if (anyVersion.has(student.id)) {
+        if (sameStructure.has(student.id)) skippedCount += 1;
+        else otherVersionCount += 1;
         continue;
       }
 
-      await prisma.$transaction((tx) => assignStructureWithinTx(tx, structure, student.id));
-      assignedCount += 1;
+      const created = await prisma.$transaction((tx) => assignStructureWithinTx(tx, structure, student.id));
+      if (created) assignedCount += 1; else notChargedCount += 1; // its fee rules charge this student nothing
     }
 
+    const notes = [
+      skippedCount > 0 && `${skippedCount} already had this structure assigned`,
+      otherVersionCount > 0 && `${otherVersionCount} already have another version of this fee and keep it`,
+      notChargedCount > 0 && `${notChargedCount} not charged under its fee rules`,
+    ].filter(Boolean);
     return sendSuccess(
       res,
-      { assignedCount, skippedCount, totalStudents: students.length },
-      `Fee structure assigned to ${assignedCount} student(s)${skippedCount > 0 ? ` (${skippedCount} already had this structure assigned)` : ''}`
+      { assignedCount, skippedCount, otherVersionCount, notChargedCount, totalStudents: students.length },
+      `Fee structure assigned to ${assignedCount} student(s)${notes.length ? ` (${notes.join('; ')})` : ''}`
     );
   } catch (err) {
     next(err);
@@ -433,6 +490,8 @@ const getStudentFeeItems = async (req, res, next) => {
   try {
     const student = await prisma.student.findFirst({ where: { id: req.params.id, institutionId: req.institutionId } });
     if (!student) throw new NotFoundError('Student not found or access denied');
+    // Fee Policy "use credit automatically": settle new dues from any credit first
+    await autoApplyCredit(prisma, { institutionId: req.institutionId, studentId: student.id });
 
     const assignments = await prisma.studentFeeAssignment.findMany({
       where: { studentId: req.params.id },
@@ -442,6 +501,9 @@ const getStudentFeeItems = async (req, res, next) => {
       },
       orderBy: { createdAt: 'desc' },
     });
+    // each fee's instalments (due dates, paid, which heads they cover)
+    await attachInstallments(prisma, assignments);
+    for (const a of assignments) a.lateFee = await refreshLateFee(prisma, a.id);
 
     return sendSuccess(res, assignments, 'Student fee breakdown retrieved successfully');
   } catch (err) {
@@ -476,6 +538,9 @@ const collectFeePaymentV2 = async (req, res, next) => {
     const distinctAssignments = new Set(items.map((i) => i.studentFeeAssignmentId));
     if (distinctAssignments.size > 1) throw new ValidationError('All fee items in one payment must belong to the same fee structure assignment');
     const assignmentId = [...distinctAssignments][0];
+    if (paymentMode === 'CREDIT') throw new ValidationError('Use "Pay from credit" to pay a fee from the student\'s credit');
+    // bring the late fee up to date BEFORE this payment, so lateness counts up to today
+    const lateFee = await refreshLateFee(prisma, assignmentId);
 
     for (const alloc of allocations) {
       const item = items.find((i) => i.id === alloc.studentFeeItemId);
@@ -484,6 +549,39 @@ const collectFeePaymentV2 = async (req, res, next) => {
     }
 
     const totalAmount = allocations.reduce((sum, a) => sum + Number(a.amount), 0);
+
+    // Fee Policy (shared/fees/feePolicy.js): head order, part payments, minimum, older fee
+    // first, and the late fee (lateFeeAmount — paid in the same payment when FIRST / LAST)
+    const full = await prisma.studentFeeAssignment.findUnique({
+      where: { id: assignmentId },
+      include: { feeStructure: { select: { policyOverride: true } }, installments: true },
+    });
+    const policy = effectivePolicy(await getFeePolicy(prisma, req.institutionId), full.feeStructure);
+    const overrideReason = req.body.overrideReason ? String(req.body.overrideReason).trim().slice(0, 300) : null;
+    const lateFeeAmount = round2(Number(req.body.lateFeeAmount) || 0);
+    if (lateFeeAmount < 0) throw new ValidationError('lateFeeAmount cannot be negative');
+    if (lateFeeAmount > 0 && policy.lateFeeOrder === 'SEPARATE') throw new ValidationError('Late fees are collected separately (Fees → Late Fees) under your Fee Policy');
+    if (lateFeeAmount > lateFee.due + 0.01) throw new ValidationError(`Late fee ₹${lateFeeAmount} is more than the late fee due (₹${lateFee.due})`);
+    // previous academic year's dues (Fee Policy) — head-wise collection is for one fee, so
+    // AUTO_ADJUST can't spread here: both BLOCK and AUTO_ADJUST refuse (override as the policy allows)
+    await enforcePreviousDues(prisma, { policy, assignment: full, channel: 'COUNTER_HEADS', overrideReason });
+    if (!overrideReason) {
+      if (!policy.counterHeadChoice) checkHeadOrder(await itemsInHeadOrder(prisma, assignmentId, full.feeStructureId), allocations);
+      if (policy.lateFeeOrder === 'FIRST' && lateFeeAmount < lateFee.due - 0.009) {
+        throw new BusinessRuleError(`The late fee of ₹${lateFee.due} must be paid first — include it in this payment`);
+      }
+      if (policy.lateFeeOrder === 'LAST' && lateFeeAmount > 0 && totalAmount < full.dueAmount - 0.009) {
+        throw new BusinessRuleError('The late fee is collected only after the fee itself is fully paid');
+      }
+      checkPartialRules(policy, {
+        feeDue: full.dueAmount, installments: full.installments, feeAmount: totalAmount, total: round2(totalAmount + lateFeeAmount),
+        lateFirst: policy.lateFeeOrder === 'FIRST' ? lateFee.due : 0, channel: 'COUNTER',
+      });
+      if (policy.oldestFeeFirst) {
+        const older = await olderUnpaidFee(prisma, full);
+        if (older) throw new BusinessRuleError(`Clear the older fee "${older.feeStructure.name}" (₹${older.dueAmount} due) first`);
+      }
+    }
 
     const inst = await prisma.institution.findUnique({ where: { id: req.institutionId }, select: { code: true } });
     const receiptCount = await prisma.feeReceipt.count({ where: { institutionId: req.institutionId } });
@@ -529,14 +627,28 @@ const collectFeePaymentV2 = async (req, res, next) => {
         where: { id: assignmentId },
         data: { paidAmount: assignPaid, dueAmount: assignDue, status: assignDue <= 0 ? 'PAID' : assignPaid > 0 ? 'PARTIAL' : 'PENDING' },
       });
+      // instalments follow the payment too (shared/fees/installments.js)
+      await recomputeInstallments(tx, assignmentId);
 
       const receipt = await tx.feeReceipt.create({
         data: { receiptNumber, institutionId: req.institutionId, studentId, paymentId: payment.id, amount: totalAmount },
       });
+      const lateFeeEntry = await recordLatePart(tx, {
+        institutionId: req.institutionId, assignmentId, amount: lateFeeAmount, paymentMode: paymentMode || 'CASH', receiptNumber, userId: req.user.id,
+      });
 
-      return { payment, receipt, allocations: allocations.map((a) => ({ ...a, feeHeadName: items.find((i) => i.id === a.studentFeeItemId)?.feeHeadName })) };
+      return {
+        payment, receipt,
+        allocations: allocations.map((a) => ({ ...a, feeHeadName: items.find((i) => i.id === a.studentFeeItemId)?.feeHeadName })),
+        ...(lateFeeEntry && { lateFeeReceipt: lateFeeEntry.receiptNumber, lateFeePaid: lateFeeAmount }),
+      };
     });
 
+    if (overrideReason) {
+      prisma.auditLog.create({
+        data: { institutionId: req.institutionId, userId: req.user.id, action: 'FEE_POLICY_OVERRIDDEN', module: 'FEES', entity: 'StudentFeeAssignment', entityId: assignmentId, newValues: JSON.stringify({ amount: totalAmount, reason: overrideReason }) },
+      }).catch(() => {});
+    }
     return sendSuccess(res, result, 'Fee payment collected and receipt generated successfully', 201);
   } catch (err) {
     next(err);

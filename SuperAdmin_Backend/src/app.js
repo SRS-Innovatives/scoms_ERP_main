@@ -9,6 +9,7 @@ const apiRoutes = require('./routes/apiRoutes');
 const { errorHandler, getHealthPayload } = require('../../shared');
 
 const app = express();
+app.set('trust proxy', 1); // real client IP behind Render's proxy — otherwise all users share one rate-limit bucket
 
 // CORS_ORIGINS: comma-separated frontend URLs allowed in production; unset = allow all (local dev)
 const corsOrigins = process.env.CORS_ORIGINS ? process.env.CORS_ORIGINS.split(',').map((o) => o.trim()) : '*';
@@ -24,6 +25,9 @@ app.get('/health', async (req, res) => {
 
 // API Routes Mounted at Versioned Endpoint
 app.use('/api/v1/super-admin', apiRoutes);
+
+// Profile photos + institution logos as cacheable image files (signed links — see shared/media/mediaUrl.js)
+app.use('/api/v1/media', require('../../shared/media/mediaRoutes'));
 
 // Global Error Handler
 app.use(errorHandler);

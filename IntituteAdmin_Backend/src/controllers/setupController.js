@@ -956,11 +956,15 @@ const getSubjectClassMappingOverview = async (req, res, next) => {
       prisma.course.findMany({ where: { institutionId: req.institutionId }, select: { id: true, name: true, code: true }, orderBy: { name: 'asc' } }),
       prisma.subject.findMany({
         where: { institutionId: req.institutionId },
-        select: { id: true, code: true, name: true, classMappings: { select: { courseId: true } } },
+        select: { id: true, code: true, name: true, classMappings: { select: { courseId: true, isElective: true } } },
         orderBy: { name: 'asc' },
       }),
     ]);
-    const result = subjects.map((s) => ({ id: s.id, code: s.code, name: s.name, courseIds: s.classMappings.map((m) => m.courseId) }));
+    const result = subjects.map((s) => ({
+      id: s.id, code: s.code, name: s.name,
+      courseIds: s.classMappings.map((m) => m.courseId),
+      electiveCourseIds: s.classMappings.filter((m) => m.isElective).map((m) => m.courseId),
+    }));
     return sendSuccess(res, { courses, subjects: result }, 'Subject-class mapping retrieved');
   } catch (err) {
     next(err);
@@ -981,14 +985,17 @@ const setSubjectClassMapping = async (req, res, next) => {
 
     const validCourses = await prisma.course.findMany({ where: { id: { in: courseIds }, institutionId: req.institutionId }, select: { id: true } });
     const validIds = validCourses.map((c) => c.id);
+    const electiveSet = Array.isArray(req.body.electiveCourseIds) ? new Set(req.body.electiveCourseIds) : null;
 
     await prisma.$transaction([
       prisma.subjectClassMapping.deleteMany({ where: { subjectId: id, courseId: { notIn: validIds } } }),
       ...validIds.map((courseId) =>
         prisma.subjectClassMapping.upsert({
           where: { subjectId_courseId: { subjectId: id, courseId } },
-          create: { subjectId: id, courseId },
-          update: {},
+          // electiveCourseIds: the classes where this subject is an ELECTIVE (only allotted
+          // students take it); omitted = leave each class's elective setting unchanged
+          create: { subjectId: id, courseId, isElective: electiveSet ? electiveSet.has(courseId) : false },
+          update: electiveSet ? { isElective: electiveSet.has(courseId) } : {},
         })
       ),
     ]);

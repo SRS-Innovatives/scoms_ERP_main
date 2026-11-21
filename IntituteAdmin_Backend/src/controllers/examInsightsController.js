@@ -6,6 +6,10 @@
  * Every query is scoped to req.institutionId.
  */
 const { prisma, sendSuccess, NotFoundError, ValidationError, attendanceRules } = require('../../../shared');
+const { avatarUrl } = require('../../../shared/media/mediaUrl');
+const { getFeePolicy, getFeeHoldsForStudents } = require('../../../shared/fees/feePolicy');
+// venue labels — shared with the student's own hall ticket (shared/exams/hallTicket.js)
+const { roomNamesById } = require('../../../shared/exams/hallTicket');
 
 const findExam = async (examId, institutionId) => {
   const exam = await prisma.exam.findFirst({
@@ -16,12 +20,6 @@ const findExam = async (examId, institutionId) => {
   return exam;
 };
 
-const roomNamesById = async (roomIds, institutionId) => {
-  const ids = [...new Set(roomIds.filter(Boolean))];
-  if (ids.length === 0) return new Map();
-  const rooms = await prisma.room.findMany({ where: { id: { in: ids }, institutionId }, select: { id: true, roomNumber: true, name: true, building: { select: { name: true } } } });
-  return new Map(rooms.map((r) => [r.id, [r.building?.name, r.name || r.roomNumber].filter(Boolean).join(' · ')]));
-};
 
 /** GET /exams/:examId/subject-analysis — one row per exam schedule (subject + class). */
 const getSubjectAnalysis = async (req, res, next) => {
@@ -90,7 +88,7 @@ const getHallTickets = async (req, res, next) => {
       prisma.institution.findUnique({ where: { id: req.institutionId }, select: { name: true, code: true, logo: true, address: true, city: true } }),
       prisma.student.findMany({
         where: { sectionId, status: 'ACTIVE' },
-        select: { id: true, firstName: true, lastName: true, admissionNumber: true, registerNumber: true, rollNumber: true, dob: true, user: { select: { avatar: true } } },
+        select: { id: true, firstName: true, lastName: true, admissionNumber: true, registerNumber: true, rollNumber: true, dob: true, user: { select: { id: true, avatar: true } } },
         orderBy: [{ rollNumber: 'asc' }, { firstName: 'asc' }],
       }),
       prisma.examSchedule.findMany({
@@ -100,6 +98,17 @@ const getHallTickets = async (req, res, next) => {
       }),
     ]);
     const rooms = await roomNamesById(schedules.map((s) => s.roomId), req.institutionId);
+
+    // Fee Policy hall-ticket hold: mark (don't drop) held students so the office sees why
+    const policy = await getFeePolicy(prisma, req.institutionId);
+    const held = new Map();
+    if (policy.holds.includes('HALL_TICKET')) {
+      const all = await getFeeHoldsForStudents(prisma, { institutionId: req.institutionId, studentIds: students.map((st) => st.id), policy });
+      for (const st of students) {
+        const h = all.get(st.id);
+        if (h.holds.includes('HALL_TICKET')) held.set(st.id, h.amountToClear);
+      }
+    }
 
     return sendSuccess(res, {
       exam,
@@ -111,7 +120,10 @@ const getHallTickets = async (req, res, next) => {
       })),
       students: students.map((st) => ({
         id: st.id, name: `${st.firstName} ${st.lastName}`.trim(), admissionNumber: st.admissionNumber,
-        registerNumber: st.registerNumber, rollNumber: st.rollNumber, dob: st.dob, photo: st.user?.avatar || null,
+        registerNumber: st.registerNumber, rollNumber: st.rollNumber, dob: st.dob,
+        // cached photo URL, not inline base64 — a 60-student hall-ticket batch carried every photo in one response
+        photo: st.user?.avatar ? avatarUrl(req, st.user.id, st.user.avatar) : null,
+        ...(held.has(st.id) && { feeHold: { amountToClear: held.get(st.id) } }),
       })),
     }, 'Hall tickets retrieved');
   } catch (err) {

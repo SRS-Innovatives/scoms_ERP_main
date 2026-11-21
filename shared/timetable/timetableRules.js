@@ -208,9 +208,51 @@ const cancelSubstituteRequest = async ({ institutionId, userId, staffId, request
   return updated;
 };
 
+/**
+ * Slots whose teacher is NOT assigned to teach that subject in this class (Staff → Teacher
+ * Assignments). Attendance and marks follow Teacher Assignments, so a timetable that
+ * disagrees would let a teacher be timetabled for a class they can't take attendance or
+ * enter marks for. A legacy "all classes" assignment (no section) counts.
+ */
+const findUnassignedTeaching = async ({ institutionId, sectionId, entries, db = prisma }) => {
+  const taught = entries.filter((e) => e.subjectId && e.staffId);
+  if (taught.length === 0) return [];
+  const mappings = await db.subjectTeacherMapping.findMany({
+    where: {
+      staffId: { in: [...new Set(taught.map((e) => e.staffId))] },
+      subjectId: { in: [...new Set(taught.map((e) => e.subjectId))] },
+      OR: [{ sectionId }, { sectionId: null }],
+    },
+    select: { staffId: true, subjectId: true },
+  });
+  const ok = new Set(mappings.map((m) => `${m.staffId}|${m.subjectId}`));
+  const missing = taught.filter((e) => !ok.has(`${e.staffId}|${e.subjectId}`));
+  if (missing.length === 0) return [];
+  const [staff, subjects, section] = await Promise.all([
+    db.staff.findMany({ where: { id: { in: missing.map((m) => m.staffId) }, institutionId }, select: { id: true, firstName: true, lastName: true } }),
+    db.subject.findMany({ where: { id: { in: missing.map((m) => m.subjectId) }, institutionId }, select: { id: true, name: true } }),
+    db.section.findUnique({ where: { id: sectionId }, select: { name: true, semester: { select: { course: { select: { name: true } } } } } }),
+  ]);
+  const staffName = new Map(staff.map((s) => [s.id, `${s.firstName || ''} ${s.lastName || ''}`.trim()]));
+  const subjectName = new Map(subjects.map((s) => [s.id, s.name]));
+  const className = [section?.semester?.course?.name, section?.name].filter(Boolean).join(' - ');
+  // one line per teacher + subject pair (not per period)
+  const seen = new Set();
+  return missing.filter((m) => {
+    const k = `${m.staffId}|${m.subjectId}`;
+    if (seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  }).map((m) => ({
+    staffId: m.staffId, subjectId: m.subjectId, dayOfWeek: m.dayOfWeek, period: m.period,
+    message: `${staffName.get(m.staffId) || 'This teacher'} is not assigned to teach ${subjectName.get(m.subjectId) || 'this subject'} in ${className || 'this class'}`,
+  }));
+};
+
 module.exports = {
   DAYS,
   findConflicts,
+  findUnassignedTeaching,
   createSubstituteRequest,
   listSubstituteRequests,
   findAvailableSubstitutes,

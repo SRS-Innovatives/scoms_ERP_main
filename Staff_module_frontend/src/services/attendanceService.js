@@ -3,10 +3,13 @@ import apiCall from './api';
 
 export const attendanceService = {
   getSmsStatus: async () => apiCall('/attendance/sms-status'),
+  // menu badge: classes not yet marked today + corrections waiting (approvers only)
+  getPendingSummary: async () => apiCall('/attendance/pending-summary'),
   getMyClasses: async () => apiCall('/attendance/my-classes'),
   // Sections this staff member is class teacher of — offered for daily attendance
   getClassTeacherSections: async () => apiCall('/attendance/class-teacher-sections'),
-  getRoster: async (sectionId) => apiCall(`/attendance/roster?sectionId=${sectionId}`),
+  // subjectId (optional): for an elective subject the roster lists only the students who chose it
+  getRoster: async (sectionId, subjectId) => apiCall(`/attendance/roster?sectionId=${sectionId}${subjectId ? `&subjectId=${subjectId}` : ''}`),
   getSession: async (sectionId, date, periodNumber = 1) =>
     apiCall(`/attendance/session?sectionId=${sectionId}&date=${date}&periodNumber=${periodNumber}`),
   getHistory: async (sectionId) => apiCall(`/attendance/history${sectionId ? `?sectionId=${sectionId}` : ''}`),

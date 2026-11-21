@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, Suspense } from 'react';
 import { Outlet } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import Navbar from './Navbar';
@@ -35,7 +35,17 @@ export const MainLayout = () => {
 
         {/* Page Content Viewport */}
         <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto">
-          <Outlet />
+          {/* Pages are lazy-loaded (routes/AppRoutes.jsx): keep the sidebar/navbar on
+              screen and show a spinner only in the content area while a page downloads */}
+          <Suspense
+            fallback={(
+              <div className="flex justify-center py-20">
+                <div className="w-8 h-8 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" />
+              </div>
+            )}
+          >
+            <Outlet />
+          </Suspense>
         </main>
 
         {/* Global Footer */}

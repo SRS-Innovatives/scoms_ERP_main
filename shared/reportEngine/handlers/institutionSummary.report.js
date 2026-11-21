@@ -19,7 +19,7 @@ module.exports = async (institutionId) => {
     prisma.course.count({ where: { institutionId } }),
     prisma.section.count({ where: { semester: { course: { institutionId } } } }),
     prisma.department.count({ where: { institutionId } }),
-    prisma.feePayment.aggregate({ where: { institutionId, paymentStatus: 'SUCCESS' }, _sum: { amountPaid: true } }),
+    prisma.feePayment.aggregate({ where: { institutionId, paymentStatus: 'SUCCESS', paymentMode: { not: 'CREDIT' } }, _sum: { amountPaid: true } }),
   ]);
 
   const totalOutstandingAgg = await prisma.studentFeeAssignment.aggregate({

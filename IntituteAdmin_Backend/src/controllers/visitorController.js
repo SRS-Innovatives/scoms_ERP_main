@@ -1,20 +1,20 @@
 /**
  * Institute Admin — Visitor / Gate Management Controller
  */
-const { prisma, sendSuccess, NotFoundError, ValidationError } = require('../../../shared');
+const { prisma, sendSuccess, NotFoundError, ValidationError, findList } = require('../../../shared');
 
 const getVisitorLogs = async (req, res, next) => {
   try {
     const { active } = req.query; // active=true -> visitors currently on campus (no checkout yet)
-    const logs = await prisma.visitorLog.findMany({
+    const { rows: logs, meta: listMeta } = await findList(prisma.visitorLog, {
       where: {
         institutionId: req.institutionId,
         ...(active === 'true' && { checkOutTime: null }),
       },
       include: { recordedBy: { select: { firstName: true, lastName: true } } },
       orderBy: { checkInTime: 'desc' },
-    });
-    return sendSuccess(res, logs, 'Visitor logs retrieved successfully');
+    }, req);
+    return sendSuccess(res, logs, 'Visitor logs retrieved successfully', 200, listMeta);
   } catch (err) {
     next(err);
   }

@@ -13,7 +13,15 @@
  * generous for real users — they only engage under actual automated abuse, so normal
  * login/reset flows are completely unaffected.
  */
-const rateLimit = require('express-rate-limit');
+const { rateLimit, ipKeyGenerator } = require('express-rate-limit');
+
+// the limits in force — also shown read-only on Super Admin → API Management
+const RATE_LIMITS = {
+  login: { label: 'Sign-in attempts', windowMs: 15 * 60 * 1000, max: 10, scope: 'per IP address, every portal' },
+  otp: { label: 'Password-reset codes (request / verify / reset)', windowMs: 15 * 60 * 1000, max: 5, scope: 'per IP address' },
+  publicFormSchema: { label: 'Public admission form — field list', windowMs: 60 * 60 * 1000, max: 600, scope: 'per IP address' },
+  publicSubmission: { label: 'Public admission form submissions & fee payment', windowMs: 60 * 60 * 1000, max: 120, scope: 'per IP address + institution API key' },
+};
 
 const jsonRateLimitHandler = (req, res /* , next */) => {
   res.status(429).json({
@@ -27,8 +35,8 @@ const jsonRateLimitHandler = (req, res /* , next */) => {
 /** Login: 10 attempts per 15 minutes per IP — enough for a real user fumbling a
  * password a few times, tight enough to block credential-stuffing/brute force. */
 const loginLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 10,
+  windowMs: RATE_LIMITS.login.windowMs,
+  max: RATE_LIMITS.login.max,
   standardHeaders: true,
   legacyHeaders: false,
   handler: jsonRateLimitHandler,
@@ -37,23 +45,37 @@ const loginLimiter = rateLimit({
 /** OTP request/verify/reset: 5 per 15 minutes per IP. This is the critical one — it's
  * what actually closes the OTP brute-force window described above. */
 const otpLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 5,
+  windowMs: RATE_LIMITS.otp.windowMs,
+  max: RATE_LIMITS.otp.max,
   standardHeaders: true,
   legacyHeaders: false,
   handler: jsonRateLimitHandler,
 });
 
-/** Public pre-admission form submissions: 20 per hour per IP. This endpoint is reachable
- * from the open internet (an institution's own public website), so it needs its own
- * throttle independent of API-key validity — generous enough for a real busy admission
- * season, tight enough to block a scripted flood. */
+/** Public pre-admission field list (GET /form-schema): read-only and cacheable, and a school
+ * website server may fetch it on every page view — so a generous 600/hour per IP. */
+const publicFormSchemaLimiter = rateLimit({
+  windowMs: RATE_LIMITS.publicFormSchema.windowMs,
+  max: RATE_LIMITS.publicFormSchema.max,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: jsonRateLimitHandler,
+});
+
+/** Public pre-admission submissions and fee payment: 120/hour per IP + API key. A school that
+ * posts from its own website server sends every applicant from ONE IP, so a plain per-IP limit
+ * of 20 blocked a busy admission day; keying on IP + key gives each institution its own bucket
+ * and still stops a scripted flood from any one source. */
 const publicSubmissionLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000,
-  max: 20,
+  windowMs: RATE_LIMITS.publicSubmission.windowMs,
+  max: RATE_LIMITS.publicSubmission.max,
   standardHeaders: true,
   legacyHeaders: false,
+  keyGenerator: (req) => {
+    const apiKey = req.headers['x-api-key'] || req.body?.apiKey || req.query?.apiKey || '';
+    return `${ipKeyGenerator(req.ip || '')}|${String(apiKey).slice(0, 100)}`;
+  },
   handler: jsonRateLimitHandler,
 });
 
-module.exports = { loginLimiter, otpLimiter, publicSubmissionLimiter };
+module.exports = { loginLimiter, otpLimiter, publicFormSchemaLimiter, publicSubmissionLimiter, RATE_LIMITS };

@@ -4,7 +4,8 @@
  */
 
 const prisma = require('../database/client');
-const { generateAccessToken, generateRefreshToken } = require('./jwt');
+const { generateAccessToken } = require('./jwt');
+const { createSession } = require('./sessions');
 const { comparePassword } = require('./password');
 const { sendSuccess } = require('../utils/responseFormatter');
 const { AuthenticationError } = require('../errors/customErrors');
@@ -61,7 +62,8 @@ const handleUnifiedLogin = async (req, res, next, allowedRoles = null) => {
             name: true,
             code: true,
             type: true,
-            logo: true,
+            // (logo deliberately not loaded: the login response never returns it, and
+            // reading the base64 image on every login was pure waste)
           },
         },
         student: {
@@ -148,16 +150,10 @@ const handleUnifiedLogin = async (req, res, next, allowedRoles = null) => {
       parentId: user.parent ? user.parent.id : undefined,
     };
 
-    const accessToken = generateAccessToken(payload);
-    const refreshToken = generateRefreshToken(payload);
-
-    await prisma.refreshToken.create({
-      data: {
-        userId: user.id,
-        token: refreshToken,
-        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-      },
-    });
+    // one session row per login (portal, IP, device); its id goes into the access token as
+    // `sid` so the session can be seen and revoked (shared/auth/sessions.js)
+    const { sid, refreshToken } = await createSession(prisma, { userId: user.id, payload, req });
+    const accessToken = generateAccessToken({ ...payload, sid });
 
     // Update last login timestamp asynchronously
     await prisma.user.update({

@@ -1,7 +1,7 @@
 /**
  * Institute Admin — Front Office / Admission Enquiry Controller
  */
-const { prisma, sendSuccess, NotFoundError, ValidationError } = require('../../../shared');
+const { prisma, sendSuccess, NotFoundError, ValidationError, findList } = require('../../../shared');
 
 const VALID_SOURCES = ['WALK_IN', 'PHONE', 'WEBSITE', 'REFERRAL', 'SOCIAL_MEDIA', 'OTHER'];
 const VALID_STATUSES = ['NEW', 'CONTACTED', 'FOLLOW_UP', 'CONVERTED', 'LOST'];
@@ -9,12 +9,12 @@ const VALID_STATUSES = ['NEW', 'CONTACTED', 'FOLLOW_UP', 'CONVERTED', 'LOST'];
 const getEnquiries = async (req, res, next) => {
   try {
     const { status } = req.query;
-    const enquiries = await prisma.enquiry.findMany({
+    const { rows: enquiries, meta: listMeta } = await findList(prisma.enquiry, {
       where: { institutionId: req.institutionId, ...(status && { status }) },
       include: { createdBy: { select: { firstName: true, lastName: true } } },
       orderBy: { createdAt: 'desc' },
-    });
-    return sendSuccess(res, enquiries, 'Enquiries retrieved successfully');
+    }, req);
+    return sendSuccess(res, enquiries, 'Enquiries retrieved successfully', 200, listMeta);
   } catch (err) {
     next(err);
   }

@@ -3,7 +3,7 @@ import PrintHeader from './PrintHeader';
 import { Printer } from 'lucide-react';
 import { useAcademic } from '../../context/InstitutionContext';
 
-export const PrintLayout = ({ title, documentNo, children }) => {
+export const PrintLayout = ({ title, documentNo, children, signatures }) => {
   const academic = useAcademic();
   const handlePrint = () => {
     window.print();
@@ -31,20 +31,14 @@ export const PrintLayout = ({ title, documentNo, children }) => {
         <PrintHeader title={title} documentNo={documentNo} />
         {children}
 
-        {/* Footer Signatures */}
+        {/* Footer Signatures — a document may name its own signatories */}
         <div className="mt-16 pt-8 border-t border-slate-300 flex items-end justify-between text-xs font-semibold text-slate-800">
-          <div className="text-center">
-            <div className="w-36 border-b border-slate-400 mb-1"></div>
-            <p>Subject Teacher Signature</p>
-          </div>
-          <div className="text-center">
-            <div className="w-36 border-b border-slate-400 mb-1"></div>
-            <p>HOD / {academic.label('classTeacher')} Signature</p>
-          </div>
-          <div className="text-center">
-            <div className="w-36 border-b border-slate-400 mb-1"></div>
-            <p>Principal Stamp & Signature</p>
-          </div>
+          {(signatures || ['Subject Teacher Signature', `HOD / ${academic.label('classTeacher')} Signature`, 'Principal Stamp & Signature']).map((label) => (
+            <div key={label} className="text-center">
+              <div className="w-36 border-b border-slate-400 mb-1"></div>
+              <p>{label}</p>
+            </div>
+          ))}
         </div>
       </div>
     </div>

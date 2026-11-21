@@ -73,7 +73,11 @@ export const StudentSubmissionsPage = () => {
                   <td className="p-3 font-bold">{sub.student?.rollNumber || '—'}</td>
                   <td className="p-3 font-semibold">{sub.student?.firstName} {sub.student?.lastName}</td>
                   <td className="p-3 text-slate-500">{new Date(sub.submittedAt).toLocaleDateString()}</td>
-                  <td className="p-3 text-sky-600 font-medium max-w-[220px] truncate">{sub.fileUrl || sub.content || '—'}</td>
+                  <td className="p-3 text-sky-600 font-medium max-w-[220px] truncate">
+                    {sub.fileUrl ? (
+                      <a href={sub.fileUrl} target="_blank" rel="noreferrer" className="hover:underline">Open file</a>
+                    ) : (sub.content || '—')}
+                  </td>
                   <td className="p-3"><StatusBadge status={sub.status} size="sm" /></td>
                   <td className="p-3 font-bold">{sub.marksObtained !== null && sub.marksObtained !== undefined ? `${sub.marksObtained} / ${assignment?.totalMarks}` : '-'}</td>
                   <td className="p-3 text-right">

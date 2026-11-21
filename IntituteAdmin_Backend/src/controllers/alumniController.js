@@ -3,12 +3,12 @@
  * An alumni record can either link back to a real SCOMS Student (added via "Add from
  * Student Directory") or be entered manually (for alumni who predate SCOMS itself).
  */
-const { prisma, sendSuccess, NotFoundError, ValidationError } = require('../../../shared');
+const { prisma, sendSuccess, NotFoundError, ValidationError, findList } = require('../../../shared');
 
 const getAlumni = async (req, res, next) => {
   try {
     const { search, graduationYear } = req.query;
-    const alumni = await prisma.alumniRecord.findMany({
+    const { rows: alumni, meta: listMeta } = await findList(prisma.alumniRecord, {
       where: {
         institutionId: req.institutionId,
         ...(graduationYear && { graduationYear: Number(graduationYear) }),
@@ -21,8 +21,8 @@ const getAlumni = async (req, res, next) => {
       },
       include: { student: { select: { admissionNumber: true } } },
       orderBy: { graduationYear: 'desc' },
-    });
-    return sendSuccess(res, alumni, 'Alumni records retrieved successfully');
+    }, req);
+    return sendSuccess(res, alumni, 'Alumni records retrieved successfully', 200, listMeta);
   } catch (err) {
     next(err);
   }

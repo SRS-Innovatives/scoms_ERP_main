@@ -5,14 +5,14 @@
  * Accountant needs (EXPENSES_VIEW, EXPENSES_CREATE). Approving/rejecting/marking-paid
  * (EXPENSES_APPROVE) stays an Institute Admin responsibility and is left out here.
  */
-const { prisma, sendSuccess, NotFoundError, ValidationError, BusinessRuleError } = require('../../../shared');
+const { prisma, sendSuccess, NotFoundError, ValidationError, BusinessRuleError, findList } = require('../../../shared');
 
 const CATEGORIES = ['UTILITIES', 'MAINTENANCE', 'SUPPLIES', 'TRANSPORT', 'EVENTS', 'MARKETING', 'PROFESSIONAL_FEES', 'SALARY_ADVANCE', 'OTHER'];
 
 const getExpenses = async (req, res, next) => {
   try {
     const { status, category } = req.query;
-    const expenses = await prisma.expense.findMany({
+    const { rows: expenses, meta: listMeta } = await findList(prisma.expense, {
       where: {
         institutionId: req.institutionId,
         ...(status && { status }),
@@ -20,8 +20,8 @@ const getExpenses = async (req, res, next) => {
       },
       include: { vendor: { select: { name: true } } },
       orderBy: { expenseDate: 'desc' },
-    });
-    return sendSuccess(res, expenses, 'Expenses retrieved successfully');
+    }, req);
+    return sendSuccess(res, expenses, 'Expenses retrieved successfully', 200, listMeta);
   } catch (err) {
     next(err);
   }

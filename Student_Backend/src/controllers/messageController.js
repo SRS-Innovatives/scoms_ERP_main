@@ -4,7 +4,7 @@
  * A student can only message staff who actually teach their own section (resolved via
  * real SubjectTeacherMapping), and can only ever see conversations they are a party to.
  */
-const { prisma, sendSuccess, NotFoundError, ValidationError } = require('../../../shared');
+const { prisma, sendSuccess, NotFoundError, ValidationError, findConversation } = require('../../../shared');
 
 const getMyTeachers = async (req, res, next) => {
   try {
@@ -45,17 +45,11 @@ const getConversation = async (req, res, next) => {
     const student = await prisma.student.findUnique({ where: { id: req.user.studentId }, select: { sectionId: true } });
     if (!(await isMyTeacher(student?.sectionId, withUserId))) throw new NotFoundError('Teacher not found or access denied');
 
-    const messages = await prisma.message.findMany({
-      where: {
-        OR: [
-          { senderId: req.user.id, receiverId: withUserId },
-          { senderId: withUserId, receiverId: req.user.id },
-        ],
-      },
-      orderBy: { createdAt: 'asc' },
-    });
+    // Latest 200 messages (oldest-first, as before) — not the thread's entire history;
+    // ?before=<date> pages back through older ones
+    const { rows: messages, meta } = await findConversation(prisma, req.user.id, withUserId, req);
 
-    return sendSuccess(res, messages, 'Conversation retrieved');
+    return sendSuccess(res, messages, 'Conversation retrieved', 200, meta);
   } catch (err) {
     next(err);
   }

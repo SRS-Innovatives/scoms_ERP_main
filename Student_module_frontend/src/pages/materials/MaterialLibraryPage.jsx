@@ -64,6 +64,7 @@ export const MaterialLibraryPage = () => {
                   href={mat.fileUrl}
                   target="_blank"
                   rel="noreferrer"
+                  onClick={() => materialService.markOpened(mat.id)}
                   className="px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl flex items-center gap-1.5 shadow-xs"
                 >
                   <ExternalLink className="w-4 h-4" /> Open Resource

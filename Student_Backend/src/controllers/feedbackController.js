@@ -6,6 +6,7 @@
  * the form), never the content or identity tied to any other student's submission.
  */
 const { prisma, sendSuccess, ValidationError } = require('../../../shared');
+const { studentSubjectWhere } = require('../../../shared/academic/electives');
 
 /** Subjects for the student's own course, each flagged with whether feedback was already given. */
 const getFeedbackSubjects = async (req, res, next) => {
@@ -14,7 +15,7 @@ const getFeedbackSubjects = async (req, res, next) => {
     if (!student?.courseId) return sendSuccess(res, [], 'Subjects retrieved');
 
     const subjects = await prisma.subject.findMany({
-      where: { classMappings: { some: { courseId: student.courseId } } },
+      where: studentSubjectWhere({ id: req.user.studentId, courseId: student.courseId }) /* core subjects + this student's electives */,
       select: {
         id: true,
         name: true,

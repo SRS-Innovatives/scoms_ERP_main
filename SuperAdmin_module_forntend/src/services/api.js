@@ -29,7 +29,8 @@ export const apiCall = async (endpoint, options = {}) => {
     }
 
     const result = await res.json();
-    return { status: res.status, data: result.data || result };
+    // meta: paging info ({ page, limit, total, totalPages }) or { truncated, limit }
+    return { status: res.status, data: result.data || result, meta: result.meta };
   } catch (err) {
     console.error(`[SCOMS API] Backend connection to ${BASE_URL}${endpoint} failed:`, err);
     throw err;

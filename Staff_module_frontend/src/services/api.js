@@ -40,6 +40,8 @@ export const apiCall = async (endpoint, options = {}) => {
     }
 
     const result = await res.json();
+    // Platform Maintenance Mode (Super Admin) — show the full-screen notice (components/common/MaintenanceOverlay)
+    if (res.status === 503 && result?.code === 'MAINTENANCE_MODE') window.dispatchEvent(new CustomEvent('scoms:maintenance', { detail: result.message }));
     return { status: res.status, data: result.data || result };
   } catch (err) {
     console.error(`[SCOMS API] Backend connection to ${BASE_URL}${API_PREFIX}${endpoint} failed:`, err);

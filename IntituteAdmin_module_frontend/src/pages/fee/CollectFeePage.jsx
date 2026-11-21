@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import FormSection from '../../components/common/FormSection';
 import ReceiptTemplate from '../../components/print/ReceiptTemplate';
 import { useNotification } from '../../context/NotificationContext';
@@ -6,6 +6,8 @@ import { Search, CreditCard, CheckCircle2, Loader2 } from 'lucide-react';
 import feeService from '../../services/feeService';
 import studentService from '../../services/studentService';
 import { useAcademic } from '../../context/InstitutionContext';
+import feePolicyService from '../../services/feePolicyService';
+import StudentFeeStatusPanel from '../../components/fee/StudentFeeStatusPanel';
 
 const PAYMENT_MODES = ['CASH', 'UPI_MANUAL', 'ONLINE_CARD', 'BANK_TRANSFER', 'CHEQUE', 'DD'];
 
@@ -22,6 +24,13 @@ export const CollectFeePage = () => {
   const [remarks, setRemarks] = useState('');
   const [collecting, setCollecting] = useState(false);
   const [receipt, setReceipt] = useState(null);
+  // Fee Policy: extra money as credit, late fee paid with the fee, the admin's override
+  const [policy, setPolicy] = useState(null);
+  const [override, setOverride] = useState(false);
+  const [overrideReason, setOverrideReason] = useState('');
+  const [statusKey, setStatusKey] = useState(0);
+  useEffect(() => { feePolicyService.getPolicy().then((r) => setPolicy(r.data.policy)).catch(() => {}); }, []);
+  const allowExtra = policy?.excessPayment === 'CREDIT' || (policy && policy.lateFeeOrder !== 'SEPARATE');
 
   const handleSearch = async () => {
     if (!searchQuery.trim()) return;
@@ -67,8 +76,13 @@ export const CollectFeePage = () => {
           paymentMode,
           transactionReference: txnRef,
           remarks,
+          ...(override && overrideReason.trim() && { overrideReason: overrideReason.trim() }),
         });
+        if (lastResult.message) notifySuccess(lastResult.message);
       }
+      setOverride(false);
+      setOverrideReason('');
+      setStatusKey((k) => k + 1);
       notifySuccess(`Collected ₹${totalPaying.toLocaleString()} from ${selectedStudent.firstName} ${selectedStudent.lastName}! Receipt generated.`, 'Fee Collected');
       setReceipt({
         receiptNo: lastResult.data.receipt.receiptNumber,
@@ -137,6 +151,8 @@ export const CollectFeePage = () => {
         </div>
       )}
 
+      {selectedStudent && <StudentFeeStatusPanel studentId={selectedStudent.id} refreshKey={statusKey} onChanged={async () => { const r = await feeService.getAssignments({ studentId: selectedStudent.id }); setAssignments((r.data || []).filter((a) => a.status !== 'PAID')); }} />}
+
       {selectedStudent && assignments.length > 0 && (
         <form onSubmit={handleCollect} className="space-y-6">
           <FormSection title="Fee Heads Breakdown & Collecting Amount">
@@ -160,7 +176,7 @@ export const CollectFeePage = () => {
                     <td className="p-3 text-right">
                       <input
                         type="number"
-                        max={a.dueAmount}
+                        max={allowExtra ? undefined : a.dueAmount}
                         min={0}
                         value={payingMap[a.id] ?? ''}
                         onChange={(e) => setPayingMap((prev) => ({ ...prev, [a.id]: e.target.value }))}
@@ -211,6 +227,18 @@ export const CollectFeePage = () => {
               </div>
             </div>
           </FormSection>
+
+          {policy && (
+            <div className="text-xs space-y-2">
+              {policy.lateFeeOrder !== 'SEPARATE' && <p className="text-slate-500">Your Fee Policy takes the late fee {policy.lateFeeOrder === 'FIRST' ? 'first' : 'after the fee'} out of the amount entered.</p>}
+              {policy.excessPayment === 'CREDIT' && <p className="text-slate-500">Anything above what is due is kept as the student's fee credit.</p>}
+              <label className="flex items-center gap-2 font-semibold text-slate-700 dark:text-slate-300">
+                <input type="checkbox" checked={override} onChange={(e) => setOverride(e.target.checked)} className="w-4 h-4 rounded" />
+                Bypass the Fee Policy for this payment (part payment, minimum, order)
+              </label>
+              {override && <input required value={overrideReason} onChange={(e) => setOverrideReason(e.target.value)} placeholder="Reason (recorded in the audit log)" className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg" />}
+            </div>
+          )}
 
           <div className="flex justify-end pt-2">
             <button type="submit" disabled={collecting || totalPaying <= 0} className="flex items-center gap-2 px-8 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl shadow-xl transition-all active:scale-95 disabled:opacity-50">

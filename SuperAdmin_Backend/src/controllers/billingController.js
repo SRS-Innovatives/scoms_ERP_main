@@ -224,7 +224,10 @@ const updateInvoiceStatus = async (req, res, next) => {
 
 const getBillingStats = async (req, res, next) => {
   try {
-    const invoices = await prisma.invoice.findMany();
+    // Only the fields the totals below use (not every invoice column)
+    const invoices = await prisma.invoice.findMany({
+      select: { status: true, totalAmount: true, cgst: true, sgst: true, igst: true, createdAt: true },
+    });
 
     let totalRevenue = 0;
     let pendingRevenue = 0;

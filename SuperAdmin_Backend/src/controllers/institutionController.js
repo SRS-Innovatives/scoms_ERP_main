@@ -20,6 +20,7 @@ const {
   resolveAcademicStructure,
   getAcademicStructureCatalog,
 } = require('../../../shared');
+const { isMediaUrl } = require('../../../shared/media/mediaUrl');
 
 const { Prisma } = require('@prisma/client');
 
@@ -131,7 +132,7 @@ const createInstitutionOnboarding = async (req, res, next) => {
           state: orNull(state),
           pincode: orNull(pincode),
           country: country || 'India',
-          logo: logo || null,
+          logo: logo && !isMediaUrl(logo) ? logo : null, // a fresh upload only, never an echoed media URL
           establishedYear: establishmentYear ? parseInt(establishmentYear) : null,
           planName: plan,
           modules: modules ? modules : null,
@@ -351,6 +352,9 @@ const updateInstitution = async (req, res, next) => {
     for (const key of UPDATABLE_PROFILE_FIELDS) {
       if (body[key] !== undefined) updateData[key] = body[key];
     }
+    // The edit form sends back the logo URL this API handed out when the logo wasn't
+    // changed — that means "keep the current logo", never "store this URL as the logo"
+    if (isMediaUrl(updateData.logo)) delete updateData.logo;
     if (updateData.name !== undefined && !String(updateData.name).trim()) {
       throw new ValidationError('Institution name is required');
     }
@@ -482,14 +486,37 @@ const updateInstitutionModules = async (req, res, next) => {
   }
 };
 
+/** GET /audit-logs/modules?institutionId= — the modules that actually have audit records, with counts
+ * (for the activity page's module filter). */
+const getAuditLogModules = async (req, res, next) => {
+  try {
+    const { institutionId = '' } = req.query;
+    const rows = await prisma.auditLog.groupBy({
+      by: ['module'],
+      where: { ...(institutionId && { institutionId }) },
+      _count: { _all: true },
+    });
+    const modules = rows.filter((r) => r.module).map((r) => ({ module: r.module, count: r._count._all })).sort((a, b) => a.module.localeCompare(b.module));
+    return sendSuccess(res, modules, 'Audit log modules retrieved');
+  } catch (err) {
+    next(err);
+  }
+};
+
 const getAuditLogs = async (req, res, next) => {
   try {
-    const { page = 1, limit = 20, search = '', institutionId = '' } = req.query;
+    const { search = '', institutionId = '', module = '' } = req.query;
+    // bounded paging — at most 100 rows a request, whatever the caller asks for
+    const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit, 10) || 20));
     const skip = (page - 1) * limit;
 
     const where = {};
     if (institutionId) {
       where.institutionId = institutionId;
+    }
+    if (module) {
+      where.module = module;
     }
 
     if (search) {
@@ -534,4 +561,5 @@ module.exports = {
   getAcademicStructureCatalog: getAcademicStructureCatalogHandler,
   deleteInstitution,
   getAuditLogs,
+  getAuditLogModules,
 };

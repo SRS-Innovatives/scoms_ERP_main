@@ -65,7 +65,8 @@ export const AssignmentsListPage = () => {
                   <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">{asn.title}</h3>
                   <p className="text-xs text-slate-500 mt-1">{asn.className} • Faculty: {asn.staff?.firstName} {asn.staff?.lastName}</p>
                   {asn.description && <p className="text-xs text-slate-600 dark:text-slate-300 mt-2 leading-relaxed line-clamp-2">{asn.description}</p>}
-                  {asn.attachmentUrl && (
+                  {/* the list carries only hasAttachment; the file itself loads on the detail page */}
+                  {(asn.hasAttachment || asn.attachmentUrl) && (
                     <span className="inline-flex items-center gap-1 mt-2 text-[10px] font-semibold text-sky-600 dark:text-sky-400">
                       <Paperclip className="w-3 h-3" /> Attachment included
                     </span>

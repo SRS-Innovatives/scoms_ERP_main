@@ -20,6 +20,41 @@
  */
 const crypto = require('crypto');
 const logger = require('./logger');
+const { PaymentError } = require('../errors/customErrors');
+
+/**
+ * Signed order token — binds a payment order to WHO pays, WHICH fee and HOW MUCH, at the
+ * moment the server creates the order. The confirm step credits the token's amount, never
+ * an amount the browser sends (the Razorpay signature only proves the order/payment ids
+ * are genuine, not the amount). Only the server can mint one; expires after 24 hours.
+ */
+const TOKEN_SECRET = () => process.env.PAYMENT_TOKEN_SECRET || process.env.JWT_ACCESS_SECRET || process.env.RAZORPAY_KEY_SECRET || 'scoms_mock_secret';
+const TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
+
+// `kind` (optional) says what the order pays for — e.g. 'PRE_ADMISSION' with assignmentId = the
+// application id — so a token minted for one kind of payment is never accepted by another.
+// Left out for student fees (their tokens are unchanged).
+const createOrderToken = ({ orderId, studentId, assignmentId, amount, kind }) => {
+  const body = Buffer.from(JSON.stringify({ orderId, studentId, assignmentId, amount: Number(amount), kind, exp: Date.now() + TOKEN_TTL_MS })).toString('base64url');
+  const sig = crypto.createHmac('sha256', TOKEN_SECRET()).update(body).digest('base64url');
+  return `${body}.${sig}`;
+};
+
+/** Returns the token's payload, or null if it is missing, tampered with or expired. */
+const readOrderToken = (token) => {
+  if (typeof token !== 'string' || !token.includes('.')) return null;
+  const [body, sig] = token.split('.');
+  const expected = crypto.createHmac('sha256', TOKEN_SECRET()).update(body).digest('base64url');
+  const a = Buffer.from(expected);
+  const b = Buffer.from(sig || '');
+  if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return null;
+  try {
+    const payload = JSON.parse(Buffer.from(body, 'base64url').toString('utf8'));
+    return payload.exp > Date.now() ? payload : null;
+  } catch {
+    return null;
+  }
+};
 
 const isConfigured = () => {
   const key = process.env.RAZORPAY_KEY_ID;
@@ -72,10 +107,18 @@ const createOrder = async (amount) => {
 
       return { orderId: data.id, amount, currency: 'INR', key: keyId, simulated: false };
     } catch (err) {
-      logger.error('❌ Failed to create real Razorpay order — falling back to simulated order:', err);
-      // Falls through to the simulated branch below so payment collection still works
-      // (in simulated mode) instead of hard-failing the fee payment flow.
+      // NEVER fall back to a simulated order when real keys are configured: the simulated
+      // branch hands the browser a payment id + a signature made with the REAL secret, which
+      // verify would accept — the fee would be marked paid with no money received.
+      logger.error('❌ Failed to create real Razorpay order:', err);
+      throw new PaymentError('The payment gateway is not responding right now. Please try again in a few minutes.');
     }
+  }
+
+  // Simulated payments are fake money — never on a production server unless explicitly
+  // allowed (e.g. a demo site): PAYMENT_SIMULATION_ALLOWED=true
+  if (process.env.NODE_ENV === 'production' && process.env.PAYMENT_SIMULATION_ALLOWED !== 'true') {
+    throw new PaymentError('Online payment is not set up for this institution yet. Please pay at the fee office.');
   }
 
   const orderId = `order_${crypto.randomBytes(12).toString('hex')}`;
@@ -84,4 +127,4 @@ const createOrder = async (amount) => {
   return { orderId, amount, currency: 'INR', key: process.env.RAZORPAY_KEY_ID, simulated: true, paymentId, signature };
 };
 
-module.exports = { isConfigured, sign, verifySignature, createOrder };
+module.exports = { isConfigured, sign, verifySignature, createOrder, createOrderToken, readOrderToken };

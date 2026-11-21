@@ -14,8 +14,8 @@ const {
   prisma,
   sendSuccess,
   NotFoundError,
-  ValidationError,
-} = require('../../../shared');
+  ValidationError, findList } = require('../../../shared');
+const { autoSyncStudentFees } = require('../../../shared/fees/feeSync');
 
 const toDateOnly = (dateStr) => {
   if (dateStr) return new Date(dateStr);
@@ -117,15 +117,15 @@ const createRoute = async (req, res, next) => {
 // ============================================================
 const getMappings = async (req, res, next) => {
   try {
-    const mappings = await prisma.studentTransportMapping.findMany({
+    const { rows: mappings, meta: listMeta } = await findList(prisma.studentTransportMapping, {
       where: { route: { institutionId: req.institutionId } },
       include: {
         student: { select: { firstName: true, lastName: true, rollNumber: true, course: { select: { name: true } } } },
         route: { select: { routeName: true, monthlyFare: true, vehicle: { select: { vehicleNumber: true } } } },
       },
       orderBy: { createdAt: 'desc' },
-    });
-    return sendSuccess(res, mappings, 'Student route mappings retrieved successfully');
+    }, req, { max: 10000 });
+    return sendSuccess(res, mappings, 'Student route mappings retrieved successfully', 200, listMeta);
   } catch (err) {
     next(err);
   }
@@ -149,6 +149,8 @@ const assignStudentToRoute = async (req, res, next) => {
       create: { studentId, routeId, pickupPoint, customFields: customFieldsData },
       update: { routeId, pickupPoint, ...(customFieldsData !== undefined && { customFields: customFieldsData }) },
     });
+    // Fee Policy "adjust fees when hostel / transport changes" (shared/fees/feeSync.js)
+    await autoSyncStudentFees(prisma, { institutionId: req.institutionId, studentId: studentId, event: 'SERVICE_CHANGE', userId: req.user.id });
     return sendSuccess(res, mapping, 'Student assigned to bus route successfully', 201);
   } catch (err) {
     next(err);

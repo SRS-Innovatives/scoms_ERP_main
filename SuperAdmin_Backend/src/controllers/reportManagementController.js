@@ -5,7 +5,7 @@
  * rows a Super Admin manages here — the Report Generator Engine itself (shared/reportEngine)
  * is what actually runs them on the institute-admin side.
  */
-const { prisma, sendSuccess, NotFoundError, ValidationError, ConflictError } = require('../../../shared');
+const { prisma, sendSuccess, NotFoundError, ValidationError, ConflictError, findList } = require('../../../shared');
 
 // ---- Report Catalog CRUD ----
 
@@ -333,15 +333,15 @@ const updateInstitutionReport = async (req, res, next) => {
 const getReportRequests = async (req, res, next) => {
   try {
     const { status } = req.query;
-    const requests = await prisma.reportRequest.findMany({
+    const { rows: requests, meta: listMeta } = await findList(prisma.reportRequest, {
       where: { ...(status && { status }) },
       include: {
         institution: { select: { name: true, code: true } },
         requestedBy: { select: { email: true } },
       },
       orderBy: { createdAt: 'desc' },
-    });
-    return sendSuccess(res, requests, 'Report requests retrieved successfully');
+    }, req);
+    return sendSuccess(res, requests, 'Report requests retrieved successfully', 200, listMeta);
   } catch (err) {
     next(err);
   }

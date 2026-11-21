@@ -57,7 +57,7 @@ export const TakeAttendancePage = () => {
     setLoadingRoster(true);
     try {
       const [rosterRes, sessionRes] = await Promise.all([
-        attendanceService.getRoster(selectedMapping.section.id),
+        attendanceService.getRoster(selectedMapping.section.id, isDaily ? null : selectedMapping.subject?.id),
         attendanceService.getSession(selectedMapping.section.id, selectedDate, effectivePeriod),
       ]);
       setRoster(rosterRes.data || []);

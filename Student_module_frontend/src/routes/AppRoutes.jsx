@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { lazy, Suspense } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import StudentLayout from '../components/layout/StudentLayout';
 import ProtectedRoute from '../components/auth/ProtectedRoute';
@@ -13,71 +13,72 @@ import SessionExpiredPage from '../pages/auth/SessionExpiredPage';
 import UnauthorizedPage from '../pages/auth/UnauthorizedPage';
 
 // Dashboard & Profile
-import StudentDashboardPage from '../pages/dashboard/StudentDashboardPage';
-import MyProfilePage from '../pages/profile/MyProfilePage';
-
+const StudentDashboardPage = lazy(() => import('../pages/dashboard/StudentDashboardPage'));
+const MyProfilePage = lazy(() => import('../pages/profile/MyProfilePage'));
+const MyDocumentsPage = lazy(() => import('../pages/documents/MyDocumentsPage'));
 // Academics
-import MySubjectsPage from '../pages/academics/MySubjectsPage';
-import SubjectDetailPage from '../pages/academics/SubjectDetailPage';
-import AttendanceDashboardPage from '../pages/attendance/AttendanceDashboardPage';
-import LeaveRequestPage from '../pages/leave/LeaveRequestPage';
-import StudentTimetablePage from '../pages/timetable/StudentTimetablePage';
-import MyClassesPage from '../pages/classroom/MyClassesPage';
-import AssignmentsListPage from '../pages/assignments/AssignmentsListPage';
-import AssignmentDetailPage from '../pages/assignments/AssignmentDetailPage';
-import MaterialLibraryPage from '../pages/materials/MaterialLibraryPage';
-import QuestionBankPage from '../pages/questions/QuestionBankPage';
-import PracticeTestSimulatorPage from '../pages/questions/PracticeTestSimulatorPage';
-
+const MySubjectsPage = lazy(() => import('../pages/academics/MySubjectsPage'));
+const SubjectDetailPage = lazy(() => import('../pages/academics/SubjectDetailPage'));
+const AttendanceDashboardPage = lazy(() => import('../pages/attendance/AttendanceDashboardPage'));
+const LeaveRequestPage = lazy(() => import('../pages/leave/LeaveRequestPage'));
+const StudentTimetablePage = lazy(() => import('../pages/timetable/StudentTimetablePage'));
+const MyClassesPage = lazy(() => import('../pages/classroom/MyClassesPage'));
+const AssignmentsListPage = lazy(() => import('../pages/assignments/AssignmentsListPage'));
+const AssignmentDetailPage = lazy(() => import('../pages/assignments/AssignmentDetailPage'));
+const MaterialLibraryPage = lazy(() => import('../pages/materials/MaterialLibraryPage'));
+const QuestionBankPage = lazy(() => import('../pages/questions/QuestionBankPage'));
+const PracticeTestSimulatorPage = lazy(() => import('../pages/questions/PracticeTestSimulatorPage'));
 // Exams & Results
-import ExamSchedulePage from '../pages/exams/ExamSchedulePage';
-import StudentResultsPage from '../pages/results/StudentResultsPage';
-
+const ExamSchedulePage = lazy(() => import('../pages/exams/ExamSchedulePage'));
+const HallTicketPage = lazy(() => import('../pages/exams/HallTicketPage'));
+const StudentResultsPage = lazy(() => import('../pages/results/StudentResultsPage'));
 // Fees
-import FeeOverviewPage from '../pages/fees/FeeOverviewPage';
-import PayFeesPage from '../pages/fees/PayFeesPage';
-import FeeReceiptsPage from '../pages/fees/FeeReceiptsPage';
-import ScholarshipsPage from '../pages/scholarships/ScholarshipsPage';
-
+const FeeOverviewPage = lazy(() => import('../pages/fees/FeeOverviewPage'));
+const PayFeesPage = lazy(() => import('../pages/fees/PayFeesPage'));
+const FeeReceiptsPage = lazy(() => import('../pages/fees/FeeReceiptsPage'));
+const ScholarshipsPage = lazy(() => import('../pages/scholarships/ScholarshipsPage'));
 // Campus
-import AnnouncementsPage from '../pages/campus/AnnouncementsPage';
-import CircularsPage from '../pages/campus/CircularsPage';
-import EventsPage from '../pages/campus/EventsPage';
-import ClubsPage from '../pages/campus/ClubsPage';
-import DigitalLibraryPage from '../pages/campus/DigitalLibraryPage';
-import TransportPage from '../pages/campus/TransportPage';
-import HostelPage from '../pages/campus/HostelPage';
-
+const AnnouncementsPage = lazy(() => import('../pages/campus/AnnouncementsPage'));
+const CircularsPage = lazy(() => import('../pages/campus/CircularsPage'));
+const EventsPage = lazy(() => import('../pages/campus/EventsPage'));
+const ClubsPage = lazy(() => import('../pages/campus/ClubsPage'));
+const DigitalLibraryPage = lazy(() => import('../pages/campus/DigitalLibraryPage'));
+const TransportPage = lazy(() => import('../pages/campus/TransportPage'));
+const HostelPage = lazy(() => import('../pages/campus/HostelPage'));
+const MyHousePage = lazy(() => import('../pages/campus/MyHousePage'));
 // Services
-import CertificatesPage from '../pages/services/CertificatesPage';
-import GrievancePage from '../pages/services/GrievancePage';
-import AppointmentsPage from '../pages/services/AppointmentsPage';
-import FeedbackPage from '../pages/services/FeedbackPage';
-
+const CertificatesPage = lazy(() => import('../pages/services/CertificatesPage'));
+const GrievancePage = lazy(() => import('../pages/services/GrievancePage'));
+const AppointmentsPage = lazy(() => import('../pages/services/AppointmentsPage'));
+const FeedbackPage = lazy(() => import('../pages/services/FeedbackPage'));
 // Career
-import ResumeBuilderPage from '../pages/career/ResumeBuilderPage';
-import InternshipsPage from '../pages/career/InternshipsPage';
-import PlacementsPage from '../pages/career/PlacementsPage';
-import MyApplicationsPage from '../pages/career/MyApplicationsPage';
-import AchievementsPage from '../pages/career/AchievementsPage';
-
+const ResumeBuilderPage = lazy(() => import('../pages/career/ResumeBuilderPage'));
+const InternshipsPage = lazy(() => import('../pages/career/InternshipsPage'));
+const PlacementsPage = lazy(() => import('../pages/career/PlacementsPage'));
+const MyApplicationsPage = lazy(() => import('../pages/career/MyApplicationsPage'));
+const AchievementsPage = lazy(() => import('../pages/career/AchievementsPage'));
 // AI
-import AiAssistantPage from '../pages/ai/AiAssistantPage';
-import AiStudyPlanPage from '../pages/ai/AiStudyPlanPage';
-
+const AiAssistantPage = lazy(() => import('../pages/ai/AiAssistantPage'));
+const AiStudyPlanPage = lazy(() => import('../pages/ai/AiStudyPlanPage'));
 // Documents & Comm
-import DigitalIdCardPage from '../pages/documents/DigitalIdCardPage';
-import MyDegreePage from '../pages/documents/MyDegreePage';
-import MessagesPage from '../pages/communication/MessagesPage';
-import GalleryPage from '../pages/communication/GalleryPage';
-import NotificationsPage from '../pages/communication/NotificationsPage';
-import AcademicCalendarPage from '../pages/calendar/AcademicCalendarPage';
-import SettingsPage from '../pages/settings/SettingsPage';
-import HelpSupportPage from '../pages/help/HelpSupportPage';
+const DigitalIdCardPage = lazy(() => import('../pages/documents/DigitalIdCardPage'));
+const MyDegreePage = lazy(() => import('../pages/documents/MyDegreePage'));
+const MessagesPage = lazy(() => import('../pages/communication/MessagesPage'));
+const GalleryPage = lazy(() => import('../pages/communication/GalleryPage'));
+const NotificationsPage = lazy(() => import('../pages/communication/NotificationsPage'));
+const AcademicCalendarPage = lazy(() => import('../pages/calendar/AcademicCalendarPage'));
+const SettingsPage = lazy(() => import('../pages/settings/SettingsPage'));
+const HelpSupportPage = lazy(() => import('../pages/help/HelpSupportPage'));
+// Shown while a page's code chunk downloads (first visit to that page only)
+const PageLoader = () => (
+  <div className="flex justify-center py-20">
+    <div className="w-8 h-8 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" />
+  </div>
+);
 
 export const AppRoutes = () => {
   return (
-    <Routes>
+    <Suspense fallback={<PageLoader />}><Routes>
       {/* Auth Routes */}
       <Route path="/login" element={<LoginPage />} />
       <Route path="/student/login" element={<LoginPage />} />
@@ -94,7 +95,7 @@ export const AppRoutes = () => {
         element={
           <ProtectedRoute>
           <StudentLayout>
-            <Routes>
+            <Suspense fallback={<PageLoader />}><Routes>
               <Route path="student/dashboard" element={<StudentDashboardPage />} />
               <Route path="student/profile" element={<MyProfilePage />} />
               <Route path="student/subjects" element={<MySubjectsPage />} />
@@ -109,6 +110,7 @@ export const AppRoutes = () => {
               <Route path="student/question-bank" element={<QuestionBankPage />} />
               <Route path="student/practice-tests" element={<PracticeTestSimulatorPage />} />
               <Route path="student/exams" element={<ExamSchedulePage />} />
+              <Route path="student/exams/:examId/hall-ticket" element={<HallTicketPage />} />
               <Route path="student/results" element={<StudentResultsPage />} />
               <Route path="student/fees" element={<FeeOverviewPage />} />
               <Route path="student/fees/pay" element={<PayFeesPage />} />
@@ -121,7 +123,9 @@ export const AppRoutes = () => {
               <Route path="student/library" element={<DigitalLibraryPage />} />
               <Route path="student/transport" element={<TransportPage />} />
               <Route path="student/hostel" element={<HostelPage />} />
+              <Route path="student/house" element={<MyHousePage />} />
               <Route path="student/certificates" element={<CertificatesPage />} />
+              <Route path="student/documents" element={<MyDocumentsPage />} />
               <Route path="student/grievances" element={<GrievancePage />} />
               <Route path="student/appointments" element={<AppointmentsPage />} />
               <Route path="student/feedback" element={<FeedbackPage />} />
@@ -143,12 +147,12 @@ export const AppRoutes = () => {
 
               {/* Default Fallback Redirect */}
               <Route path="*" element={<Navigate to="/student/dashboard" replace />} />
-            </Routes>
+            </Routes></Suspense>
           </StudentLayout>
           </ProtectedRoute>
         }
       />
-    </Routes>
+    </Routes></Suspense>
   );
 };
 

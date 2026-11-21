@@ -1,0 +1,9 @@
+-- AlterTable
+ALTER TABLE "FeePolicy" ADD COLUMN     "smsMessage" TEXT,
+ADD COLUMN     "smsMinDue" DOUBLE PRECISION NOT NULL DEFAULT 0,
+ADD COLUMN     "smsOn" TEXT NOT NULL DEFAULT 'OVERDUE',
+ADD COLUMN     "smsRecipients" TEXT NOT NULL DEFAULT 'PARENT',
+ADD COLUMN     "smsRemindersEnabled" BOOLEAN NOT NULL DEFAULT false;
+
+-- AlterTable
+ALTER TABLE "FeeReminderLog" ADD COLUMN     "smsSent" INTEGER NOT NULL DEFAULT 0;

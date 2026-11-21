@@ -1,135 +1,67 @@
 import React, { useState, useEffect } from 'react';
 import PageHeader from '../../components/common/PageHeader';
-import StatusBadge from '../../components/common/StatusBadge';
-import { useNotification } from '../../context/NotificationContext';
-import { 
-  Activity, ShieldAlert, Calendar, Eye, X, ArrowRight, 
-  User, Terminal, RefreshCw, Loader2, Filter, Layers, Database
+import {
+  Activity, ShieldAlert, Eye, X,
+  User, Terminal, RefreshCw, Loader2, Filter, Layers,
 } from 'lucide-react';
 import auditLogService from '../../services/auditLogService';
 import institutionService from '../../services/institutionService';
 
-const fallbackAuditLogs = [
-  {
-    id: "901a83b2-601b-4cd7-95ec-e0281c78bdf1",
-    createdAt: new Date(Date.now() - 5 * 60000).toISOString(), // 5 min ago
-    action: "STATUS_CHANGE",
-    module: "INSTITUTION",
-    entity: "Institution",
-    entityId: "SCH-DELHI-001",
-    ipAddress: "192.168.1.45",
-    userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/127.0",
-    institution: { name: "Delhi Public International School", code: "SCH-DELHI-001" },
-    user: { email: "superadmin@scoms.in", role: "SUPER_ADMIN" },
-    oldValues: { name: "Delhi Public International School", code: "SCH-DELHI-001", status: "PENDING" },
-    newValues: { name: "Delhi Public International School", code: "SCH-DELHI-001", status: "ACTIVE" }
-  },
-  {
-    id: "898a72b1-501a-3cd6-85ec-d0180c68adf0",
-    createdAt: new Date(Date.now() - 25 * 60000).toISOString(), // 25 min ago
-    action: "CREATE",
-    module: "INSTITUTION",
-    entity: "Institution",
-    entityId: "COL-MUMBAI-001",
-    ipAddress: "192.168.1.102",
-    userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) Safari/605.1",
-    institution: { name: "St. Xavier Engineering & Technology College", code: "COL-MUMBAI-001" },
-    user: { email: "superadmin@scoms.in", role: "SUPER_ADMIN" },
-    oldValues: null,
-    newValues: { name: "St. Xavier Engineering & Technology College", code: "COL-MUMBAI-001", type: "COLLEGE", affiliation: "AICTE Approved" }
-  },
-  {
-    id: "712b32f9-122c-4dd5-92ec-a0129c12def3",
-    createdAt: new Date(Date.now() - 120 * 60000).toISOString(), // 2 hours ago
-    action: "UPDATE",
-    module: "INSTITUTION",
-    entity: "Institution",
-    entityId: "SCH-DELHI-001",
-    ipAddress: "182.72.10.4",
-    userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Edge/126.0",
-    institution: { name: "Delhi Public International School", code: "SCH-DELHI-001" },
-    user: { email: "superadmin@scoms.in", role: "SUPER_ADMIN" },
-    oldValues: { code: "SCH-DELHI-001", modules: ["Library Management"] },
-    newValues: { code: "SCH-DELHI-001", modules: ["Library Management", "Hostel Management", "AI Copilot Assistant"] }
-  }
-];
+const PAGE_SIZE = 50;
+const moduleLabel = (m) => String(m || '').replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
 
+/**
+ * Institution Activity — the real audit ledger only (no sample rows). Filters by institution
+ * and module run on the server; totals come from the server, not from the rows on screen.
+ */
 export const InstitutionActivityPage = () => {
-  const { warning, error: showError } = useNotification();
   const [logs, setLogs] = useState([]);
   const [institutions, setInstitutions] = useState([]);
+  const [modules, setModules] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [loadingInsts, setLoadingInsts] = useState(false);
+  const [loadError, setLoadError] = useState('');
   const [selectedInstId, setSelectedInstId] = useState('');
   const [selectedModule, setSelectedModule] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedLog, setSelectedLog] = useState(null);
-  const [isDemoData, setIsDemoData] = useState(false);
+  const [page, setPage] = useState(1);
+  const [meta, setMeta] = useState({ total: 0, totalPages: 1 });
 
+  // institutions for the filter — once
   useEffect(() => {
-    fetchInstitutions();
-    fetchLogs();
-  }, [selectedInstId, selectedModule]);
+    institutionService.getInstitutions({ limit: 100 })
+      .then((res) => setInstitutions(res?.data || []))
+      .catch(() => {});
+  }, []);
 
-  const fetchInstitutions = async () => {
-    try {
-      setLoadingInsts(true);
-      const res = await institutionService.getInstitutions({ limit: 100 });
-      if (res?.data) {
-        setInstitutions(res.data);
-      }
-    } catch (err) {
-      console.error("Failed to load institutions", err);
-    } finally {
-      setLoadingInsts(false);
-    }
-  };
+  // the modules that really have records (for this institution, if one is chosen)
+  useEffect(() => {
+    auditLogService.getModules(selectedInstId ? { institutionId: selectedInstId } : {})
+      .then((res) => setModules(res?.data || []))
+      .catch(() => setModules([]));
+  }, [selectedInstId]);
 
-  const fetchLogs = async () => {
+  const fetchLogs = async (toPage = page) => {
     try {
       setLoading(true);
-      const params = {};
+      setLoadError('');
+      const params = { page: toPage, limit: PAGE_SIZE };
       if (selectedInstId) params.institutionId = selectedInstId;
-      if (searchQuery) params.search = searchQuery;
-      
+      if (selectedModule) params.module = selectedModule;
+      if (searchQuery.trim()) params.search = searchQuery.trim();
       const res = await auditLogService.getAuditLogs(params);
-      
-      if (res?.data && res.data.length > 0) {
-        // If module filter is selected, filter frontend-side if backend search didn't cover it
-        let logsList = res.data;
-        if (selectedModule) {
-          logsList = logsList.filter(l => l.module === selectedModule);
-        }
-        setLogs(logsList);
-        setIsDemoData(false);
-      } else {
-        // Fallback to beautiful mock logs if DB is empty
-        let logsList = fallbackAuditLogs;
-        if (selectedInstId) {
-          logsList = logsList.filter(l => l.institution?.code === institutions.find(i => i.id === selectedInstId)?.code);
-        }
-        if (selectedModule) {
-          logsList = logsList.filter(l => l.module === selectedModule);
-        }
-        if (searchQuery) {
-          logsList = logsList.filter(l => 
-            l.action.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            l.user?.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            l.ipAddress.includes(searchQuery)
-          );
-        }
-        setLogs(logsList);
-        setIsDemoData(true);
-      }
+      setLogs(Array.isArray(res?.data) ? res.data : []);
+      setMeta({ total: res?.meta?.total ?? 0, totalPages: res?.meta?.totalPages ?? 1 });
+      setPage(toPage);
     } catch (err) {
-      console.error("Failed to fetch audit logs", err);
-      // Fallback
-      setLogs(fallbackAuditLogs);
-      setIsDemoData(true);
+      setLogs([]);
+      setLoadError(err.message || 'Could not load the activity log');
     } finally {
       setLoading(false);
     }
   };
+
+  useEffect(() => { fetchLogs(1); }, [selectedInstId, selectedModule]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleOpenDetails = (log) => {
     setSelectedLog(log);
@@ -169,17 +101,17 @@ export const InstitutionActivityPage = () => {
     });
   };
 
-  // Compute stats dynamically
-  const totalLogs = logs.length;
+  // total = every matching record (from the server); the other two describe the records on this page
+  const totalLogs = meta.total;
   const configChangesCount = logs.filter(l => l.action === 'UPDATE' || l.action === 'STATUS_CHANGE').length;
   const activeActorsCount = new Set(logs.map(l => l.user?.email).filter(Boolean)).size;
 
   return (
     <div className="space-y-6">
-      <PageHeader 
-        title="Institution Activity & Audit Logs" 
+      <PageHeader
+        title="Institution Activity & Audit Logs"
         subtitle="Access the immutable ledger tracking all onboarding, module modifications, and administration updates across the SCOMS platform."
-        badge={isDemoData ? "Demo Data Mode" : "Live Ledger"}
+        badge="Live Ledger"
       />
 
       {/* KPI Cards Row */}
@@ -190,7 +122,7 @@ export const InstitutionActivityPage = () => {
           </div>
           <div>
             <p className="text-[10px] text-slate-500 uppercase font-bold tracking-wider">Total Activities</p>
-            <h3 className="text-xl font-black text-slate-900 dark:text-slate-100">{totalLogs} Logged</h3>
+            <h3 className="text-xl font-black text-slate-900 dark:text-slate-100">{totalLogs.toLocaleString('en-IN')} Logged</h3>
           </div>
         </div>
 
@@ -199,7 +131,7 @@ export const InstitutionActivityPage = () => {
             <Layers className="w-6 h-6" />
           </div>
           <div>
-            <p className="text-[10px] text-slate-500 uppercase font-bold tracking-wider">Configuration Changes</p>
+            <p className="text-[10px] text-slate-500 uppercase font-bold tracking-wider">Configuration Changes (this page)</p>
             <h3 className="text-xl font-black text-slate-900 dark:text-slate-100">{configChangesCount} Updates</h3>
           </div>
         </div>
@@ -209,7 +141,7 @@ export const InstitutionActivityPage = () => {
             <User className="w-6 h-6" />
           </div>
           <div>
-            <p className="text-[10px] text-slate-500 uppercase font-bold tracking-wider">Active Admins</p>
+            <p className="text-[10px] text-slate-500 uppercase font-bold tracking-wider">Active Users (this page)</p>
             <h3 className="text-xl font-black text-slate-900 dark:text-slate-100">{activeActorsCount} Operators</h3>
           </div>
         </div>
@@ -225,12 +157,12 @@ export const InstitutionActivityPage = () => {
               placeholder="Search by action, operator, IP..."
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && fetchLogs()}
+              onKeyDown={e => e.key === 'Enter' && fetchLogs(1)}
               className="w-full pl-9 pr-4 py-2 text-xs bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-hidden focus:ring-1 focus:ring-indigo-500"
             />
           </div>
-          <button 
-            onClick={fetchLogs} 
+          <button
+            onClick={() => fetchLogs(1)}
             className="px-3.5 py-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition-all"
           >
             Query
@@ -257,10 +189,9 @@ export const InstitutionActivityPage = () => {
             className="px-3 py-2 text-xs bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-medium text-slate-700 dark:text-slate-200 cursor-pointer"
           >
             <option value="">All Modules</option>
-            <option value="INSTITUTION">Institutions</option>
-            <option value="USER">User & RBAC</option>
-            <option value="BILLING">Billing & Invoices</option>
-            <option value="SUBSCRIPTION">Subscriptions</option>
+            {modules.map((m) => (
+              <option key={m.module} value={m.module}>{moduleLabel(m.module)} ({m.count.toLocaleString('en-IN')})</option>
+            ))}
           </select>
         </div>
       </div>
@@ -270,12 +201,25 @@ export const InstitutionActivityPage = () => {
         <div className="flex justify-center items-center py-20">
           <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
         </div>
+      ) : loadError ? (
+        <div className="glass-card p-12 rounded-2xl border border-rose-200 dark:border-rose-900 text-center space-y-3">
+          <ShieldAlert className="w-10 h-10 text-rose-400 mx-auto" />
+          <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">Couldn't load the activity log</h3>
+          <p className="text-xs text-slate-500 max-w-sm mx-auto">{loadError}</p>
+          <button onClick={() => fetchLogs(page)} className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl">
+            <RefreshCw className="w-3.5 h-3.5" /> Try again
+          </button>
+        </div>
       ) : logs.length === 0 ? (
         <div className="glass-card p-12 rounded-2xl border border-slate-200 dark:border-slate-800 text-center space-y-2">
           <Activity className="w-10 h-10 text-slate-300 mx-auto" />
-          <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">No Activity Logs Found</h3>
+          <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">
+            {selectedInstId || selectedModule || searchQuery.trim() ? 'No activity matches these filters' : 'No activity recorded yet'}
+          </h3>
           <p className="text-xs text-slate-500 max-w-xs mx-auto">
-            Try adjusting your search query or selecting a different institution/module filter.
+            {selectedInstId || selectedModule || searchQuery.trim()
+              ? 'Try a different search, institution or module.'
+              : 'Actions such as onboarding an institution, changing modules or updating settings will appear here as they happen.'}
           </p>
         </div>
       ) : (
@@ -317,7 +261,7 @@ export const InstitutionActivityPage = () => {
                     <td className="px-4 py-3">
                       <div>
                         <span className="font-semibold text-slate-900 dark:text-slate-100">{log.user?.email || 'System'}</span>
-                        <span className="block text-[9px] text-slate-400 font-medium uppercase tracking-wider">{log.user?.role || 'SYSTEM_DAEMON'}</span>
+                        <span className="block text-[9px] text-slate-400 font-medium uppercase tracking-wider">{log.user?.role || 'System'}</span>
                       </div>
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap">
@@ -329,7 +273,7 @@ export const InstitutionActivityPage = () => {
                       {log.module}
                     </td>
                     <td className="px-4 py-3 font-mono text-[10px] text-slate-500 whitespace-nowrap">
-                      {log.ipAddress || '127.0.0.1'}
+                      {log.ipAddress || '—'}
                     </td>
                     <td className="px-4 py-3 text-right whitespace-nowrap">
                       <button
@@ -344,6 +288,17 @@ export const InstitutionActivityPage = () => {
               </tbody>
             </table>
           </div>
+          {meta.totalPages > 1 && (
+            <div className="flex items-center justify-between gap-3 px-4 py-3 border-t border-slate-200 dark:border-slate-800 text-xs">
+              <span className="text-slate-500">
+                Page {page} of {meta.totalPages} · {meta.total.toLocaleString('en-IN')} records
+              </span>
+              <div className="flex gap-2">
+                <button onClick={() => fetchLogs(page - 1)} disabled={page <= 1} className="px-3 py-1.5 font-semibold rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 disabled:opacity-40">Previous</button>
+                <button onClick={() => fetchLogs(page + 1)} disabled={page >= meta.totalPages} className="px-3 py-1.5 font-semibold rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 disabled:opacity-40">Next</button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

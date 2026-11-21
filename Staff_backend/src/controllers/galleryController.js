@@ -2,6 +2,7 @@
  * Staff — Photo Gallery Controller (view all albums, contribute photos to existing ones)
  */
 const { prisma, sendSuccess, NotFoundError, ValidationError } = require('../../../shared');
+const { attachFileLinks } = require('../../../shared/media/mediaUrl');
 
 const MAX_IMAGE_BYTES = 6 * 1024 * 1024;
 
@@ -46,11 +47,14 @@ const getAlbumPhotos = async (req, res, next) => {
     const album = await prisma.galleryAlbum.findFirst({ where: { id, institutionId: req.institutionId } });
     if (!album) throw new NotFoundError('Album not found');
 
+    // Photos go out as cacheable links, not inline base64 (shared/media/mediaUrl.js)
     const photos = await prisma.galleryPhoto.findMany({
       where: { albumId: id },
+      omit: { imageData: true },
       include: { uploadedBy: { select: { firstName: true, lastName: true } } },
       orderBy: { createdAt: 'desc' },
     });
+    await attachFileLinks(prisma, req, 'gallery', photos, 'imageData');
     return sendSuccess(res, { album, photos }, 'Album photos retrieved successfully');
   } catch (err) {
     next(err);

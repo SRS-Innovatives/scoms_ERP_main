@@ -92,8 +92,8 @@ const createCorrectionRequest = async ({ sessionId, institutionId, userId, stude
   return request;
 };
 
-const listCorrectionRequests = ({ institutionId, status, requestedById, sessionId }) =>
-  prisma.attendanceCorrectionRequest.findMany({
+const listCorrectionRequests = async ({ institutionId, status, requestedById, sessionId }) => {
+  const rows = await prisma.attendanceCorrectionRequest.findMany({
     where: {
       institutionId,
       ...(status && { status }),
@@ -114,6 +114,39 @@ const listCorrectionRequests = ({ institutionId, status, requestedById, sessionI
     },
     orderBy: { createdAt: 'desc' },
   });
+  // requestedById is a User.id with no relation — add the requester's role (STUDENT / PARENT
+  // for a request raised from the Student portal) so approvers can see who asked
+  const users = await prisma.user.findMany({ where: { id: { in: [...new Set(rows.map((r) => r.requestedById))] } }, select: { id: true, role: true } });
+  const roleOf = new Map(users.map((u) => [u.id, u.role]));
+  return rows.map((r) => ({ ...r, requestedByRole: roleOf.get(r.requestedById) || null }));
+};
+
+/** A request raised from the Student portal: tell the student (and the parent who asked) the outcome. */
+const notifyStudentOfDecision = async (request, decision, remarks) => {
+  try {
+    const requester = await prisma.user.findUnique({ where: { id: request.requestedById }, select: { id: true, role: true } });
+    if (!requester || !['STUDENT', 'PARENT'].includes(requester.role)) return;
+    const [student, session] = await Promise.all([
+      prisma.student.findUnique({ where: { id: request.studentId }, select: { userId: true } }),
+      prisma.attendanceSession.findUnique({ where: { id: request.sessionId }, select: { date: true, subject: { select: { name: true } } } }),
+    ]);
+    const { pushNotificationToMany } = require('../utils/notificationCenter');
+    const day = new Date(session.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
+    const what = `${day}${session.subject?.name ? ` (${session.subject.name})` : ''}`;
+    await pushNotificationToMany({
+      userIds: [...new Set([student?.userId, requester.id].filter(Boolean))],
+      institutionId: request.institutionId,
+      type: 'ATTENDANCE',
+      link: '/student/attendance',
+      title: decision === 'APPROVE' ? 'Attendance Corrected' : 'Attendance Correction Not Approved',
+      message: decision === 'APPROVE'
+        ? `Your attendance for ${what} is now ${request.newStatus.replace('_', ' ').toLowerCase()}.`
+        : `Your correction request for ${what} was not approved${remarks ? `: ${String(remarks).trim()}` : '.'}`,
+    });
+  } catch (err) {
+    logger.warn('[AttendanceRules] correction decision notification failed', { error: err.message });
+  }
+};
 
 const reviewCorrectionRequest = async ({ requestId, institutionId, userId, decision, remarks }) => {
   if (!['APPROVE', 'REJECT'].includes(decision)) throw new ValidationError('decision must be APPROVE or REJECT');
@@ -128,6 +161,7 @@ const reviewCorrectionRequest = async ({ requestId, institutionId, userId, decis
   if (decision === 'REJECT') {
     const updated = await prisma.attendanceCorrectionRequest.update({ where: { id: requestId }, data: { status: 'REJECTED', ...reviewed } });
     await audit(institutionId, userId, 'ATTENDANCE_CORRECTION_REJECTED', request.sessionId, { requestId });
+    await notifyStudentOfDecision(request, 'REJECT', remarks);
     return updated;
   }
 
@@ -146,6 +180,7 @@ const reviewCorrectionRequest = async ({ requestId, institutionId, userId, decis
     old: request.oldStatus,
     new: newStatus,
   });
+  await notifyStudentOfDecision(request, 'APPROVE');
   return updated;
 };
 

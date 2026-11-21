@@ -109,31 +109,34 @@ const notifyAbsentees = async (req, res, next) => {
 /** Attendance rate trend over the last N days, institution-wide — powers the Reports page. */
 const getReports = async (req, res, next) => {
   try {
-    const days = Number(req.query.days) || 14;
+    const days = Math.min(Math.max(Number(req.query.days) || 14, 1), 366);
     const since = new Date();
     since.setDate(since.getDate() - days);
     since.setHours(0, 0, 0, 0);
 
-    const records = await prisma.attendanceRecord.findMany({
-      where: { session: { institutionId: req.institutionId, date: { gte: since } } },
-      select: { status: true, session: { select: { date: true } } },
-    });
+    // Counted in the database: one row per (day, status) instead of every attendance
+    // record of the period (~students × periods × days) shipped to Node and counted here
+    const groups = await prisma.$queryRaw`
+      SELECT to_char(s."date", 'YYYY-MM-DD') AS "day", r."status"::text AS "status", COUNT(*)::int AS "n"
+      FROM "AttendanceRecord" r
+      JOIN "AttendanceSession" s ON s."id" = r."sessionId"
+      WHERE s."institutionId" = ${req.institutionId} AND s."date" >= ${since}
+      GROUP BY 1, 2`;
 
     const byDate = {};
-    records.forEach((r) => {
-      const key = r.session.date.toISOString().slice(0, 10);
-      if (!byDate[key]) byDate[key] = { date: key, present: 0, absent: 0, total: 0 };
-      byDate[key].total++;
-      if (isAttended(r.status)) byDate[key].present++;
-      else if (r.status === 'ABSENT') byDate[key].absent++;
+    let overallTotal = 0;
+    let overallPresent = 0;
+    groups.forEach(({ day, status, n }) => {
+      if (!byDate[day]) byDate[day] = { date: day, present: 0, absent: 0, total: 0 };
+      byDate[day].total += n;
+      overallTotal += n;
+      if (isAttended(status)) { byDate[day].present += n; overallPresent += n; }
+      else if (status === 'ABSENT') byDate[day].absent += n;
     });
 
     const trend = Object.values(byDate)
       .sort((a, b) => a.date.localeCompare(b.date))
       .map((d) => ({ ...d, rate: d.total > 0 ? Number(((d.present / d.total) * 100).toFixed(1)) : 0 }));
-
-    const overallTotal = records.length;
-    const overallPresent = records.filter((r) => isAttended(r.status)).length;
 
     return sendSuccess(res, {
       trend,

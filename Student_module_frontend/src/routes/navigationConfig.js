@@ -29,6 +29,8 @@ export const navigationConfig = [
     children: [
       { key: 'subjects', title: 'My Subjects', path: '/student/subjects' },
       { key: 'attendance', title: 'Attendance', path: '/student/attendance', module: 'attendance' },
+      // Apply for leave → goes to the class teacher (Staff portal) and the Institute Admin
+      { key: 'leave', title: 'Leave Requests', path: '/student/leave' },
       { key: 'timetable', title: 'Timetable', path: '/student/timetable', module: 'timetable' },
       { key: 'assignments', title: 'Assignments', path: '/student/assignments', module: 'homework' },
       { key: 'materials', title: 'Study Materials', path: '/student/materials' },
@@ -51,7 +53,8 @@ export const navigationConfig = [
     icon: CreditCard,
     module: 'fee',
     children: [
-      { key: 'fee-overview', title: 'Fee Overview', path: '/student/fees', badge: 'Pending' },
+      // liveBadge: real fee state from /fees/badge (StudentSidebar.jsx) — Overdue / Due, hidden when all paid
+      { key: 'fee-overview', title: 'Fee Overview', path: '/student/fees', liveBadge: 'fees' },
       { key: 'pay-fees', title: 'Pay Fees Online', path: '/student/fees/pay' },
       { key: 'receipts', title: 'Fee Receipts', path: '/student/fees/receipts' },
       { key: 'scholarships', title: 'Scholarships', path: '/student/scholarships' }
@@ -78,6 +81,8 @@ export const navigationConfig = [
     icon: Wrench,
     children: [
       { key: 'certificates', title: 'Certificates & Documents', path: '/student/certificates', module: 'certificates' },
+      // documents the school keeps on my record (TC, marksheets, ID proof…) — read-only
+      { key: 'my-documents', title: 'My Documents', path: '/student/documents' },
       { key: 'grievances', title: 'Grievances & Complaints', path: '/student/grievances', module: 'grievance_feedback' },
       { key: 'appointments', title: 'Counselling Appointments', path: '/student/appointments', module: 'counselling' },
       { key: 'feedback', title: 'Faculty Feedback', path: '/student/feedback', module: 'grievance_feedback', titleTemplate: (academic) => `${academic.label('teacher')} Feedback` }
@@ -125,7 +130,10 @@ export const navigationConfig = [
     key: 'calendar',
     title: 'Academic Calendar',
     icon: CalendarIcon,
-    path: '/student/calendar'
+    path: '/student/calendar',
+    // the backend route requires this module — without the gate, institutions that
+    // haven't enabled it showed the menu item and an error page
+    module: 'academic_calendar'
   },
   {
     key: 'profile',

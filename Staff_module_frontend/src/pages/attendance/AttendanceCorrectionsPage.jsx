@@ -66,6 +66,11 @@ export const AttendanceCorrectionsPage = () => {
                   <p className="font-bold text-slate-900 dark:text-white">
                     {c.student?.firstName} {c.student?.lastName} ({c.student?.rollNumber || '-'}) · {c.session?.section?.name}
                     {c.session?.subject?.name ? ` / ${c.session.subject.name}` : ''}
+                    {(c.requestedByRole === 'STUDENT' || c.requestedByRole === 'PARENT') && (
+                      <span className="ml-2 align-middle text-[10px] px-1.5 py-0.5 rounded bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 font-semibold">
+                        Asked by {c.requestedByRole === 'PARENT' ? 'parent' : 'student'}
+                      </span>
+                    )}
                   </p>
                   <p className="text-slate-600 dark:text-slate-300">
                     {new Date(c.session?.date).toLocaleDateString()} · Period {c.session?.periodNumber} · {c.oldStatus || '—'} → <b>{c.newStatus}</b> · {c.reason}

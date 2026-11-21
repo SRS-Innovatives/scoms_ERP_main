@@ -380,25 +380,30 @@ const getSubjectPerformance = async (req, res, next) => {
       select: { id: true, name: true, classMappings: { select: { course: { select: { name: true } } } } },
     });
 
-    const results = await Promise.all(
-      subjects.map(async (s) => {
-        const courseName = s.classMappings.map((m) => m.course.name).join(', ') || null;
-        const marks = await prisma.studentMark.findMany({
-          where: { examSchedule: { subjectId: s.id, exam: { institutionId: req.institutionId } }, isAbsent: false },
-          select: { marksObtained: true, examSchedule: { select: { maxMarks: true } } },
-        });
-        if (marks.length === 0) return { subjectId: s.id, subjectName: s.name, courseName, avgPercentage: null, studentCount: 0 };
+    // every subject's marks in one query (not one per subject), grouped here
+    const allMarks = await prisma.studentMark.findMany({
+      where: { examSchedule: { subjectId: { in: subjects.map((s) => s.id) }, exam: { institutionId: req.institutionId } }, isAbsent: false },
+      select: { marksObtained: true, examSchedule: { select: { subjectId: true, maxMarks: true } } },
+    });
+    const marksBy = new Map();
+    allMarks.forEach((m) => {
+      if (!marksBy.has(m.examSchedule.subjectId)) marksBy.set(m.examSchedule.subjectId, []);
+      marksBy.get(m.examSchedule.subjectId).push(m);
+    });
+    const results = subjects.map((s) => {
+      const courseName = s.classMappings.map((m) => m.course.name).join(', ') || null;
+      const marks = marksBy.get(s.id) || [];
+      if (marks.length === 0) return { subjectId: s.id, subjectName: s.name, courseName, avgPercentage: null, studentCount: 0 };
 
-        const totalPct = marks.reduce((sum, m) => sum + (m.marksObtained / m.examSchedule.maxMarks) * 100, 0);
-        return {
-          subjectId: s.id,
-          subjectName: s.name,
-          courseName,
-          avgPercentage: Number((totalPct / marks.length).toFixed(1)),
-          studentCount: marks.length,
-        };
-      })
-    );
+      const totalPct = marks.reduce((sum, m) => sum + (m.marksObtained / m.examSchedule.maxMarks) * 100, 0);
+      return {
+        subjectId: s.id,
+        subjectName: s.name,
+        courseName,
+        avgPercentage: Number((totalPct / marks.length).toFixed(1)),
+        studentCount: marks.length,
+      };
+    });
 
     return sendSuccess(res, results, 'Subject performance retrieved');
   } catch (err) {

@@ -4,6 +4,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { useNotification } from '../../context/NotificationContext';
 import { Lock } from 'lucide-react';
 import authService from '../../services/authService';
+import NotificationPrefsCard from '../../components/settings/NotificationPrefsCard';
 
 export const SettingsPage = () => {
   const { isDark, toggleTheme } = useTheme();
@@ -39,7 +40,7 @@ export const SettingsPage = () => {
 
   return (
     <div className="space-y-6 max-w-xl mx-auto">
-      <PageHeader title="Portal Settings & Preferences" subtitle="Theme mode and account security." />
+      <PageHeader title="Portal Settings & Preferences" subtitle="Theme, SMS & WhatsApp notifications and account security." />
 
       <div className="glass-card p-6 rounded-3xl border border-slate-200 dark:border-slate-800 space-y-4 text-xs">
         <div className="flex items-center justify-between py-2 border-b border-slate-100 dark:border-slate-800">
@@ -51,11 +52,9 @@ export const SettingsPage = () => {
             {isDark ? 'Dark Mode On' : 'Light Mode On'}
           </button>
         </div>
-
-        <div className="py-2 text-[11px] text-slate-400">
-          WhatsApp & SMS notification preferences — coming soon.
-        </div>
       </div>
+
+      <NotificationPrefsCard />
 
       <form onSubmit={handleChangePassword} className="glass-card p-6 rounded-3xl border border-slate-200 dark:border-slate-800 space-y-4 text-xs">
         <h4 className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2">

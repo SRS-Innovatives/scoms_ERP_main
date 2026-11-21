@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { useTheme } from '../../context/ThemeContext';
 import { useNavigate } from 'react-router-dom';
-import { useNotification } from '../../context/NotificationContext';
 import {
   Menu,
   Sun,
@@ -23,7 +22,6 @@ import NotificationBell from './NotificationBell';
 export const Navbar = ({ onToggleSidebar, onToggleMobile }) => {
   const navigate = useNavigate();
   const { theme, toggleTheme } = useTheme();
-  const { notifyInfo } = useNotification();
   const { institution } = useInstitution();
   const { profile, logout } = useAuth();
   const [showProfileMenu, setShowProfileMenu] = useState(false);
@@ -125,8 +123,8 @@ export const Navbar = ({ onToggleSidebar, onToggleMobile }) => {
                 </button>
                 <button
                   onClick={() => {
-                    notifyInfo("Security & Permissions is on the roadmap", "Coming Soon");
                     setShowProfileMenu(false);
+                    navigate('/admin/settings/permissions'); // Settings → Permissions Matrix
                   }}
                   className="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-medium"
                 >

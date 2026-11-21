@@ -14,11 +14,14 @@ const announcementController = require('../controllers/announcementController');
 const circularController = require('../controllers/circularController');
 const timetableController = require('../controllers/timetableController');
 const profileController = require('../controllers/profileController');
+const staffDocumentController = require('../controllers/staffDocumentController');
+const examDutyController = require('../controllers/examDutyController');
 const libraryController = require('../controllers/libraryController');
 const eventController = require('../controllers/eventController');
 const clubController = require('../controllers/clubController');
 const materialController = require('../controllers/materialController');
 const studentLeaveController = require('../controllers/studentLeaveController');
+const scholarshipApprovalController = require('../controllers/scholarshipApprovalController');
 const messageController = require('../controllers/messageController');
 const labController = require('../controllers/labController');
 const appointmentController = require('../controllers/appointmentController');
@@ -38,7 +41,7 @@ const {
   requireAuth, requireTenant, requireModule, handleForgotPassword, handleVerifyOtp, handleResetPassword,
   loginLimiter, otpLimiter,
   handleGetNotifications, handleGetUnreadCount, handleMarkNotificationRead, handleMarkAllNotificationsRead,
-  shadowPermission, requirePermissionStrict, PERMISSIONS,
+  shadowPermission, requirePermissionStrict, PERMISSIONS, AuthorizationError, requireRole, ROLES,
 } = require('../../../shared');
 
 // Standalone Auth Routes
@@ -52,6 +55,12 @@ router.post('/auth/logout', authController.logout);
 // Guarded Tenant Routes
 router.use(requireAuth);
 router.use(requireTenant);
+// The Staff API is for staff only — the same roles the Staff portal's sign-in admits. Without
+// this a student's or parent's token could call staff routes.
+router.use(requireRole(
+  ROLES.PRINCIPAL, ROLES.VICE_PRINCIPAL, ROLES.HOD, ROLES.TEACHER, ROLES.STAFF, ROLES.ACCOUNTANT, ROLES.LIBRARIAN,
+  ROLES.TRANSPORT_MANAGER, ROLES.HOSTEL_WARDEN, ROLES.EXAM_ADMIN, ROLES.PLACEMENT_OFFICER,
+));
 
 router.get('/auth/me', authController.getMe);
 router.post('/auth/change-password', authController.changePassword);
@@ -68,6 +77,10 @@ router.get('/profile/me', profileController.getMyProfile);
 router.patch('/profile/me', profileController.updateMyProfile);
 router.post('/profile/qualifications', profileController.addMyQualification);
 router.post('/profile/experience', profileController.addMyExperience);
+// the signed-in staff member's own documents (Profile → Documents Upload)
+router.get('/profile/documents', staffDocumentController.listMyDocuments);
+router.post('/profile/documents', staffDocumentController.uploadMyDocument);
+router.delete('/profile/documents/:id', staffDocumentController.deleteMyDocument);
 
 // Leave (self-service)
 router.get('/leave/types', profileController.getLeaveTypes);
@@ -77,6 +90,7 @@ router.post('/leave', shadowPermission(PERMISSIONS.LEAVE_APPLY), profileControll
 // Attendance Routes
 router.use('/attendance', requireModule('attendance'));
 router.get('/attendance/self', profileController.getMyAttendance);
+router.get('/attendance/pending-summary', shadowPermission(PERMISSIONS.ATTENDANCE_VIEW), attendanceController.getPendingSummary);
 router.get('/attendance/sms-status', shadowPermission(PERMISSIONS.ATTENDANCE_VIEW), attendanceController.getSmsStatus);
 router.get('/attendance/my-classes', shadowPermission(PERMISSIONS.ATTENDANCE_VIEW), attendanceController.getMyClasses);
 router.get('/attendance/class-teacher-sections', shadowPermission(PERMISSIONS.ATTENDANCE_VIEW), attendanceController.getClassTeacherSections);
@@ -110,6 +124,8 @@ router.post('/questions/generate-paper', shadowPermission(PERMISSIONS.QUESTIONS_
 // Exam Duties & Marks Entry
 router.use('/exams', requireModule('examination'));
 router.use('/exam-schedules', requireModule('examination'));
+// duties the Institute Admin allotted to me — the Duty Allotment Letter
+router.get('/exam-duties/mine', requireModule('examination'), examDutyController.getMyDuties);
 router.get('/exams/my-schedules', shadowPermission(PERMISSIONS.EXAMS_VIEW), examController.getMySchedules);
 router.get('/exams/subject-performance', shadowPermission(PERMISSIONS.EXAMS_VIEW), examController.getSubjectPerformance);
 router.get('/exams/student-performance', shadowPermission(PERMISSIONS.EXAMS_VIEW), examController.getStudentPerformanceSummary);
@@ -196,6 +212,9 @@ router.get('/clubs', clubController.getClubs);
 
 // Study Materials
 router.get('/materials/my-subjects', materialController.getMySubjects);
+// Download History — which students opened this teacher's own materials
+router.get('/materials/download-history', shadowPermission(PERMISSIONS.MATERIALS_VIEW), materialController.getDownloadSummary);
+router.get('/materials/:id/downloads', shadowPermission(PERMISSIONS.MATERIALS_VIEW), materialController.getMaterialDownloads);
 router.get('/materials', shadowPermission(PERMISSIONS.MATERIALS_VIEW), materialController.getMaterials);
 router.post('/materials', shadowPermission(PERMISSIONS.MATERIALS_UPLOAD), materialController.createMaterial);
 router.delete('/materials/:id', shadowPermission(PERMISSIONS.MATERIALS_UPLOAD), materialController.deleteMaterial);
@@ -205,6 +224,9 @@ router.delete('/materials/:id', shadowPermission(PERMISSIONS.MATERIALS_UPLOAD), 
 // teachers view) — see shared/academic/teachingScope.js — not by a role-wide permission
 router.get('/student-leave', studentLeaveController.getStudentLeaves);
 router.patch('/student-leave/:id', studentLeaveController.updateStudentLeaveStatus);
+// Scholarship applications from students of my class(es) — the class teacher decides
+router.get('/scholarship-approvals', requireModule('fee'), scholarshipApprovalController.getApprovals);
+router.post('/scholarship-approvals/:id/review', requireModule('fee'), scholarshipApprovalController.reviewApplication);
 
 // Messages
 router.use('/messages', requireModule('messaging'));
@@ -238,6 +260,10 @@ router.post('/exam-setup/schedules', shadowPermission(PERMISSIONS.EXAMS_CREATE),
 router.delete('/exam-setup/schedules/:id', shadowPermission(PERMISSIONS.EXAMS_CREATE), examAdminController.deleteSchedule);
 
 // Fee Collection Desk (Accountant)
+// Fee work (collection, refunds, challans, fee reports) is done ONLY by the Institute Admin
+// in the Admin portal. The Staff Fee Desk is closed for every staff role — enforced here,
+// independent of the permission matrix, RBAC_ENFORCEMENT_ENABLED or any role override.
+router.use('/fee-desk', (req, res, next) => next(new AuthorizationError('Fees are handled by the Institute Admin only. Please contact the institution office.')));
 router.use('/fee-desk', requireModule('fee'));
 router.get('/fee-desk/structures', shadowPermission(PERMISSIONS.FEES_VIEW), feeDeskController.getFeeStructures);
 router.get('/fee-desk/assignments', shadowPermission(PERMISSIONS.FEES_VIEW), feeDeskController.getStudentAssignments);

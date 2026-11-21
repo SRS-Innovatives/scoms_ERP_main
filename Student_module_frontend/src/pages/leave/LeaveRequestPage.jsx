@@ -54,7 +54,7 @@ export const LeaveRequestPage = () => {
     <div className="space-y-6">
       <PageHeader
         title="Student Leave & Absence Requests"
-        subtitle="Apply for medical leaves, personal absences, or On Duty (OD) approvals."
+        subtitle="Apply for medical leaves, personal absences, or On Duty (OD) approvals. Requests go to your class teacher and the institution office for approval."
         actionLabel="Apply Leave"
         onAction={() => setModalOpen(true)}
       />

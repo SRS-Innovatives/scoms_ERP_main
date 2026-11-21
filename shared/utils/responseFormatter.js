@@ -2,7 +2,11 @@
  * Standardized Response Formatter for SCOMS APIs
  */
 
+const { rewriteAvatars } = require('../media/mediaUrl');
+
 const sendSuccess = (res, data = null, message = 'Operation successful', statusCode = 200, meta = null) => {
+  // Profile photos and institution logos go out as short cacheable URLs, never as inline base64 (media/mediaUrl.js)
+  rewriteAvatars(data, res.req);
   const response = {
     success: true,
     message,
@@ -24,6 +28,7 @@ const sendError = (res, message = 'An error occurred', statusCode = 500, code = 
 };
 
 const sendPaginated = (res, data, page, limit, total, message = 'Data retrieved successfully') => {
+  rewriteAvatars(data, res.req);
   const totalPages = Math.ceil(total / limit) || 1;
   return res.status(200).json({
     success: true,

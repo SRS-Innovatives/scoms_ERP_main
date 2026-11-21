@@ -7,11 +7,16 @@ const router = express.Router();
 const authController = require('../controllers/authController');
 const studentProfileController = require('../controllers/studentProfileController');
 const feePaymentController = require('../controllers/feePaymentController');
+const attendanceCorrectionController = require('../controllers/attendanceCorrectionController');
+const myDocumentsController = require('../controllers/myDocumentsController');
+const notificationPrefsController = require('../controllers/notificationPrefsController');
+const scholarshipController = require('../controllers/scholarshipController');
 const aiAssistantController = require('../controllers/aiAssistantController');
 const announcementController = require('../controllers/announcementController');
 const circularController = require('../controllers/circularController');
 const timetableController = require('../controllers/timetableController');
 const examController = require('../controllers/examController');
+const houseController = require('../controllers/houseController');
 const campusController = require('../controllers/campusController');
 const assignmentController = require('../controllers/assignmentController');
 const eventController = require('../controllers/eventController');
@@ -36,6 +41,7 @@ const {
   handleGetNotifications, handleGetUnreadCount, handleMarkNotificationRead, handleMarkAllNotificationsRead,
   resolveActiveChild, blockParentWrite,
   shadowPermission, PERMISSIONS,
+  requireRole, ROLES,
 } = require('../../../shared');
 
 // Standalone Auth Routes
@@ -49,6 +55,10 @@ router.post('/auth/logout', authController.logout);
 // Guarded Tenant Routes
 router.use(requireAuth);
 router.use(requireTenant);
+// The Student API is for students and parents only. Without this a staff member's token
+// (which has no studentId) could call student routes, where an empty "this student" filter
+// is ignored by the database and could return other students' records.
+router.use(requireRole(ROLES.STUDENT, ROLES.PARENT));
 router.use(resolveActiveChild); // Parent JWTs carry no studentId (a parent can have >1 child) — this
 // resolves & validates which real child is active for this request, then every existing
 // studentId-scoped route below works for a Parent exactly as it already does for a Student.
@@ -73,14 +83,31 @@ router.get('/profile/id-card', studentProfileController.getIdCard);
 router.get('/degrees', requireModule('convocation'), studentProfileController.getMyDegrees);
 router.get('/subjects', studentProfileController.getMySubjects);
 
+// SMS / WhatsApp preferences (Settings) — enforced in shared/utils/notificationPreferences.js
+router.get('/settings/notifications', notificationPrefsController.getPrefs);
+router.put('/settings/notifications', notificationPrefsController.updatePrefs);
+
+// My Documents — what the institution keeps on my record (read-only)
+router.get('/documents', myDocumentsController.getMyDocuments);
+
 // Attendance
 router.get('/attendance', requireModule('attendance'), shadowPermission(PERMISSIONS.ATTENDANCE_VIEW), studentProfileController.getAttendanceSummary);
+// ask for a wrong mark to be fixed — decided under Attendance → Correction Approvals
+router.get('/attendance/corrections', requireModule('attendance'), shadowPermission(PERMISSIONS.ATTENDANCE_VIEW), attendanceCorrectionController.getMyCorrections);
+router.post('/attendance/corrections', requireModule('attendance'), shadowPermission(PERMISSIONS.ATTENDANCE_VIEW), attendanceCorrectionController.requestCorrection);
 
 // Fee & Payment Routes
 router.use('/fees', requireModule('fee'));
 router.get('/fees', shadowPermission(PERMISSIONS.FEES_VIEW), feePaymentController.getFeesOverview);
+router.get('/fees/status', shadowPermission(PERMISSIONS.FEES_VIEW), feePaymentController.getFeeStatus);
+// "Fee Overview" menu badge: OVERDUE / DUE / PAID for this student
+router.get('/fees/badge', shadowPermission(PERMISSIONS.FEES_VIEW), feePaymentController.getFeeBadge);
 router.post('/fees/pay/initiate', shadowPermission(PERMISSIONS.PAYMENTS_ONLINE), feePaymentController.initiateOnlinePayment);
 router.post('/fees/pay/verify', shadowPermission(PERMISSIONS.PAYMENTS_ONLINE), feePaymentController.verifyOnlinePayment);
+// Scholarship / concession applications — go to the Institute Admin's approval queue
+router.get('/fees/concession-schemes', shadowPermission(PERMISSIONS.FEES_VIEW), scholarshipController.getSchemes);
+router.get('/fees/concessions', shadowPermission(PERMISSIONS.FEES_VIEW), scholarshipController.getMyApplications);
+router.post('/fees/concessions', shadowPermission(PERMISSIONS.FEES_VIEW), scholarshipController.applyForConcession);
 
 // AI Assistant Routes
 router.use('/ai', requireModule('ai_tutor'));
@@ -99,6 +126,11 @@ router.get('/timetable', requireModule('timetable'), shadowPermission(PERMISSION
 router.use('/exams', requireModule('examination'));
 router.get('/exams/schedule', shadowPermission(PERMISSIONS.EXAMS_VIEW), examController.getExamSchedule);
 router.get('/exams/results', shadowPermission(PERMISSIONS.RESULTS_VIEW), examController.getResults);
+router.get('/exams/:examId/hall-ticket', shadowPermission(PERMISSIONS.EXAMS_VIEW), examController.getHallTicket);
+router.get('/exams/:examId/marksheet', shadowPermission(PERMISSIONS.RESULTS_VIEW), examController.getMarksheet);
+
+// My House — the student's own house, its points and standing
+router.get('/house', houseController.getMyHouse);
 
 // Campus Services — Library, Transport, Hostel
 router.get('/library', requireModule('library'), campusController.getMyLibrary);
@@ -127,6 +159,8 @@ router.post('/grievances', shadowPermission(PERMISSIONS.GRIEVANCES_SUBMIT), grie
 
 // Study Materials
 router.get('/materials', shadowPermission(PERMISSIONS.MATERIALS_VIEW), materialController.getMaterials);
+// the student opened a material → counted for the teacher's Download History
+router.post('/materials/:id/opened', shadowPermission(PERMISSIONS.MATERIALS_VIEW), materialController.markOpened);
 
 // Leave / Absence Requests
 router.get('/leave/types', leaveController.getLeaveTypes);

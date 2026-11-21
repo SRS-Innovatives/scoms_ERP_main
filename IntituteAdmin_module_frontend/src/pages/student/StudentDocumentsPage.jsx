@@ -5,7 +5,7 @@ import DataTable from '../../components/common/DataTable';
 import EmptyState from '../../components/common/EmptyState';
 import ErrorState from '../../components/common/ErrorState';
 import { useNotification } from '../../context/NotificationContext';
-import { FileText, Trash2, ShieldCheck } from 'lucide-react';
+import { FileText, Trash2, ShieldCheck, Eye, EyeOff, Loader2 } from 'lucide-react';
 import studentService from '../../services/studentService';
 import studentDocumentService from '../../services/studentDocumentService';
 
@@ -37,6 +37,8 @@ export const StudentDocumentsPage = () => {
   const [title, setTitle] = useState('');
   const [documentType, setDocumentType] = useState('OTHER');
   const [uploading, setUploading] = useState(false);
+  const [visibleToStudent, setVisibleToStudent] = useState(true);
+  const [togglingId, setTogglingId] = useState(null);
 
   useEffect(() => {
     studentService.getAll({ limit: 200 })
@@ -63,17 +65,31 @@ export const StudentDocumentsPage = () => {
     try {
       const fileData = await fileToDataUri(pendingFile);
       await studentDocumentService.upload(selectedStudentId, {
-        documentType, title: title.trim(), fileData, fileName: pendingFile.name, mimeType: pendingFile.type,
+        documentType, title: title.trim(), fileData, fileName: pendingFile.name, mimeType: pendingFile.type, visibleToStudent,
       });
       notifySuccess('Document uploaded successfully!');
       setPendingFile(null);
       setTitle('');
       setDocumentType('OTHER');
+      setVisibleToStudent(true);
       fetchDocuments();
     } catch (err) {
       notifyError(`Upload failed: ${err.message}`);
     } finally {
       setUploading(false);
+    }
+  };
+
+  const toggleVisibility = async (doc) => {
+    setTogglingId(doc.id);
+    try {
+      const res = await studentDocumentService.setVisibility(doc.id, !doc.visibleToStudent);
+      setDocuments((p) => p.map((d) => (d.id === doc.id ? { ...d, visibleToStudent: res.data.visibleToStudent } : d)));
+      notifySuccess(res.message);
+    } catch (err) {
+      notifyError(`Could not change visibility: ${err.message}`);
+    } finally {
+      setTogglingId(null);
     }
   };
 
@@ -92,6 +108,22 @@ export const StudentDocumentsPage = () => {
     { header: 'Type', key: 'documentType', render: (val) => DOCUMENT_TYPES.find((t) => t.value === val)?.label || val },
     { header: 'Uploaded', key: 'uploadedAt', render: (val) => <span className="font-mono">{new Date(val).toLocaleDateString()}</span> },
     { header: 'File', key: 'fileName', render: (val) => val || '—' },
+    {
+      header: 'Student can see',
+      key: 'visibleToStudent',
+      sortable: false,
+      render: (val, row) => (
+        <button
+          onClick={() => toggleVisibility(row)}
+          disabled={togglingId === row.id}
+          title={val ? "Shown in the student's My Documents — click to make it office-only" : 'Office only — click to show it to the student'}
+          className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-semibold disabled:opacity-50 ${val ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'}`}
+        >
+          {togglingId === row.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : val ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
+          {val ? 'Visible' : 'Office only'}
+        </button>
+      ),
+    },
     {
       header: 'Actions',
       key: 'id',
@@ -147,6 +179,13 @@ export const StudentDocumentsPage = () => {
               </div>
             </div>
             <FileUpload label="Select Document" accept=".pdf,.png,.jpg,.jpeg" onFileSelect={setPendingFile} />
+            <label className="mt-3 flex items-start gap-2 text-xs text-slate-700 dark:text-slate-300 cursor-pointer">
+              <input type="checkbox" checked={visibleToStudent} onChange={(e) => setVisibleToStudent(e.target.checked)} className="mt-0.5" />
+              <span>
+                <span className="font-semibold">Visible to student</span>
+                <span className="block text-[11px] text-slate-500">The student and parent can open it under My Documents in the Student portal. Untick to keep it office-only (e.g. a medical record).</span>
+              </span>
+            </label>
             <button
               onClick={handleUpload}
               disabled={uploading}

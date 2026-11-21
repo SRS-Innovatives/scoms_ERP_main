@@ -13,6 +13,7 @@ const {
   ValidationError,
   getActiveList,
 } = require('../../../shared');
+const { isAvatarUrl, hasValue } = require('../../../shared/media/mediaUrl');
 
 /** The leave types this institution actually offers right now — its own customized
  * list if it has one, the standard default otherwise. Powers the Apply Leave dropdown. */
@@ -49,7 +50,9 @@ const getMyProfile = async (req, res, next) => {
 
 const updateMyProfile = async (req, res, next) => {
   try {
-    const { phone, avatar, altPhone, dob, bloodGroup, bankName, bankAccountNumber, bankIfscCode, bankAccountName, panNumber, emergencyContactName, emergencyContactRelation, emergencyContactPhone, emergencyContactAddress } = req.body;
+    const { phone, altPhone, dob, bloodGroup, bankName, bankAccountNumber, bankIfscCode, bankAccountName, panNumber, emergencyContactName, emergencyContactRelation, emergencyContactPhone, emergencyContactAddress } = req.body;
+    // The photo URL this API handed out, sent back unchanged, means "keep the current photo"
+    const avatar = isAvatarUrl(req.body.avatar) ? undefined : req.body.avatar;
 
     if (phone || avatar !== undefined) {
       if (avatar !== undefined && avatar !== '' && !/^data:image\/(png|jpeg|jpg);base64,/.test(avatar)) {
@@ -120,10 +123,14 @@ const addMyExperience = async (req, res, next) => {
 // ============================================================
 const getMyLeaves = async (req, res, next) => {
   try {
+    // attachments aren't shown in the list — say whether there is one instead of sending every file
     const leaves = await prisma.leaveRequest.findMany({
       where: { staffId: req.user.staffId },
+      omit: { attachmentUrl: true },
       orderBy: { createdAt: 'desc' },
     });
+    const withAttachment = await hasValue(prisma, 'LeaveRequest', 'attachmentUrl', leaves.map((l) => l.id));
+    leaves.forEach((l) => { l.hasAttachment = withAttachment.get(l.id) || false; });
 
     const currentYear = new Date().getFullYear();
     const usedByType = { CASUAL: 0, EARNED: 0, MEDICAL: 0, DUTY: 0 };

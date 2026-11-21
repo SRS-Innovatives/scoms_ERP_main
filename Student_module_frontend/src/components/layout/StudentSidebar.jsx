@@ -1,14 +1,35 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { navigationConfig } from '../../routes/navigationConfig';
 import { ChevronDown, ChevronRight, Search, Sparkles, X } from 'lucide-react';
 import { useStudentAuth } from '../../context/StudentAuthContext';
 import { useInstitution } from '../../context/InstitutionContext';
+import { feeService } from '../../services/feeService';
+
+const LIVE_BADGE_REFRESH_MS = 2 * 60 * 1000;
+const FEE_BADGE = { OVERDUE: { text: 'Overdue', cls: 'bg-rose-500' }, DUE: { text: 'Due', cls: 'bg-amber-500' } };
 
 export const StudentSidebar = ({ isOpen, setIsOpen }) => {
   const location = useLocation();
   const { student } = useStudentAuth();
   const { institution, isModuleEnabled, academic } = useInstitution();
+
+  // Live badges (navigationConfig `liveBadge`) — real state for this student, refreshed every
+  // 2 minutes and on page change (so it clears right after a payment); hidden when nothing is due.
+  const [feeBadge, setFeeBadge] = useState(null);
+  const feesOn = isModuleEnabled('fee');
+  useEffect(() => {
+    if (!feesOn) return undefined;
+    let cancelled = false;
+    const load = () => feeService.getFeeBadge()
+      .then((res) => { if (!cancelled) setFeeBadge(FEE_BADGE[res?.data?.state] ? { ...FEE_BADGE[res.data.state], title: `₹${Number(res.data.totalDue).toLocaleString('en-IN')} due` } : null); })
+      .catch(() => {});
+    load();
+    const timer = setInterval(load, LIVE_BADGE_REFRESH_MS);
+    return () => { cancelled = true; clearInterval(timer); };
+  }, [feesOn, location.pathname]);
+  const liveBadgeOf = (item) => (item.liveBadge === 'fees' ? feeBadge : null);
+  const groupBadgeOf = (item) => item.children?.map(liveBadgeOf).find(Boolean) || null;
 
   // Nav items (or their individual children) can carry a `module` tag matching the
   // Super Admin module catalog — items without one are always visible; a parent with
@@ -174,6 +195,11 @@ export const StudentSidebar = ({ isOpen, setIsOpen }) => {
                           {item.badge}
                         </span>
                       )}
+                      {!item.badge && !isMenuExpanded && groupBadgeOf(item) && (
+                        <span title={groupBadgeOf(item).title} className={`text-[10px] px-2 py-0.5 rounded-full text-white font-bold ${groupBadgeOf(item).cls}`}>
+                          {groupBadgeOf(item).text}
+                        </span>
+                      )}
                       {isMenuExpanded ? (
                         <ChevronDown className="w-3.5 h-3.5 opacity-60" />
                       ) : (
@@ -202,6 +228,11 @@ export const StudentSidebar = ({ isOpen, setIsOpen }) => {
                         {child.badge && (
                           <span className="text-[9px] px-1.5 py-0.2 rounded bg-rose-500 text-white font-bold">
                             {child.badge}
+                          </span>
+                        )}
+                        {liveBadgeOf(child) && (
+                          <span title={liveBadgeOf(child).title} className={`text-[9px] px-1.5 py-0.2 rounded text-white font-bold ${liveBadgeOf(child).cls}`}>
+                            {liveBadgeOf(child).text}
                           </span>
                         )}
                       </NavLink>

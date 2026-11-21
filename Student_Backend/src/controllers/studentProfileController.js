@@ -9,6 +9,8 @@ const {
   ValidationError,
   attendanceRules,
 } = require('../../../shared');
+const { studentSubjectWhere } = require('../../../shared/academic/electives');
+const { isAvatarUrl } = require('../../../shared/media/mediaUrl');
 
 const { isAttended } = attendanceRules;
 
@@ -80,6 +82,8 @@ const getAttendanceSummary = async (req, res, next) => {
       subjectBreakdown,
       records: records.map((r) => ({
         id: r.id,
+        sessionId: r.sessionId, // for "Request correction"
+        periodNumber: r.session.periodNumber,
         date: r.session.date,
         subject: r.session.subject?.name || 'General',
         status: r.status,
@@ -100,7 +104,8 @@ const updateProfile = async (req, res, next) => {
 
     // avatar lives on User, not Student — updated separately, same validation as every
     // other portal's profile-photo upload.
-    if (req.body.avatar !== undefined) {
+    // (the photo URL this API handed out, sent back unchanged, means "keep the current photo")
+    if (req.body.avatar !== undefined && !isAvatarUrl(req.body.avatar)) {
       const { avatar } = req.body;
       if (avatar !== '' && !/^data:image\/(png|jpeg|jpg);base64,/.test(avatar)) {
         throw new ValidationError('Profile photo must be a PNG or JPEG image');
@@ -127,7 +132,7 @@ const getMySubjects = async (req, res, next) => {
     if (!student?.courseId) return sendSuccess(res, [], 'Subjects retrieved');
 
     const subjects = await prisma.subject.findMany({
-      where: { classMappings: { some: { courseId: student.courseId } } },
+      where: studentSubjectWhere({ id: req.user.studentId, courseId: student.courseId }) /* core subjects + this student's electives */,
       include: {
         teacherMappings: {
           take: 1,

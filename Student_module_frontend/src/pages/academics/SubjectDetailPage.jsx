@@ -135,7 +135,7 @@ export const SubjectDetailPage = () => {
                     <FileText className="w-4 h-4 text-indigo-500" />
                     <span className="font-bold">{m.title}</span>
                   </div>
-                  <a href={m.fileUrl} target="_blank" rel="noreferrer" className="px-3 py-1 font-bold text-white bg-indigo-600 rounded-lg flex items-center gap-1">
+                  <a href={m.fileUrl} target="_blank" rel="noreferrer" onClick={() => materialService.markOpened(m.id)} className="px-3 py-1 font-bold text-white bg-indigo-600 rounded-lg flex items-center gap-1">
                     <Download className="w-3.5 h-3.5" /> Download
                   </a>
                 </div>

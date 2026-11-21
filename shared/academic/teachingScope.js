@@ -15,6 +15,7 @@
  *   - daily attendance + student leave approval -> only the class teacher
  */
 const prisma = require('../database/client');
+const { electiveStudentFilter } = require('./electives');
 const { ROLES } = require('../constants/roles');
 const { NotFoundError, AuthorizationError, ValidationError } = require('../errors/customErrors');
 
@@ -128,13 +129,15 @@ const assertStudentsInSection = async (studentIds, sectionId) => {
  */
 const getMarkableStudentFilter = async (user, institutionId, schedule) => {
   const scope = await getStaffScope(user, institutionId);
+  // an elective counts only the students who chose it (shared/academic/electives.js)
+  const elective = await electiveStudentFilter(prisma, schedule.subjectId, schedule.courseId);
   const forSubject = scope.assignments.filter((a) => a.subjectId === schedule.subjectId);
   if (forSubject.some((a) => a.sectionId === null)) {
-    return { scope, where: { courseId: schedule.courseId, status: 'ACTIVE' } }; // legacy subject-wide assignment
+    return { scope, where: { courseId: schedule.courseId, status: 'ACTIVE', ...elective } }; // legacy subject-wide assignment
   }
   const sectionIds = forSubject.filter((a) => a.courseId === schedule.courseId).map((a) => a.sectionId);
   if (sectionIds.length === 0) throw new AuthorizationError('You are not assigned to teach this subject for this class');
-  return { scope, where: { courseId: schedule.courseId, status: 'ACTIVE', sectionId: { in: sectionIds } } };
+  return { scope, where: { courseId: schedule.courseId, status: 'ACTIVE', sectionId: { in: sectionIds }, ...elective } };
 };
 
 /** Every student in a marks submission must be one this staff member may mark. */

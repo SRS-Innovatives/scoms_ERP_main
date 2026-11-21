@@ -10,8 +10,8 @@ const {
   sendSuccess,
   NotFoundError,
   ValidationError,
-  BusinessRuleError,
-} = require('../../../shared');
+  BusinessRuleError, findList } = require('../../../shared');
+const { assertNoFeeHold } = require('../../../shared/fees/feePolicy');
 
 const FINE_PER_DAY = 5;
 const LENDING_DAYS = 14;
@@ -71,6 +71,8 @@ const issueBook = async (req, res, next) => {
 
     const student = await prisma.student.findFirst({ where: { id: studentId, institutionId: req.institutionId } });
     if (!student) throw new NotFoundError('Student not found or access denied');
+    // the Fee Policy may stop library issues while fees are overdue
+    await assertNoFeeHold(prisma, { institutionId: req.institutionId, studentId: student.id, type: 'LIBRARY' });
 
     const alreadyHeld = await prisma.bookIssue.findFirst({ where: { bookId, studentId, status: 'ISSUED' } });
     if (alreadyHeld) throw new BusinessRuleError('This student already has this book issued');
@@ -91,15 +93,15 @@ const issueBook = async (req, res, next) => {
 
 const getActiveIssues = async (req, res, next) => {
   try {
-    const issues = await prisma.bookIssue.findMany({
+    const { rows: issues, meta: listMeta } = await findList(prisma.bookIssue, {
       where: { status: 'ISSUED', book: { institutionId: req.institutionId } },
       include: {
         book: { select: { title: true, author: true } },
         student: { select: { firstName: true, lastName: true, rollNumber: true } },
       },
       orderBy: { dueDate: 'asc' },
-    });
-    return sendSuccess(res, issues, 'Active issues retrieved successfully');
+    }, req, { max: 10000 });
+    return sendSuccess(res, issues, 'Active issues retrieved successfully', 200, listMeta);
   } catch (err) {
     next(err);
   }
@@ -137,15 +139,15 @@ const returnBook = async (req, res, next) => {
 
 const getFines = async (req, res, next) => {
   try {
-    const fines = await prisma.bookIssue.findMany({
+    const { rows: fines, meta: listMeta } = await findList(prisma.bookIssue, {
       where: { status: 'RETURNED', fineAmount: { gt: 0 }, book: { institutionId: req.institutionId } },
       include: {
         book: { select: { title: true } },
         student: { select: { firstName: true, lastName: true, rollNumber: true } },
       },
       orderBy: { returnedAt: 'desc' },
-    });
-    return sendSuccess(res, fines, 'Library fines retrieved successfully');
+    }, req);
+    return sendSuccess(res, fines, 'Library fines retrieved successfully', 200, listMeta);
   } catch (err) {
     next(err);
   }

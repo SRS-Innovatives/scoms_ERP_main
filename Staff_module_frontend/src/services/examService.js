@@ -3,6 +3,8 @@ import apiCall from './api';
 
 export const examService = {
   getMySchedules: async () => apiCall('/exams/my-schedules'),
+  // duties the Institute Admin allotted to me, grouped by exam — the Duty Allotment Letter
+  getMyDuties: async () => apiCall('/exam-duties/mine'),
   getRoster: async (scheduleId) => apiCall(`/exam-schedules/${scheduleId}/roster`),
   saveMarks: async (scheduleId, marks) => apiCall(`/exam-schedules/${scheduleId}/marks`, { method: 'POST', body: { marks } }),
   publishMarks: async (scheduleId) => apiCall(`/exam-schedules/${scheduleId}/publish`, { method: 'POST' }),

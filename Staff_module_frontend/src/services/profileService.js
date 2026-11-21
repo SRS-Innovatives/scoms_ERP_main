@@ -7,6 +7,11 @@ export const profileService = {
   addQualification: async (payload) => apiCall('/profile/qualifications', { method: 'POST', body: payload }),
   addExperience: async (payload) => apiCall('/profile/experience', { method: 'POST', body: payload }),
 
+  // my documents — each row has fileUrl, a signed link to the real file
+  getMyDocuments: async () => apiCall('/profile/documents'),
+  uploadDocument: async (payload) => apiCall('/profile/documents', { method: 'POST', body: payload }),
+  deleteDocument: async (id) => apiCall(`/profile/documents/${id}`, { method: 'DELETE' }),
+
   getMyLeaves: async () => apiCall('/leave'),
   getLeaveTypes: async () => apiCall('/leave/types'),
   applyLeave: async (payload) => apiCall('/leave', { method: 'POST', body: payload }),

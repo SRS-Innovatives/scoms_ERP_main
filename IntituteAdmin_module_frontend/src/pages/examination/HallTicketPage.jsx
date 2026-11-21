@@ -54,7 +54,7 @@ export const HallTicketPage = () => {
           </select>
         </div>
         <button onClick={() => window.print()} disabled={!data?.students?.length} className="flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-semibold disabled:opacity-50">
-          <Printer className="w-4 h-4" /> Print {data?.students?.length ? `${data.students.length} Tickets` : 'Tickets'}
+          <Printer className="w-4 h-4" /> Print {data?.students?.length ? `${data.students.filter((st) => !st.feeHold).length} Tickets` : 'Tickets'}
         </button>
       </div>
 
@@ -71,7 +71,12 @@ export const HallTicketPage = () => {
           {data.schedule.length === 0 && (
             <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-3 no-print">This exam has no subjects scheduled for this {academic.label('course').toLowerCase()} yet — tickets will show an empty timetable.</p>
           )}
-          {data.students.map((st) => (
+          {data.students.some((st) => st.feeHold) && (
+            <p className="text-xs text-rose-700 bg-rose-50 border border-rose-200 rounded-lg p-3 no-print">
+              Withheld for unpaid fees (Fee Policy) — not printed: {data.students.filter((st) => st.feeHold).map((st) => `${st.name} (₹${st.feeHold.amountToClear.toLocaleString('en-IN')})`).join(', ')}. Collect the fee or add a hold exemption to print them.
+            </p>
+          )}
+          {data.students.filter((st) => !st.feeHold).map((st) => (
             <HallTicketTemplate key={st.id} exam={data.exam} section={data.section} schedule={data.schedule} student={st} />
           ))}
         </div>

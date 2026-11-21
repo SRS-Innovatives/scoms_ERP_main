@@ -1,15 +1,39 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { navigationConfig } from '../../routes/navigationConfig';
 import { useInstitution } from '../../context/InstitutionContext';
 import { useAuth } from '../../context/AuthContext';
+import { attendanceService } from '../../services/attendanceService';
 import { ChevronDown, ChevronRight, Search, Sparkles, X } from 'lucide-react';
+
+const LIVE_BADGE_REFRESH_MS = 2 * 60 * 1000;
 
 export const Sidebar = ({ isOpen, setIsOpen }) => {
   const location = useLocation();
   const { institution, isModuleEnabled } = useInstitution();
   const { profile } = useAuth();
   const visibleNavigation = navigationConfig.filter((item) => isModuleEnabled(item.key));
+
+  // Live menu badges (navigationConfig `liveBadge`) — real counts for this staff member,
+  // refreshed every 2 minutes and on page change (so it clears right after attendance is
+  // saved); hidden when zero, not loaded, or the module is off.
+  const [liveCounts, setLiveCounts] = useState({});
+  const attendanceOn = isModuleEnabled('attendance');
+  useEffect(() => {
+    if (!attendanceOn) return undefined;
+    let cancelled = false;
+    const load = () => attendanceService.getPendingSummary()
+      .then((res) => { if (!cancelled) setLiveCounts((p) => ({ ...p, attendancePending: res?.data?.total ?? 0 })); })
+      .catch(() => {});
+    load();
+    const timer = setInterval(load, LIVE_BADGE_REFRESH_MS);
+    return () => { cancelled = true; clearInterval(timer); };
+  }, [attendanceOn, location.pathname]);
+  const badgeOf = (item) => {
+    if (!item.liveBadge) return item.badge;
+    const n = liveCounts[item.liveBadge];
+    return n > 0 ? `${n} Pending` : null;
+  };
   const [openMenus, setOpenMenus] = useState(() => {
     const initial = {};
     navigationConfig.forEach(item => {
@@ -119,9 +143,9 @@ export const Sidebar = ({ isOpen, setIsOpen }) => {
                     <Icon className="w-4 h-4 shrink-0" />
                     {isOpen && <span>{item.title}</span>}
                   </div>
-                  {isOpen && item.badge && (
+                  {isOpen && badgeOf(item) && (
                     <span className="text-[10px] px-2 py-0.5 rounded-full bg-rose-500 text-white font-bold">
-                      {item.badge}
+                      {badgeOf(item)}
                     </span>
                   )}
                 </NavLink>
@@ -145,9 +169,9 @@ export const Sidebar = ({ isOpen, setIsOpen }) => {
                   </div>
                   {isOpen && (
                     <div className="flex items-center gap-1.5">
-                      {item.badge && (
+                      {badgeOf(item) && (
                         <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500 text-white font-bold">
-                          {item.badge}
+                          {badgeOf(item)}
                         </span>
                       )}
                       {isMenuExpanded ? (

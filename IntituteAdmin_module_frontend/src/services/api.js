@@ -37,9 +37,13 @@ export const apiCall = async (endpoint, options = {}) => {
     }
 
     const result = await res.json();
+    // Platform Maintenance Mode (Super Admin) — show the full-screen notice (components/common/MaintenanceOverlay)
+    if (res.status === 503 && result?.code === 'MAINTENANCE_MODE') window.dispatchEvent(new CustomEvent('scoms:maintenance', { detail: result.message }));
 
     if (res.ok) {
-      return { status: res.status, data: result.data ?? result };
+      // meta: { page, limit, total, totalPages } when called with ?page=, or
+      // { truncated, limit } when a history list hit the server's row ceiling
+      return { status: res.status, data: result.data ?? result, meta: result.meta };
     }
     const apiError = new Error(result.message || 'API Error');
     apiError.errors = result.errors;

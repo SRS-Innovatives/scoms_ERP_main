@@ -16,7 +16,8 @@ module.exports = async (institutionId, filters) => {
       institutionId,
       paymentStatus: 'SUCCESS',
       paidAt: { gte: startOfDay(dateFrom), lte: endOfDay(dateTo) },
-      ...(paymentMode && { paymentMode }),
+      // credit-paid fees are not new money (the overpayment was counted when received)
+      ...(paymentMode ? { paymentMode } : { paymentMode: { not: 'CREDIT' } }),
       ...(studentId ? { studentId } : (courseId || sectionId) && { student: { ...(courseId && { courseId }), ...(sectionId && { sectionId }) } }),
     },
     include: {
