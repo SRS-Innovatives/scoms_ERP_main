@@ -1,155 +1,146 @@
-import React from 'react';
+import React, { lazy, Suspense } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import MainLayout from '../components/layout/MainLayout';
 import ProtectedRoute from '../components/auth/ProtectedRoute';
 
 // Dashboard
-import StaffDashboardPage from '../pages/dashboard/StaffDashboardPage';
-
+const StaffDashboardPage = lazy(() => import('../pages/dashboard/StaffDashboardPage'));
 // Profile
-import ProfilePage from '../pages/profile/ProfilePage';
-import EditProfilePage from '../pages/profile/EditProfilePage';
-import QualificationDetailsPage from '../pages/profile/QualificationDetailsPage';
-import ExperienceDetailsPage from '../pages/profile/ExperienceDetailsPage';
-import DocumentsUploadPage from '../pages/profile/DocumentsUploadPage';
-import BankDetailsPage from '../pages/profile/BankDetailsPage';
-import EmergencyContactPage from '../pages/profile/EmergencyContactPage';
-import PasswordChangePage from '../pages/profile/PasswordChangePage';
-
+const ProfilePage = lazy(() => import('../pages/profile/ProfilePage'));
+const EditProfilePage = lazy(() => import('../pages/profile/EditProfilePage'));
+const QualificationDetailsPage = lazy(() => import('../pages/profile/QualificationDetailsPage'));
+const ExperienceDetailsPage = lazy(() => import('../pages/profile/ExperienceDetailsPage'));
+const DocumentsUploadPage = lazy(() => import('../pages/profile/DocumentsUploadPage'));
+const BankDetailsPage = lazy(() => import('../pages/profile/BankDetailsPage'));
+const EmergencyContactPage = lazy(() => import('../pages/profile/EmergencyContactPage'));
+const PasswordChangePage = lazy(() => import('../pages/profile/PasswordChangePage'));
 // Classes
-import AssignedClassesPage from '../pages/classes/AssignedClassesPage';
-import ClassDetailsPage from '../pages/classes/ClassDetailsPage';
-import StudentListPage from '../pages/classes/StudentListPage';
-import SubjectMappingPage from '../pages/classes/SubjectMappingPage';
-import ClassStrengthPage from '../pages/classes/ClassStrengthPage';
-
+const AssignedClassesPage = lazy(() => import('../pages/classes/AssignedClassesPage'));
+const ClassDetailsPage = lazy(() => import('../pages/classes/ClassDetailsPage'));
+const StudentListPage = lazy(() => import('../pages/classes/StudentListPage'));
+const SubjectMappingPage = lazy(() => import('../pages/classes/SubjectMappingPage'));
+const ClassStrengthPage = lazy(() => import('../pages/classes/ClassStrengthPage'));
 // Attendance
-import TakeAttendancePage from '../pages/attendance/TakeAttendancePage';
-import EditAttendancePage from '../pages/attendance/EditAttendancePage';
-import AttendanceCorrectionsPage from '../pages/attendance/AttendanceCorrectionsPage';
-import SubjectAttendancePage from '../pages/attendance/SubjectAttendancePage';
-import MonthlyAttendancePage from '../pages/attendance/MonthlyAttendancePage';
-import AbsentStudentsPage from '../pages/attendance/AbsentStudentsPage';
-import AttendanceReportsPage from '../pages/attendance/AttendanceReportsPage';
-
+const TakeAttendancePage = lazy(() => import('../pages/attendance/TakeAttendancePage'));
+const EditAttendancePage = lazy(() => import('../pages/attendance/EditAttendancePage'));
+const AttendanceCorrectionsPage = lazy(() => import('../pages/attendance/AttendanceCorrectionsPage'));
+const SubjectAttendancePage = lazy(() => import('../pages/attendance/SubjectAttendancePage'));
+const MonthlyAttendancePage = lazy(() => import('../pages/attendance/MonthlyAttendancePage'));
+const AbsentStudentsPage = lazy(() => import('../pages/attendance/AbsentStudentsPage'));
+const AttendanceReportsPage = lazy(() => import('../pages/attendance/AttendanceReportsPage'));
 // Assignments
-import CreateAssignmentPage from '../pages/assignments/CreateAssignmentPage';
-import MyPublicationsPage from '../pages/research/MyPublicationsPage';
-import AssignmentListPage from '../pages/assignments/AssignmentListPage';
-import AssignmentDetailsPage from '../pages/assignments/AssignmentDetailsPage';
-import StudentSubmissionsPage from '../pages/assignments/StudentSubmissionsPage';
-import EvaluateAssignmentPage from '../pages/assignments/EvaluateAssignmentPage';
-import AssignmentAnalyticsPage from '../pages/assignments/AssignmentAnalyticsPage';
-
+const CreateAssignmentPage = lazy(() => import('../pages/assignments/CreateAssignmentPage'));
+const MyPublicationsPage = lazy(() => import('../pages/research/MyPublicationsPage'));
+const AssignmentListPage = lazy(() => import('../pages/assignments/AssignmentListPage'));
+const AssignmentDetailsPage = lazy(() => import('../pages/assignments/AssignmentDetailsPage'));
+const StudentSubmissionsPage = lazy(() => import('../pages/assignments/StudentSubmissionsPage'));
+const EvaluateAssignmentPage = lazy(() => import('../pages/assignments/EvaluateAssignmentPage'));
+const AssignmentAnalyticsPage = lazy(() => import('../pages/assignments/AssignmentAnalyticsPage'));
 // Study Materials
-import UploadMaterialPage from '../pages/materials/UploadMaterialPage';
-import MaterialLibraryPage from '../pages/materials/MaterialLibraryPage';
-import SubjectMaterialsPage from '../pages/materials/SubjectMaterialsPage';
-import DownloadHistoryPage from '../pages/materials/DownloadHistoryPage';
-
+const UploadMaterialPage = lazy(() => import('../pages/materials/UploadMaterialPage'));
+const MaterialLibraryPage = lazy(() => import('../pages/materials/MaterialLibraryPage'));
+const SubjectMaterialsPage = lazy(() => import('../pages/materials/SubjectMaterialsPage'));
+const DownloadHistoryPage = lazy(() => import('../pages/materials/DownloadHistoryPage'));
 // Examinations
-import MyExamDutiesPage from '../pages/examination/MyExamDutiesPage';
-import QuestionBankPage from '../pages/examination/QuestionBankPage';
-import CreateQuestionPage from '../pages/examination/CreateQuestionPage';
-import ImportQuestionsPage from '../pages/examination/ImportQuestionsPage';
-import QuestionPaperGeneratorPage from '../pages/examination/QuestionPaperGeneratorPage';
-import PreviewQuestionPaperPage from '../pages/examination/PreviewQuestionPaperPage';
-import MarksEntryPage from '../pages/examination/MarksEntryPage';
-import InternalAssessmentPage from '../pages/examination/InternalAssessmentPage';
-import PublishMarksPage from '../pages/examination/PublishMarksPage';
-import ResultAnalysisPage from '../pages/examination/ResultAnalysisPage';
-
+const MyExamDutiesPage = lazy(() => import('../pages/examination/MyExamDutiesPage'));
+const QuestionBankPage = lazy(() => import('../pages/examination/QuestionBankPage'));
+const CreateQuestionPage = lazy(() => import('../pages/examination/CreateQuestionPage'));
+const ImportQuestionsPage = lazy(() => import('../pages/examination/ImportQuestionsPage'));
+const QuestionPaperGeneratorPage = lazy(() => import('../pages/examination/QuestionPaperGeneratorPage'));
+const PreviewQuestionPaperPage = lazy(() => import('../pages/examination/PreviewQuestionPaperPage'));
+const MarksEntryPage = lazy(() => import('../pages/examination/MarksEntryPage'));
+const InternalAssessmentPage = lazy(() => import('../pages/examination/InternalAssessmentPage'));
+const PublishMarksPage = lazy(() => import('../pages/examination/PublishMarksPage'));
+const ResultAnalysisPage = lazy(() => import('../pages/examination/ResultAnalysisPage'));
 // Performance
-import StudentProgressPage from '../pages/performance/StudentProgressPage';
-import SubjectPerformancePage from '../pages/performance/SubjectPerformancePage';
-import WeakStudentsPage from '../pages/performance/WeakStudentsPage';
-import TopPerformersPage from '../pages/performance/TopPerformersPage';
-import AttendanceVsMarksPage from '../pages/performance/AttendanceVsMarksPage';
-import ParentMeetingNotesPage from '../pages/performance/ParentMeetingNotesPage';
-import AchievementEntryPage from '../pages/performance/AchievementEntryPage';
-import GalleryPage from '../pages/communication/GalleryPage';
-
+const StudentProgressPage = lazy(() => import('../pages/performance/StudentProgressPage'));
+const SubjectPerformancePage = lazy(() => import('../pages/performance/SubjectPerformancePage'));
+const WeakStudentsPage = lazy(() => import('../pages/performance/WeakStudentsPage'));
+const TopPerformersPage = lazy(() => import('../pages/performance/TopPerformersPage'));
+const AttendanceVsMarksPage = lazy(() => import('../pages/performance/AttendanceVsMarksPage'));
+const ParentMeetingNotesPage = lazy(() => import('../pages/performance/ParentMeetingNotesPage'));
+const AchievementEntryPage = lazy(() => import('../pages/performance/AchievementEntryPage'));
+const GalleryPage = lazy(() => import('../pages/communication/GalleryPage'));
 // Timetable
-import MyTimetablePage from '../pages/timetable/MyTimetablePage';
-import DailyTimetablePage from '../pages/timetable/DailyTimetablePage';
-import WeeklyTimetablePage from '../pages/timetable/WeeklyTimetablePage';
-import SubstituteClassesPage from '../pages/timetable/SubstituteClassesPage';
-import FreePeriodsPage from '../pages/timetable/FreePeriodsPage';
-
+const MyTimetablePage = lazy(() => import('../pages/timetable/MyTimetablePage'));
+const DailyTimetablePage = lazy(() => import('../pages/timetable/DailyTimetablePage'));
+const WeeklyTimetablePage = lazy(() => import('../pages/timetable/WeeklyTimetablePage'));
+const SubstituteClassesPage = lazy(() => import('../pages/timetable/SubstituteClassesPage'));
+const FreePeriodsPage = lazy(() => import('../pages/timetable/FreePeriodsPage'));
 // Communication
-import SendAnnouncementPage from '../pages/communication/SendAnnouncementPage';
-import CircularsPage from '../pages/communication/CircularsPage';
-import ClassNoticePage from '../pages/communication/ClassNoticePage';
-import ParentMessagePage from '../pages/communication/ParentMessagePage';
-import StudentChatPage from '../pages/communication/StudentChatPage';
-import AppointmentRequestsPage from '../pages/appointments/AppointmentRequestsPage';
-import SmsCenterPage from '../pages/communication/SmsCenterPage';
-import EmailCenterPage from '../pages/communication/EmailCenterPage';
-import MessageHistoryPage from '../pages/communication/MessageHistoryPage';
-
+const SendAnnouncementPage = lazy(() => import('../pages/communication/SendAnnouncementPage'));
+const CircularsPage = lazy(() => import('../pages/communication/CircularsPage'));
+const ClassNoticePage = lazy(() => import('../pages/communication/ClassNoticePage'));
+const ParentMessagePage = lazy(() => import('../pages/communication/ParentMessagePage'));
+const StudentChatPage = lazy(() => import('../pages/communication/StudentChatPage'));
+const AppointmentRequestsPage = lazy(() => import('../pages/appointments/AppointmentRequestsPage'));
+const SmsCenterPage = lazy(() => import('../pages/communication/SmsCenterPage'));
+const EmailCenterPage = lazy(() => import('../pages/communication/EmailCenterPage'));
+const MessageHistoryPage = lazy(() => import('../pages/communication/MessageHistoryPage'));
 // Leave
-import ApplyLeavePage from '../pages/leave/ApplyLeavePage';
-import LeaveHistoryPage from '../pages/leave/LeaveHistoryPage';
-import LeaveBalancePage from '../pages/leave/LeaveBalancePage';
-import LeaveApprovalStatusPage from '../pages/leave/LeaveApprovalStatusPage';
-import StudentLeaveApprovalPage from '../pages/leave/StudentLeaveApprovalPage';
-
+const ApplyLeavePage = lazy(() => import('../pages/leave/ApplyLeavePage'));
+const LeaveHistoryPage = lazy(() => import('../pages/leave/LeaveHistoryPage'));
+const LeaveBalancePage = lazy(() => import('../pages/leave/LeaveBalancePage'));
+const LeaveApprovalStatusPage = lazy(() => import('../pages/leave/LeaveApprovalStatusPage'));
+const StudentLeaveApprovalPage = lazy(() => import('../pages/leave/StudentLeaveApprovalPage'));
+const ScholarshipApprovalPage = lazy(() => import('../pages/classes/ScholarshipApprovalPage'));
 // Events
-import EventDutiesPage from '../pages/events/EventDutiesPage';
-import AcademicCalendarPage from '../pages/calendar/AcademicCalendarPage';
-import ClubActivitiesPage from '../pages/events/ClubActivitiesPage';
-import CompetitionManagementPage from '../pages/events/CompetitionManagementPage';
-import EventAttendancePage from '../pages/events/EventAttendancePage';
-import CertificateEntryPage from '../pages/events/CertificateEntryPage';
-
+const EventDutiesPage = lazy(() => import('../pages/events/EventDutiesPage'));
+const AcademicCalendarPage = lazy(() => import('../pages/calendar/AcademicCalendarPage'));
+const ClubActivitiesPage = lazy(() => import('../pages/events/ClubActivitiesPage'));
+const CompetitionManagementPage = lazy(() => import('../pages/events/CompetitionManagementPage'));
+const EventAttendancePage = lazy(() => import('../pages/events/EventAttendancePage'));
+const CertificateEntryPage = lazy(() => import('../pages/events/CertificateEntryPage'));
 // Self Attendance
-import MyStaffAttendancePage from '../pages/selfAttendance/MyStaffAttendancePage';
-import MonthlyStaffAttendancePage from '../pages/selfAttendance/MonthlyStaffAttendancePage';
-import LateEntryPage from '../pages/selfAttendance/LateEntryPage';
-import StaffAttendanceSummaryPage from '../pages/selfAttendance/StaffAttendanceSummaryPage';
-
+const MyStaffAttendancePage = lazy(() => import('../pages/selfAttendance/MyStaffAttendancePage'));
+const MonthlyStaffAttendancePage = lazy(() => import('../pages/selfAttendance/MonthlyStaffAttendancePage'));
+const LateEntryPage = lazy(() => import('../pages/selfAttendance/LateEntryPage'));
+const StaffAttendanceSummaryPage = lazy(() => import('../pages/selfAttendance/StaffAttendanceSummaryPage'));
 // Library Staff
-import BookIssuePage from '../pages/library/BookIssuePage';
-import BookReturnPage from '../pages/library/BookReturnPage';
-import FineCollectionPage from '../pages/library/FineCollectionPage';
-import StudentLibraryStatusPage from '../pages/library/StudentLibraryStatusPage';
-
+const BookIssuePage = lazy(() => import('../pages/library/BookIssuePage'));
+const BookReturnPage = lazy(() => import('../pages/library/BookReturnPage'));
+const FineCollectionPage = lazy(() => import('../pages/library/FineCollectionPage'));
+const StudentLibraryStatusPage = lazy(() => import('../pages/library/StudentLibraryStatusPage'));
 // Lab Staff
-import LabInventoryPage from '../pages/lab/LabInventoryPage';
-import EquipmentIssuePage from '../pages/lab/EquipmentIssuePage';
-import EquipmentReturnPage from '../pages/lab/EquipmentReturnPage';
-import LabUsageRegisterPage from '../pages/lab/LabUsageRegisterPage';
-import LabMaintenanceRegisterPage from '../pages/lab/LabMaintenanceRegisterPage';
-
+const LabInventoryPage = lazy(() => import('../pages/lab/LabInventoryPage'));
+const EquipmentIssuePage = lazy(() => import('../pages/lab/EquipmentIssuePage'));
+const EquipmentReturnPage = lazy(() => import('../pages/lab/EquipmentReturnPage'));
+const LabUsageRegisterPage = lazy(() => import('../pages/lab/LabUsageRegisterPage'));
+const LabMaintenanceRegisterPage = lazy(() => import('../pages/lab/LabMaintenanceRegisterPage'));
 // Reports
-import AttendanceReportPage from '../pages/reports/AttendanceReportPage';
-import AssignmentReportPage from '../pages/reports/AssignmentReportPage';
-import MarksEntryReportPage from '../pages/reports/MarksEntryReportPage';
-import StudentPerformanceReportPage from '../pages/reports/StudentPerformanceReportPage';
-import WorkloadReportPage from '../pages/reports/WorkloadReportPage';
-import LeaveReportPage from '../pages/reports/LeaveReportPage';
-
+const AttendanceReportPage = lazy(() => import('../pages/reports/AttendanceReportPage'));
+const AssignmentReportPage = lazy(() => import('../pages/reports/AssignmentReportPage'));
+const MarksEntryReportPage = lazy(() => import('../pages/reports/MarksEntryReportPage'));
+const StudentPerformanceReportPage = lazy(() => import('../pages/reports/StudentPerformanceReportPage'));
+const WorkloadReportPage = lazy(() => import('../pages/reports/WorkloadReportPage'));
+const LeaveReportPage = lazy(() => import('../pages/reports/LeaveReportPage'));
 // Print
-import PrintAttendanceRegister from '../pages/print/PrintAttendanceRegister';
-import PrintAssignmentEvaluation from '../pages/print/PrintAssignmentEvaluation';
-import PrintMarkEntrySheet from '../pages/print/PrintMarkEntrySheet';
-import PrintStudentProgressReport from '../pages/print/PrintStudentProgressReport';
-import PrintParentMeetingRecord from '../pages/print/PrintParentMeetingRecord';
-import PrintDutyAllotmentLetter from '../pages/print/PrintDutyAllotmentLetter';
+const PrintAttendanceRegister = lazy(() => import('../pages/print/PrintAttendanceRegister'));
+const PrintAssignmentEvaluation = lazy(() => import('../pages/print/PrintAssignmentEvaluation'));
+const PrintMarkEntrySheet = lazy(() => import('../pages/print/PrintMarkEntrySheet'));
+const PrintStudentProgressReport = lazy(() => import('../pages/print/PrintStudentProgressReport'));
+const PrintParentMeetingRecord = lazy(() => import('../pages/print/PrintParentMeetingRecord'));
+const PrintDutyAllotmentLetter = lazy(() => import('../pages/print/PrintDutyAllotmentLetter'));
 import LoginPage from '../pages/auth/LoginPage';
 import ForgotPasswordPage from '../pages/auth/ForgotPasswordPage';
 
 // Role Desks (Accountant / Transport Manager / Hostel Warden / Placement Officer / Exam Admin)
-import FeeCollectionDeskPage from '../pages/finance/FeeCollectionDeskPage';
-import ExpenseLogPage from '../pages/finance/ExpenseLogPage';
-import TransportDeskPage from '../pages/transport/TransportDeskPage';
-import HostelDeskPage from '../pages/hostel/HostelDeskPage';
-import PlacementDeskPage from '../pages/placement/PlacementDeskPage';
-import ExamSetupPage from '../pages/exams/ExamSetupPage';
+const FeeCollectionDeskPage = lazy(() => import('../pages/finance/FeeCollectionDeskPage'));
+const ExpenseLogPage = lazy(() => import('../pages/finance/ExpenseLogPage'));
+const TransportDeskPage = lazy(() => import('../pages/transport/TransportDeskPage'));
+const HostelDeskPage = lazy(() => import('../pages/hostel/HostelDeskPage'));
+const PlacementDeskPage = lazy(() => import('../pages/placement/PlacementDeskPage'));
+const ExamSetupPage = lazy(() => import('../pages/exams/ExamSetupPage'));
+// Shown while a page's code chunk downloads (first visit to that page only)
+const PageLoader = () => (
+  <div className="flex justify-center py-20">
+    <div className="w-8 h-8 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" />
+  </div>
+);
 
 export const AppRoutes = () => {
   return (
-    <Routes>
+    <Suspense fallback={<PageLoader />}><Routes>
       <Route path="/staff/login" element={<LoginPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/staff/forgot-password" element={<ForgotPasswordPage />} />
@@ -159,7 +150,7 @@ export const AppRoutes = () => {
       <Route path="/staff/*" element={
         <ProtectedRoute>
         <MainLayout>
-          <Routes>
+          <Suspense fallback={<PageLoader />}><Routes>
             <Route path="dashboard" element={<StaffDashboardPage />} />
 
             {/* Profile */}
@@ -249,6 +240,7 @@ export const AppRoutes = () => {
             <Route path="leave/balance" element={<LeaveBalancePage />} />
             <Route path="leave/status" element={<LeaveApprovalStatusPage />} />
             <Route path="leave/student-approvals" element={<StudentLeaveApprovalPage />} />
+            <Route path="scholarship-approvals" element={<ScholarshipApprovalPage />} />
 
             {/* Events */}
             <Route path="events/duties" element={<EventDutiesPage />} />
@@ -294,7 +286,8 @@ export const AppRoutes = () => {
             <Route path="print/duty-letter" element={<PrintDutyAllotmentLetter />} />
 
             {/* Role Desks */}
-            <Route path="finance/fee-desk" element={<FeeCollectionDeskPage />} />
+            {/* Fee Desk closed — fees are handled by the Institute Admin only */}
+            <Route path="finance/fee-desk" element={<Navigate to="/staff/dashboard" replace />} />
             <Route path="finance/expenses" element={<ExpenseLogPage />} />
             <Route path="transport/desk" element={<TransportDeskPage />} />
             <Route path="hostel/desk" element={<HostelDeskPage />} />
@@ -302,11 +295,11 @@ export const AppRoutes = () => {
             <Route path="exams/setup" element={<ExamSetupPage />} />
 
             <Route path="*" element={<Navigate to="/staff/dashboard" replace />} />
-          </Routes>
+          </Routes></Suspense>
         </MainLayout>
         </ProtectedRoute>
       } />
-    </Routes>
+    </Routes></Suspense>
   );
 };
 

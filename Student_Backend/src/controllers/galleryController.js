@@ -2,6 +2,7 @@
  * Student — Photo Gallery Controller (view-only)
  */
 const { prisma, sendSuccess, NotFoundError } = require('../../../shared');
+const { attachFileLinks } = require('../../../shared/media/mediaUrl');
 
 const getAlbums = async (req, res, next) => {
   try {
@@ -36,9 +37,11 @@ const getAlbumPhotos = async (req, res, next) => {
 
     const photos = await prisma.galleryPhoto.findMany({
       where: { albumId: id },
-      select: { id: true, imageData: true, caption: true, createdAt: true },
+      select: { id: true, caption: true, createdAt: true },
       orderBy: { createdAt: 'desc' },
     });
+    // Photos go out as cacheable links, not inline base64 (shared/media/mediaUrl.js)
+    await attachFileLinks(prisma, req, 'gallery', photos, 'imageData');
     return sendSuccess(res, { album, photos }, 'Album photos retrieved successfully');
   } catch (err) {
     next(err);

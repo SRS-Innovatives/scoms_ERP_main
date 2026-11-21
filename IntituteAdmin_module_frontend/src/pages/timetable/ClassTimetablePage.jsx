@@ -32,6 +32,7 @@ export const ClassTimetablePage = () => {
   const [editingCell, setEditingCell] = useState(null);
   const [rooms, setRooms] = useState([]);
   const [conflicts, setConflicts] = useState(null);
+  const [unassigned, setUnassigned] = useState(null); // teachers not assigned to the subject they're timetabled for
 
   const loadSetupData = useCallback(() => {
     setLoading(true);
@@ -105,6 +106,7 @@ export const ClassTimetablePage = () => {
       notifySuccess(res.data?.conflicts?.length ? 'Timetable saved with clashes' : 'Timetable saved successfully!');
     } catch (err) {
       if (Array.isArray(err.errors) && err.errors.length > 0 && err.errors[0].type) setConflicts(err.errors);
+      else if (Array.isArray(err.errors) && err.errors.length > 0 && err.errors[0].staffId && err.errors[0].message) setUnassigned(err.errors);
       else notifyError(`Failed to save timetable: ${err.message}`);
     } finally {
       setSaving(false);
@@ -192,6 +194,23 @@ export const ClassTimetablePage = () => {
                 ))}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {unassigned && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200 dark:border-slate-800">
+            <h3 className="text-sm font-bold text-amber-600 mb-2">Teachers not assigned to these subjects</h3>
+            <p className="text-xs text-slate-500 mb-3">Attendance and marks follow Teacher Assignments, so the timetable can't be saved until these are assigned in <b>Staff → Teacher Assignments</b>:</p>
+            <ul className="max-h-60 overflow-y-auto space-y-1.5 text-xs mb-4">
+              {unassigned.map((u, i) => (
+                <li key={i} className="p-2 rounded-lg bg-amber-50 dark:bg-amber-950/40 text-slate-700 dark:text-slate-300">{u.message}</li>
+              ))}
+            </ul>
+            <div className="flex justify-end">
+              <button onClick={() => setUnassigned(null)} className="px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 rounded-lg">Go back and fix</button>
+            </div>
           </div>
         </div>
       )}

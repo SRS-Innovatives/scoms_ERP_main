@@ -1,7 +1,7 @@
 /**
  * Institute Admin — Student Discipline Controller
  */
-const { prisma, sendSuccess, NotFoundError, ValidationError } = require('../../../shared');
+const { prisma, sendSuccess, NotFoundError, ValidationError, findList } = require('../../../shared');
 
 const VALID_CATEGORIES = ['MINOR', 'MAJOR', 'SEVERE'];
 const VALID_STATUSES = ['OPEN', 'RESOLVED'];
@@ -9,15 +9,15 @@ const VALID_STATUSES = ['OPEN', 'RESOLVED'];
 const getDisciplineRecords = async (req, res, next) => {
   try {
     const { studentId, status } = req.query;
-    const records = await prisma.disciplineRecord.findMany({
+    const { rows: records, meta: listMeta } = await findList(prisma.disciplineRecord, {
       where: { institutionId: req.institutionId, ...(studentId && { studentId }), ...(status && { status }) },
       include: {
         student: { select: { firstName: true, lastName: true, admissionNumber: true, rollNumber: true } },
         reportedBy: { select: { firstName: true, lastName: true } },
       },
       orderBy: { incidentDate: 'desc' },
-    });
-    return sendSuccess(res, records, 'Discipline records retrieved successfully');
+    }, req);
+    return sendSuccess(res, records, 'Discipline records retrieved successfully', 200, listMeta);
   } catch (err) {
     next(err);
   }

@@ -8,10 +8,12 @@
  */
 const {
   prisma, sendSuccess, NotFoundError, ValidationError,
-  generatePreAdmissionNumber, generateReceiptNumber, generateApiKey,
-} = require('../../../shared');
+  generatePreAdmissionNumber, generateReceiptNumber, generateApiKey, findList } = require('../../../shared');
 const { admitStudentWithinTx, sendStudentCredentials } = require('./studentController');
 const { assignStructureWithinTx } = require('./feeEngineController');
+const { findMatchingStructures } = require('../../../shared/fees/feeSync');
+const { createApplicationWithNumber } = require('../services/preAdmissionCore');
+const { checkStandardFields, checkCustomFields, throwIfErrors, CUSTOM_FIELD_SELECT } = require('../services/preAdmissionValidation');
 
 const VALID_STATUSES = ['NEW', 'UNDER_REVIEW', 'SHORTLISTED', 'DOCUMENTS_VERIFIED', 'ENROLLED', 'REJECTED', 'CONVERTED'];
 
@@ -22,20 +24,9 @@ const nextRollNumber = async (tx, sectionId) => {
   return String(max + 1);
 };
 
-/** PUBLISHED structures for the current academic year that apply to this student's course/section. */
-const findMatchingFeeStructures = (tx, institutionId, courseId, sectionId) =>
-  tx.feeStructure.findMany({
-    where: {
-      institutionId,
-      status: 'PUBLISHED',
-      academicYear: { isCurrent: true },
-      AND: [
-        { OR: [{ courseId: null }, ...(courseId ? [{ courseId }] : [])] },
-        { OR: [{ sectionId: null }, { sectionId }] },
-      ],
-    },
-    include: { items: { include: { feeHead: true } } },
-  });
+// PUBLISHED structures for the current academic year that apply to this student's class —
+// newest version of each (shared/fees/feeSync.js)
+const findMatchingFeeStructures = (tx, institutionId, courseId, sectionId) => findMatchingStructures(tx, institutionId, courseId, sectionId);
 
 /** "Verify Documents" — records the checklist; moves the application to DOCUMENTS_VERIFIED once every item is verified. */
 const verifyDocuments = async (req, res, next) => {
@@ -72,7 +63,7 @@ const verifyDocuments = async (req, res, next) => {
 const getApplications = async (req, res, next) => {
   try {
     const { status, academicYear, search } = req.query;
-    const applications = await prisma.preAdmissionApplication.findMany({
+    const { rows: applications, meta: listMeta } = await findList(prisma.preAdmissionApplication, {
       where: {
         institutionId: req.institutionId,
         ...(status && status !== 'ALL' && { status }),
@@ -88,8 +79,8 @@ const getApplications = async (req, res, next) => {
       },
       include: { reviewedBy: { select: { firstName: true, lastName: true } } },
       orderBy: { createdAt: 'desc' },
-    });
-    return sendSuccess(res, applications, 'Applications retrieved successfully');
+    }, req);
+    return sendSuccess(res, applications, 'Applications retrieved successfully', 200, listMeta);
   } catch (err) {
     next(err);
   }
@@ -113,54 +104,35 @@ const getApplicationById = async (req, res, next) => {
  * shape as a website submission but source: MANUAL. */
 const createApplication = async (req, res, next) => {
   try {
-    const { studentFirstName, parentPhone } = req.body;
-    if (!studentFirstName) throw new ValidationError('studentFirstName is required');
-    if (!parentPhone) throw new ValidationError('parentPhone is required');
-
+    const body = req.body || {};
     const institution = await prisma.institution.findUnique({ where: { id: req.institutionId }, select: { code: true } });
-    const count = await prisma.preAdmissionApplication.count({ where: { institutionId: req.institutionId } });
-    const applicationNumber = generatePreAdmissionNumber(institution?.code, count + 1);
 
-    const {
-      studentLastName, dob, gender, classAppliedFor, courseApplied, academicYear,
-      parentName, parentEmail, address, city, state, pincode, previousSchool, previousClass, referenceNumber,
-      customFields,
-    } = req.body;
-
-    // Same rule as the public submission path — only APPROVED fields' values are kept.
-    let cleanCustomFields;
-    if (customFields && typeof customFields === 'object') {
-      const approvedKeys = new Set((await prisma.admissionCustomField.findMany({
-        where: { institutionId: req.institutionId, entityType: 'ADMISSION', status: 'APPROVED' }, select: { fieldKey: true },
-      })).map((f) => f.fieldKey));
-      cleanCustomFields = Object.fromEntries(Object.entries(customFields).filter(([k]) => approvedKeys.has(k)));
+    // Same checks as the website path (services/preAdmissionValidation.js) — except that staff
+    // logging a walk-in may leave required custom fields for later; values given are type-checked.
+    const standard = checkStandardFields(body);
+    let custom = { values: {}, errors: [] };
+    if (body.customFields && typeof body.customFields === 'object') {
+      const approvedFields = await prisma.admissionCustomField.findMany({
+        where: { institutionId: req.institutionId, entityType: 'ADMISSION', status: 'APPROVED' }, select: CUSTOM_FIELD_SELECT,
+      });
+      custom = checkCustomFields(approvedFields, (key) => body.customFields[key], { enforceRequired: false });
     }
+    throwIfErrors([...standard.errors, ...custom.errors]);
+    const cleanCustomFields = custom.values;
 
-    const application = await prisma.preAdmissionApplication.create({
+    // next free number (highest used + 1, retried on a clash) — services/preAdmissionCore.js
+    // same student + phone logged moments ago (a double-click), or the same reference number
+    // → that application is returned, not a second copy
+    const { application, duplicate } = await createApplicationWithNumber({
+      institutionId: req.institutionId,
+      code: institution?.code,
       data: {
-        institutionId: req.institutionId,
-        applicationNumber,
-        referenceNumber: referenceNumber || null,
-        studentFirstName,
-        studentLastName: studentLastName || null,
-        dob: dob ? new Date(dob) : null,
-        gender: gender || null,
-        classAppliedFor: classAppliedFor || null,
-        courseApplied: courseApplied || null,
-        academicYear: academicYear || null,
-        parentName: parentName || null,
-        parentPhone,
-        parentEmail: parentEmail || null,
-        address: address || null,
-        city: city || null,
-        state: state || null,
-        pincode: pincode || null,
-        previousSchool: previousSchool || null,
-        previousClass: previousClass || null,
+        ...standard.data,
         source: 'MANUAL',
         customFields: cleanCustomFields && Object.keys(cleanCustomFields).length > 0 ? cleanCustomFields : undefined,
       },
     });
+    if (duplicate) return sendSuccess(res, { ...application, duplicate: true }, `Already logged as ${application.applicationNumber}`, 200);
     return sendSuccess(res, application, 'Application logged successfully', 201);
   } catch (err) {
     next(err);
@@ -264,8 +236,9 @@ const admitApplication = async (req, res, next) => {
       if (assignFees === true) {
         const structures = await findMatchingFeeStructures(tx, req.institutionId, admission.student.courseId, sectionId);
         for (const structure of structures) {
-          await assignStructureWithinTx(tx, structure, admission.student.id);
-          feesAssigned.push({ id: structure.id, name: structure.name, totalAmount: structure.totalAmount });
+          // each head at what the fee rules give this student (quota, hostel, bus, …)
+          const a = await assignStructureWithinTx(tx, structure, admission.student.id);
+          if (a) feesAssigned.push({ id: structure.id, name: structure.name, totalAmount: a.totalAmount });
         }
       }
       return { ...admission, application: updated, provisioning: { rollNumber: admission.student.rollNumber, feesAssigned } };

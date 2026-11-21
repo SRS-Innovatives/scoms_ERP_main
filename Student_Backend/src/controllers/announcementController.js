@@ -6,7 +6,7 @@
  * announcement specifies one (an announcement with no course/section set applies to
  * every student in the institution).
  */
-const { prisma, sendSuccess, NotFoundError } = require('../../../shared');
+const { prisma, sendSuccess, NotFoundError, findList } = require('../../../shared');
 
 const getAnnouncements = async (req, res, next) => {
   try {
@@ -16,7 +16,7 @@ const getAnnouncements = async (req, res, next) => {
     });
     if (!student) throw new NotFoundError('Student profile not found');
 
-    const announcements = await prisma.announcement.findMany({
+    const { rows: announcements, meta: listMeta } = await findList(prisma.announcement, {
       where: {
         OR: [{ institutionId: req.institutionId }, { institutionId: null }],
         targetRole: { in: ['ALL', 'STUDENTS'] },
@@ -29,8 +29,8 @@ const getAnnouncements = async (req, res, next) => {
         author: { select: { email: true, role: true } },
       },
       orderBy: { createdAt: 'desc' },
-    });
-    return sendSuccess(res, announcements, 'Announcements retrieved successfully');
+    }, req);
+    return sendSuccess(res, announcements, 'Announcements retrieved successfully', 200, listMeta);
   } catch (err) {
     next(err);
   }

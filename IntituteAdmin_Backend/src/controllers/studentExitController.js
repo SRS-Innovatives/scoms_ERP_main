@@ -11,19 +11,19 @@
  * override and mark cleared manually, but getClearanceStatus tells them what's really
  * outstanding first.
  */
-const { prisma, sendSuccess, NotFoundError, ValidationError, BusinessRuleError } = require('../../../shared');
+const { prisma, sendSuccess, NotFoundError, ValidationError, BusinessRuleError, findList } = require('../../../shared');
 
 const EXIT_TYPES = ['WITHDRAWAL', 'TRANSFER'];
 
 const getExitRecords = async (req, res, next) => {
   try {
     const { status } = req.query;
-    const records = await prisma.studentExitRecord.findMany({
+    const { rows: records, meta: listMeta } = await findList(prisma.studentExitRecord, {
       where: { institutionId: req.institutionId, ...(status && { status }) },
       include: { student: { select: { firstName: true, lastName: true, admissionNumber: true } } },
       orderBy: { requestedDate: 'desc' },
-    });
-    return sendSuccess(res, records, 'Exit records retrieved successfully');
+    }, req);
+    return sendSuccess(res, records, 'Exit records retrieved successfully', 200, listMeta);
   } catch (err) {
     next(err);
   }

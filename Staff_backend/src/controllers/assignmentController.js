@@ -14,6 +14,7 @@ const {
   formatClassLabel,
   pushNotificationToMany,
 } = require('../../../shared');
+const { attachFileLinks, hasValue } = require('../../../shared/media/mediaUrl');
 
 /** Subject+section combinations this staff member actually teaches — used to populate
  * the "target class" dropdown when creating an assignment. */
@@ -96,16 +97,21 @@ const createAssignment = async (req, res, next) => {
 
 const getAssignments = async (req, res, next) => {
   try {
+    // The attachment itself is only needed on the detail page — the list says whether
+    // there is one instead of carrying every file (shared/media/mediaUrl.js hasValue)
     const assignments = await prisma.assignment.findMany({
       where: {
         institutionId: req.institutionId,
         staffId: req.user.staffId,
       },
+      omit: { attachmentUrl: true },
       include: {
         _count: { select: { submissions: true } },
       },
       orderBy: { createdAt: 'desc' },
     });
+    const withAttachment = await hasValue(prisma, 'Assignment', 'attachmentUrl', assignments.map((a) => a.id));
+    assignments.forEach((a) => { a.hasAttachment = withAttachment.get(a.id) || false; });
 
     return sendSuccess(res, assignments, 'Assignments retrieved');
   } catch (err) {
@@ -131,14 +137,19 @@ const getAssignmentById = async (req, res, next) => {
 const getSubmissions = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const assignment = await prisma.assignment.findFirst({ where: { id, institutionId: req.institutionId, staffId: req.user.staffId } });
+    // the submissions page shows the assignment's details, not its attachment file
+    const assignment = await prisma.assignment.findFirst({ where: { id, institutionId: req.institutionId, staffId: req.user.staffId }, omit: { attachmentUrl: true } });
     if (!assignment) throw new NotFoundError('Assignment not found or access denied');
 
+    // Each submitted file goes out as a link the teacher can open, not inline base64
+    // (every student's file in one response) — shared/media/mediaUrl.js
     const submissions = await prisma.assignmentSubmission.findMany({
       where: { assignmentId: id },
+      omit: { fileUrl: true },
       include: { student: { select: { firstName: true, lastName: true, rollNumber: true } } },
       orderBy: { submittedAt: 'desc' },
     });
+    await attachFileLinks(prisma, req, 'submission', submissions, 'fileUrl');
 
     return sendSuccess(res, { assignment, submissions }, 'Submissions retrieved successfully');
   } catch (err) {

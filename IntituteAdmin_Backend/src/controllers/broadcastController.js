@@ -40,16 +40,13 @@ const resolveRecipients = async (institutionId, group, courseId) => {
   }
 
   if (group === 'pending_fees') {
-    const assignments = await prisma.studentFeeAssignment.findMany({
-      where: { institutionId, dueAmount: { gt: 0 } },
-      select: {
-        student: {
-          select: { id: true, firstName: true, lastName: true, phone: true, email: true, parents: { include: { parent: { select: { fatherPhone: true, motherPhone: true, guardianPhone: true, fatherEmail: true, motherEmail: true } } } } },
-        },
-      },
-      distinct: ['studentId'],
+    // StudentFeeAssignment has no institutionId column (the old filter here was rejected
+    // by Prisma, so this group always failed) — scope through the student, one row each
+    const students = await prisma.student.findMany({
+      where: { institutionId, feeAssignments: { some: { dueAmount: { gt: 0 } } } },
+      select: { id: true, firstName: true, lastName: true, phone: true, email: true, parents: { include: { parent: { select: { fatherPhone: true, motherPhone: true, guardianPhone: true, fatherEmail: true, motherEmail: true } } } } },
     });
-    return assignments.map((a) => ({ id: a.student.id, name: `${a.student.firstName} ${a.student.lastName}`, ...parentContact(a.student) }));
+    return students.map((s) => ({ id: s.id, name: `${s.firstName} ${s.lastName}`, ...parentContact(s) }));
   }
 
   if (group === 'course') {

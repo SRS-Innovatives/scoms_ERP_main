@@ -288,8 +288,10 @@ export const PreAdmissionListPage = () => {
     e.preventDefault();
     setSubmitting(true);
     try {
-      await preAdmissionService.create(form);
-      notifySuccess(`Application for ${form.studentFirstName} logged successfully!`);
+      const res = await preAdmissionService.create(form);
+      const saved = res?.data?.data || res?.data || res;
+      if (saved?.duplicate) notifySuccess(`${form.studentFirstName} was already logged a moment ago as ${saved.applicationNumber} — no second copy made.`);
+      else notifySuccess(`Application for ${form.studentFirstName} logged successfully!`);
       setAddModalOpen(false);
       setForm(emptyForm);
       fetchAll();

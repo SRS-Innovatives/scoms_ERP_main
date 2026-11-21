@@ -22,11 +22,14 @@ import { fileURLToPath } from 'node:url';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const outRoot = path.join(root, 'dist-web');
 
+// SCOMS_API_URL = the single combined backend (server/server.js) serving every portal.
+// A per-portal VITE_<ROLE>_API_URL still wins if set, for split deployments.
+const combined = process.env.SCOMS_API_URL;
 const apiUrls = {
-  SUPER_ADMIN: process.env.VITE_SUPER_ADMIN_API_URL || 'https://scoms-erp-main-1.onrender.com',
-  INSTITUTE_ADMIN: process.env.VITE_INSTITUTE_ADMIN_API_URL || 'https://scoms-erp-main-2.onrender.com',
-  STAFF: process.env.VITE_STAFF_API_URL || 'https://scoms-erp-main.onrender.com',
-  STUDENT: process.env.VITE_STUDENT_API_URL || 'https://scoms-erp-main-3.onrender.com',
+  SUPER_ADMIN: process.env.VITE_SUPER_ADMIN_API_URL || combined || 'https://scoms-erp-main-1.onrender.com',
+  INSTITUTE_ADMIN: process.env.VITE_INSTITUTE_ADMIN_API_URL || combined || 'https://scoms-erp-main-2.onrender.com',
+  STAFF: process.env.VITE_STAFF_API_URL || combined || 'https://scoms-erp-main.onrender.com',
+  STUDENT: process.env.VITE_STUDENT_API_URL || combined || 'https://scoms-erp-main-3.onrender.com',
 };
 
 const portals = [

@@ -18,6 +18,7 @@ const {
   sendSMSNotification,
   generateEmployeeCode,
 } = require('../../../shared');
+const { hasValue } = require('../../../shared/media/mediaUrl');
 
 const computeGross = (salary) => {
   if (!salary) return 0;
@@ -392,11 +393,15 @@ const markStaffAttendance = async (req, res, next) => {
 const getLeaveRequests = async (req, res, next) => {
   try {
     const { status } = req.query;
+    // attachments aren't shown in the list — say whether there is one instead of sending every file
     const leaves = await prisma.leaveRequest.findMany({
       where: { institutionId: req.institutionId, staffId: { not: null }, ...(status && { status }) },
+      omit: { attachmentUrl: true },
       include: { staff: { select: { employeeCode: true, firstName: true, lastName: true, designation: true, user: { select: { email: true } } } } },
       orderBy: { createdAt: 'desc' },
     });
+    const withAttachment = await hasValue(prisma, 'LeaveRequest', 'attachmentUrl', leaves.map((l) => l.id));
+    leaves.forEach((l) => { l.hasAttachment = withAttachment.get(l.id) || false; });
     return sendSuccess(res, leaves, 'Staff leave requests retrieved successfully');
   } catch (err) {
     next(err);

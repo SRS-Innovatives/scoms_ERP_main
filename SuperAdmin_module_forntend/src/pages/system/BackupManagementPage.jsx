@@ -1,122 +1,104 @@
-import React, { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import PageHeader from '../../components/common/PageHeader';
 import StatCard from '../../components/common/StatCard';
-import DataTable from '../../components/common/DataTable';
-import { Database, ShieldCheck, Play, Download, Trash2, Calendar, FileDown } from 'lucide-react';
-import { useNotification } from '../../context/NotificationContext';
+import { Database, HardDrive, Layers, Activity, ShieldCheck, ExternalLink, Loader2, RefreshCw, ShieldAlert } from 'lucide-react';
+import infraService, { formatBytes } from '../../services/infraService';
 
+const fmt = (n) => Number(n || 0).toLocaleString('en-IN');
+
+/**
+ * Database & Backups — the live database's real size, biggest tables, connections and
+ * migrations. Backups are taken by the database host (Supabase), not by SCOMS, so this page
+ * says where to find them instead of offering pretend download / restore buttons.
+ */
 export const BackupManagementPage = () => {
-  const { success } = useNotification();
-  const [retentionDays, setRetentionDays] = useState(30);
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
-  const backups = [
-    { id: 1, name: 'scoms_db_backup_20260822_120000.sql.gz', size: '512.4 MB', type: 'Scheduled (Daily)', status: 'Success', date: '2026-08-22 12:00 PM' },
-    { id: 2, name: 'scoms_db_backup_20260821_120000.sql.gz', size: '510.8 MB', type: 'Scheduled (Daily)', status: 'Success', date: '2026-08-21 12:00 PM' },
-    { id: 3, name: 'scoms_db_backup_pre_upgrade_patch.sql.gz', size: '509.2 MB', type: 'Manual (Pre-update)', status: 'Success', date: '2026-08-20 03:30 PM' },
-    { id: 4, name: 'scoms_db_backup_20260820_120000.sql.gz', size: '509.1 MB', type: 'Scheduled (Daily)', status: 'Success', date: '2026-08-20 12:00 PM' },
-  ];
+  const load = useCallback(() => {
+    setLoading(true);
+    setError('');
+    infraService.getDatabase()
+      .then((r) => setData(r.data))
+      .catch((e) => setError(e.message || 'Could not read the database'))
+      .finally(() => setLoading(false));
+  }, []);
+  useEffect(() => { load(); }, [load]);
 
-  const handleRunBackup = () => {
-    success('Starting manual backup generation... Check back in a few moments.');
-  };
+  if (loading && !data) return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-indigo-600" /></div>;
+  if (error) {
+    return (
+      <div className="glass-card p-10 rounded-2xl border border-rose-200 dark:border-rose-900 text-center space-y-3 text-xs">
+        <ShieldAlert className="w-10 h-10 text-rose-400 mx-auto" />
+        <p className="text-slate-700 dark:text-slate-300">{error}</p>
+        <button onClick={load} className="px-3.5 py-2 font-semibold text-white bg-indigo-600 rounded-xl">Try again</button>
+      </div>
+    );
+  }
 
-  const columns = [
-    { header: 'Backup Filename', key: 'name', render: (val) => <span className="font-mono text-xs font-bold text-slate-700 dark:text-slate-300">{val}</span> },
-    { header: 'File Size', key: 'size' },
-    { header: 'Backup Trigger Type', key: 'type' },
-    { header: 'Date Generated', key: 'date', render: (val) => <span className="font-mono text-xs">{val}</span> },
-    { 
-      header: 'Status', 
-      key: 'status',
-      render: (val) => (
-        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300">
-          {val}
-        </span>
-      )
-    },
-    {
-      header: 'Actions',
-      key: 'id',
-      render: (id, row) => (
-        <div className="flex gap-2">
-          <button onClick={() => success(`Downloading ${row.name}`)} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded text-slate-600">
-            <Download className="w-3.5 h-3.5" />
-          </button>
-          <button onClick={() => success(`Restoring database to ${row.name}`)} className="p-1 hover:bg-emerald-50 dark:hover:bg-emerald-950/50 rounded text-emerald-600">
-            <Database className="w-3.5 h-3.5" />
-          </button>
-          <button onClick={() => success(`Deleted backup file`)} className="p-1 hover:bg-rose-50 dark:hover:bg-rose-950/50 rounded text-rose-600">
-            <Trash2 className="w-3.5 h-3.5" />
-          </button>
-        </div>
-      )
-    }
-  ];
-
+  const maxBytes = data.largestTables[0]?.bytes || 1;
   return (
-    <div className="space-y-6 text-xs">
-      <PageHeader title="Database Backup & Recovery" subtitle="Manage automated backup policies, download archive snapshots, and restore database states" />
+    <div className="space-y-6">
+      <PageHeader title="Database & Backups" subtitle="The live database behind every institution — its real size, largest tables and connections, and where its backups are kept." />
 
-      {/* KPI Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-slate-900">
-        <StatCard title="Total Backups" value="48 Files" subtitle="Stored in AWS S3" icon={Database} color="indigo" />
-        <StatCard title="Last Snapshot" value="2 Hrs Ago" subtitle="12:00 PM Today" icon={ShieldCheck} color="emerald" />
-        <StatCard title="Storage Space" value="24.8 GB" subtitle="Compressed sql.gz" icon={FileDown} color="indigo" />
-        <StatCard title="S3 Gateway Connection" value="Healthy" subtitle="ap-south-1" icon={ShieldCheck} color="emerald" />
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <StatCard title="Database size" value={formatBytes(data.sizeBytes)} subtitle={`${data.provider} · PostgreSQL ${data.postgresVersion.split(' ')[0]}`} icon={Database} color="indigo" />
+        <StatCard title="Tables" value={fmt(data.tableCount)} subtitle={`${fmt(data.migrations.applied)} migrations applied`} icon={Layers} color="indigo" />
+        <StatCard title="Connections" value={fmt(data.connections.total)} subtitle={`${fmt(data.connections.active)} running a query now`} icon={Activity} color="emerald" />
+        <StatCard title="Backups" value={data.backups.managedBy || 'Your host'} subtitle="Taken by the database host" icon={ShieldCheck} color="emerald" />
+      </div>
+
+      <div className="glass-card p-5 rounded-2xl border border-indigo-200 dark:border-indigo-900 bg-indigo-50/50 dark:bg-indigo-950/20 text-xs space-y-2">
+        <p className="font-bold text-slate-900 dark:text-white flex items-center gap-2"><ShieldCheck className="w-4 h-4 text-indigo-600" /> Backups &amp; restore</p>
+        <p className="text-slate-700 dark:text-slate-300">{data.backups.note}</p>
+        {data.backups.dashboardUrl && (
+          <a href={data.backups.dashboardUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 px-3 py-1.5 font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg">
+            Open the Supabase dashboard <ExternalLink className="w-3.5 h-3.5" />
+          </a>
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Settings Form */}
-        <div className="lg:col-span-2 glass-card p-6 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-4">
-          <div className="flex items-center gap-2 pb-2 border-b border-slate-100 dark:border-slate-800">
-            <Calendar className="w-5 h-5 text-indigo-500" />
-            <h3 className="font-bold text-sm text-slate-800 dark:text-slate-200">Backup Policy Configuration</h3>
+        <div className="lg:col-span-2 glass-card p-6 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-3 text-xs">
+          <div className="flex items-center justify-between">
+            <h3 className="font-bold text-sm text-slate-800 dark:text-slate-200 flex items-center gap-2"><HardDrive className="w-4 h-4 text-indigo-500" /> Largest tables</h3>
+            <button onClick={load} title="Refresh" className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800"><RefreshCw className="w-4 h-4" /></button>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block font-bold text-slate-600 dark:text-slate-400 mb-1">Backup Frequency</label>
-              <select className="w-full p-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl">
-                <option value="daily">Every 24 Hours (Daily at 12:00 AM)</option>
-                <option value="12h">Every 12 Hours</option>
-                <option value="weekly">Every Sunday at 02:00 AM</option>
-              </select>
-            </div>
-            <div>
-              <label className="block font-bold text-slate-600 dark:text-slate-400 mb-1">Retention Policy (Days to keep files)</label>
-              <input 
-                type="number" 
-                value={retentionDays} 
-                onChange={(e) => setRetentionDays(e.target.value)} 
-                className="w-full p-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl"
-              />
-            </div>
-          </div>
-          <div className="pt-2">
-            <button onClick={() => success('Backup schedule policies updated successfully!')} className="px-4 py-2 font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl">
-              Save Policies
-            </button>
-          </div>
+          <table className="w-full text-left">
+            <thead className="text-[10px] uppercase font-bold text-slate-500 border-b border-slate-200 dark:border-slate-800">
+              <tr><th className="py-2 pr-3">Table</th><th className="py-2 pr-3 w-1/2">Size (with indexes)</th><th className="py-2 text-right">≈ Rows</th></tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+              {data.largestTables.map((t) => (
+                <tr key={t.name}>
+                  <td className="py-1.5 pr-3 font-mono">{t.name}</td>
+                  <td className="py-1.5 pr-3">
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1 h-1.5 rounded-full bg-slate-100 dark:bg-slate-800"><div className="h-1.5 rounded-full bg-indigo-500" style={{ width: `${Math.max(2, (t.bytes / maxBytes) * 100)}%` }} /></div>
+                      <span className="w-16 text-right">{formatBytes(t.bytes)}</span>
+                    </div>
+                  </td>
+                  <td className="py-1.5 text-right">{fmt(t.rows)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <p className="text-[11px] text-slate-400">Row counts are PostgreSQL's own estimates (exact counts would slow the database down).</p>
         </div>
 
-        {/* Manual Backup Card */}
-        <div className="glass-card p-6 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-4">
-          <div className="flex items-center gap-2 pb-2 border-b border-slate-100 dark:border-slate-800">
-            <Play className="w-5 h-5 text-emerald-500" />
-            <h3 className="font-bold text-sm text-slate-800 dark:text-slate-200">Trigger Manual Backup</h3>
-          </div>
-          <div className="space-y-4 text-slate-500">
-            <p>Generate an immediate backup dump snapshot of the platform's PostgreSQL database. Stored securely inside the AWS S3 vault.</p>
-            <button onClick={handleRunBackup} className="w-full py-2 font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl">
-              Trigger Backup Execution
-            </button>
-          </div>
+        <div className="glass-card p-6 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-3 text-xs">
+          <h3 className="font-bold text-sm text-slate-800 dark:text-slate-200 flex items-center gap-2"><Layers className="w-4 h-4 text-indigo-500" /> Latest database changes</h3>
+          <ul className="space-y-2">
+            {data.migrations.latest.map((m) => (
+              <li key={m.name}>
+                <p className="font-mono text-[11px] text-slate-800 dark:text-slate-200 break-all">{m.name.replace(/^\d+_/, '').replace(/_/g, ' ')}</p>
+                <p className="text-slate-400">{new Date(m.finishedAt).toLocaleString('en-IN')}</p>
+              </li>
+            ))}
+          </ul>
+          <p className="text-[11px] text-slate-400">{fmt(data.migrations.applied)} migrations applied in total.</p>
         </div>
-      </div>
-
-      {/* Backups Table */}
-      <div className="glass-card p-6 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-4">
-        <h3 className="font-bold text-sm text-slate-800 dark:text-slate-200">Historical Backups List</h3>
-        <DataTable columns={columns} data={backups} />
       </div>
     </div>
   );

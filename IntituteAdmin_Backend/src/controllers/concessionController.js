@@ -8,12 +8,17 @@
  * The legacy direct "apply scholarship" endpoint is untouched.
  */
 const {
-  prisma, sendSuccess, NotFoundError, ValidationError, BusinessRuleError, ConflictError, logger,
-} = require('../../../shared');
+  prisma, sendSuccess, NotFoundError, ValidationError, BusinessRuleError, ConflictError, logger, findList } = require('../../../shared');
+
+// amount + decision rules shared with the student's application and the class teacher's
+// approval (shared/fees/concession.js)
+const {
+  round2, schemeAmount, dueAfter, loadAssignment, decideConcession, studentInitiatedIds,
+} = require('../../../shared/fees/concession');
+const { recomputeItems } = require('../../../shared/fees/feeItems');
 
 const SCHEME_TYPES = ['SCHOLARSHIP', 'CONCESSION', 'WAIVER'];
 const VALUE_TYPES = ['PERCENT', 'FIXED'];
-const round2 = (n) => Math.round(n * 100) / 100;
 
 const audit = (institutionId, userId, action, entityId, details) =>
   prisma.auditLog
@@ -22,17 +27,6 @@ const audit = (institutionId, userId, action, entityId, details) =>
     })
     .catch((err) => logger.warn('[Concession] audit log write failed', { error: err.message }));
 
-const dueAfter = (assignment, discount) => {
-  const dueAmount = Math.max(0, round2(assignment.totalAmount - discount - assignment.paidAmount));
-  const status = dueAmount <= 0 ? 'PAID' : assignment.paidAmount > 0 ? 'PARTIAL' : 'PENDING';
-  return { dueAmount, status };
-};
-
-const schemeAmount = (scheme, assignment) => {
-  const raw = scheme.valueType === 'PERCENT' ? (assignment.totalAmount * scheme.value) / 100 : scheme.value;
-  const capped = scheme.maxAmount ? Math.min(raw, scheme.maxAmount) : raw;
-  return round2(Math.min(capped, assignment.totalAmount));
-};
 
 const parseScheme = (body, partial = false) => {
   const data = {};
@@ -135,23 +129,40 @@ const deleteScheme = async (req, res, next) => {
 const getApplications = async (req, res, next) => {
   try {
     const { status, studentId } = req.query;
-    const applications = await prisma.concessionApplication.findMany({
+    const { rows: applications, meta: listMeta } = await findList(prisma.concessionApplication, {
       where: { institutionId: req.institutionId, ...(status && { status }), ...(studentId && { studentId }) },
       include: {
         scheme: { select: { name: true, code: true, type: true, valueType: true, value: true } },
-        student: { select: { firstName: true, lastName: true, rollNumber: true, admissionNumber: true } },
+        student: {
+          select: {
+            firstName: true, lastName: true, rollNumber: true, admissionNumber: true,
+            section: { select: { name: true, classTeacherId: true, classTeacher: { select: { firstName: true, lastName: true } } } },
+          },
+        },
         feeAssignment: { select: { totalAmount: true, discountAmount: true, paidAmount: true, dueAmount: true, feeStructure: { select: { name: true } } } },
       },
       orderBy: { createdAt: 'desc' },
+    }, req);
+
+    // Who decides each row: a student's own application → their class teacher (the admin
+    // is informed, read-only) unless the class has no class teacher; office requests → admin.
+    const fromStudent = await studentInitiatedIds(applications);
+    const rows = applications.map((a) => {
+      const teacher = a.student?.section?.classTeacher;
+      const byClassTeacher = fromStudent.has(a.id) && !!a.student?.section?.classTeacherId;
+      return {
+        ...a,
+        appliedByStudent: fromStudent.has(a.id),
+        decidedBy: byClassTeacher ? 'CLASS_TEACHER' : 'ADMIN',
+        classTeacherName: teacher ? `${teacher.firstName || ''} ${teacher.lastName || ''}`.trim() : null,
+        canReview: !byClassTeacher,
+      };
     });
-    return sendSuccess(res, applications, 'Concession applications retrieved');
+    return sendSuccess(res, rows, 'Concession applications retrieved', 200, listMeta);
   } catch (err) {
     next(err);
   }
 };
-
-const loadAssignment = (id, institutionId, db = prisma) =>
-  db.studentFeeAssignment.findFirst({ where: { id, feeStructure: { institutionId } } });
 
 const createApplication = async (req, res, next) => {
   try {
@@ -199,48 +210,28 @@ const createApplication = async (req, res, next) => {
 const reviewApplication = async (req, res, next) => {
   try {
     const { decision, remarks } = req.body;
-    if (!['APPROVE', 'REJECT'].includes(decision)) throw new ValidationError('decision must be APPROVE or REJECT');
     const application = await prisma.concessionApplication.findFirst({
       where: { id: req.params.id, institutionId: req.institutionId },
-      include: { scheme: true },
+      select: { id: true, requestedById: true, student: { select: { section: { select: { classTeacherId: true } } } } },
     });
     if (!application) throw new NotFoundError('Concession application not found');
-    if (application.status !== 'PENDING') throw new BusinessRuleError(`This application was already ${application.status.toLowerCase()}`);
-    if (application.requestedById === req.user.id) throw new BusinessRuleError('A concession must be approved by someone other than the requester');
-    if (decision === 'REJECT' && !String(remarks || '').trim()) throw new ValidationError('A reason is required when rejecting');
 
-    const reviewed = { reviewedById: req.user.id, reviewedAt: new Date(), reviewRemarks: remarks ? String(remarks).trim() : null };
-
-    if (decision === 'REJECT') {
-      const updated = await prisma.concessionApplication.update({ where: { id: application.id }, data: { status: 'REJECTED', ...reviewed } });
-      await audit(req.institutionId, req.user.id, 'CONCESSION_REJECTED', application.id, { remarks: reviewed.reviewRemarks });
-      return sendSuccess(res, updated, 'Concession rejected');
+    // A student's own application is decided by their class teacher (Staff portal); the
+    // admin only sees it — except when the class has no class teacher to decide it.
+    const fromStudent = (await studentInitiatedIds([application])).has(application.id);
+    if (fromStudent && application.student?.section?.classTeacherId) {
+      throw new BusinessRuleError("This application was made by the student — their class teacher approves it in the Staff portal. You can follow its status here.");
     }
 
-    const updated = await prisma.$transaction(async (tx) => {
-      const assignment = await loadAssignment(application.feeAssignmentId, req.institutionId, tx);
-      if (!assignment) throw new NotFoundError('Fee assignment not found');
-      const newDiscount = round2(assignment.discountAmount + application.amount);
-      if (newDiscount > assignment.totalAmount) {
-        throw new BusinessRuleError(`Approving would concede more than the total fee (only ₹${round2(assignment.totalAmount - assignment.discountAmount)} left)`);
-      }
-      const names = new Set((assignment.scholarshipName || '').split(',').map((n) => n.trim()).filter(Boolean));
-      names.add(application.scheme.name);
-      const refs = new Set((assignment.scholarshipRef || '').split(',').map((n) => n.trim()).filter(Boolean));
-      if (application.referenceNo) refs.add(application.referenceNo);
-      await tx.studentFeeAssignment.update({
-        where: { id: assignment.id },
-        data: {
-          discountAmount: newDiscount,
-          ...dueAfter(assignment, newDiscount),
-          scholarshipName: [...names].join(', '),
-          scholarshipRef: refs.size ? [...refs].join(', ') : null,
-        },
-      });
-      return tx.concessionApplication.update({ where: { id: application.id }, data: { status: 'APPROVED', ...reviewed } });
+    const updated = await decideConcession({
+      applicationId: application.id,
+      institutionId: req.institutionId,
+      reviewerId: req.user.id,
+      decision,
+      remarks,
+      decidedBy: 'the fee office',
     });
-    await audit(req.institutionId, req.user.id, 'CONCESSION_APPROVED', application.id, { amount: application.amount, feeAssignmentId: application.feeAssignmentId });
-    return sendSuccess(res, updated, 'Concession approved and applied to the fee');
+    return sendSuccess(res, updated, decision === 'APPROVE' ? 'Concession approved and applied to the fee' : 'Concession rejected');
   } catch (err) {
     next(err);
   }
@@ -277,6 +268,8 @@ const revokeApplication = async (req, res, next) => {
           scholarshipRef: refs.size ? [...refs].join(', ') : null,
         },
       });
+      // give the revoked discount back to the per-head breakdown too
+      await recomputeItems(tx, assignment.id);
       return tx.concessionApplication.update({
         where: { id: application.id },
         data: { status: 'REVOKED', reviewedById: req.user.id, reviewedAt: new Date(), reviewRemarks: String(remarks).trim() },

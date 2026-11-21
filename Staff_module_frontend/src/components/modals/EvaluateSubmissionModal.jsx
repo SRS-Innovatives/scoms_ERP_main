@@ -51,9 +51,16 @@ export const EvaluateSubmissionModal = ({ isOpen, onClose, submission, onSaved }
           <p><span className="font-semibold text-slate-700 dark:text-slate-300">Student:</span> {studentName} (Roll #{rollNo})</p>
           <p><span className="font-semibold text-slate-700 dark:text-slate-300">Submitted On:</span> {submittedOn}</p>
           {submission.fileUrl ? (
-            <p className="flex items-center gap-1 text-sky-600 dark:text-sky-400 font-semibold cursor-pointer">
-              <FileText className="w-3.5 h-3.5" /> View Uploaded File ({submission.fileUrl})
-            </p>
+            // fileUrl is a link to the uploaded file (served by /api/v1/media/submission) —
+            // it used to print the raw base64 text with nothing to click
+            <a
+              href={submission.fileUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="flex items-center gap-1 text-sky-600 dark:text-sky-400 font-semibold hover:underline"
+            >
+              <FileText className="w-3.5 h-3.5" /> View Uploaded File
+            </a>
           ) : (
             <p className="text-slate-600 dark:text-slate-300 whitespace-pre-wrap">{submission.content || 'No text answer submitted.'}</p>
           )}

@@ -20,6 +20,7 @@ const {
   emitEvent,
   EVENT_TYPES,
 } = require('../../../shared');
+const { autoSyncStudentFees } = require('../../../shared/fees/feeSync');
 
 const getStudents = async (req, res, next) => {
   try {
@@ -330,6 +331,8 @@ const createStudentAdmission = async (req, res, next) => {
     const result = await prisma.$transaction((tx) =>
       admitStudentWithinTx(tx, req.institutionId, req.user.id, req.body)
     );
+    // Fee Policy "assign fees on admission": the class's fees under their fee rules
+    const feeSync = await autoSyncStudentFees(prisma, { institutionId: req.institutionId, studentId: result.student.id, event: 'ADMISSION', userId: req.user.id });
 
     sendStudentCredentials({
       institutionId: req.institutionId,
@@ -365,7 +368,7 @@ const createStudentAdmission = async (req, res, next) => {
     const { password: _hash, ...userWithoutPassword } = result.user;
     return sendSuccess(
       res,
-      { ...result, user: userWithoutPassword, temporaryPassword: password || 'Student@123' },
+      { ...result, user: userWithoutPassword, temporaryPassword: password || 'Student@123', ...(feeSync && { feesAssigned: feeSync.assigned }) },
       'Student admitted successfully',
       201
     );
@@ -514,7 +517,8 @@ const bulkStudentAdmission = async (req, res, next) => {
             sectionId,
           })
         );
-        created.push({ rowNumber, admissionNumber: result.student.admissionNumber, name: `${data.firstName} ${data.lastName}` });
+        const feeSync = await autoSyncStudentFees(prisma, { institutionId: req.institutionId, studentId: result.student.id, event: 'ADMISSION', userId: req.user.id });
+        created.push({ rowNumber, admissionNumber: result.student.admissionNumber, name: `${data.firstName} ${data.lastName}`, ...(feeSync && { feesAssigned: feeSync.assigned.length }) });
       } catch (err) {
         failures.push({ rowNumber, name: `${data.firstName || ''} ${data.lastName || ''}`.trim() || '(unnamed)', reason: err.message || 'Unknown error' });
       }
@@ -590,15 +594,25 @@ const promoteStudents = async (req, res, next) => {
 
     const section = await prisma.section.findFirst({
       where: { id: targetSectionId, semester: { course: { institutionId: req.institutionId } } },
+      select: { id: true, semesterId: true, semester: { select: { courseId: true } } },
     });
     if (!section) throw new NotFoundError('Target section not found or access denied');
 
+    // the section decides the class and term too — promoting into another class used to leave
+    // the student's class (courseId) behind, so class-based fees, subjects and exams didn't follow
     const result = await prisma.student.updateMany({
       where: { id: { in: studentIds }, institutionId: req.institutionId },
-      data: { sectionId: targetSectionId },
+      data: { sectionId: targetSectionId, semesterId: section.semesterId, courseId: section.semester.courseId },
     });
 
-    return sendSuccess(res, { promotedCount: result.count }, `${result.count} student(s) promoted successfully`);
+    // Fee Policy "assign fees on promotion": the new class's fees under their fee rules
+    let feesAssigned = 0;
+    for (const studentId of studentIds) {
+      const r = await autoSyncStudentFees(prisma, { institutionId: req.institutionId, studentId, event: 'PROMOTION', userId: req.user.id });
+      if (r) feesAssigned += r.assigned.length;
+    }
+
+    return sendSuccess(res, { promotedCount: result.count, feesAssigned }, `${result.count} student(s) promoted successfully${feesAssigned ? ` — ${feesAssigned} fee(s) assigned` : ''}`);
   } catch (err) {
     next(err);
   }

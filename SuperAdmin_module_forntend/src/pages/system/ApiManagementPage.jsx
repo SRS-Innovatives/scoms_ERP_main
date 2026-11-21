@@ -1,130 +1,146 @@
-import React, { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { Link } from 'react-router-dom';
 import PageHeader from '../../components/common/PageHeader';
 import StatCard from '../../components/common/StatCard';
-import DataTable from '../../components/common/DataTable';
-import { Key, Webhook, Activity, Settings, Plus, Play } from 'lucide-react';
-import { useNotification } from '../../context/NotificationContext';
+import { Server, ShieldCheck, Key, Clock, Plug, Gauge, Globe, Loader2, RefreshCw, ShieldAlert } from 'lucide-react';
+import infraService from '../../services/infraService';
 
+const MODE_STYLE = {
+  LIVE: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300',
+  SIMULATED: 'bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300',
+  OFF: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300',
+};
+const INTEGRATION_LABEL = { email: 'Email (SMTP)', sms: 'SMS gateway', whatsapp: 'WhatsApp', payments: 'Online payments (Razorpay)', ai: 'AI tutor (OpenAI)', pushNotifications: 'Phone push notifications' };
+const uptime = (s) => {
+  const d = Math.floor(s / 86400); const h = Math.floor((s % 86400) / 3600); const m = Math.floor((s % 3600) / 60);
+  return d ? `${d}d ${h}h` : h ? `${h}h ${m}m` : `${m}m`;
+};
+
+const Card = ({ icon: Icon, title, children }) => (
+  <div className="glass-card p-6 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-3 text-xs">
+    <h3 className="font-bold text-sm text-slate-800 dark:text-slate-200 flex items-center gap-2"><Icon className="w-4 h-4 text-indigo-500" /> {title}</h3>
+    {children}
+  </div>
+);
+
+/**
+ * API Management — how the platform API is actually configured and running right now:
+ * endpoints, protection (rate limits, request size, CORS, sign-in token lifetimes), which
+ * integrations are live, the platform switches, and the real API keys that exist (each
+ * institution's public admission-form key). Read-only — these are set in code / server
+ * settings, and the switches on their own pages.
+ */
 export const ApiManagementPage = () => {
-  const { success } = useNotification();
-  const [rateLimit, setRateLimit] = useState(1000);
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
-  const keys = [
-    { id: 1, name: 'Delhi Public School Integration', token: 'scoms_pk_live_d3f9a...', role: 'Tenant API Access', status: 'Active', created: '2026-08-22' },
-    { id: 2, name: 'St. Xavier ERP Syncer', token: 'scoms_pk_live_88a1b...', role: 'Tenant API Access', status: 'Active', created: '2026-08-20' },
-    { id: 3, name: 'Razorpay Webhook Callback', token: 'scoms_pk_live_razor...', role: 'Payment Core Access', status: 'Active', created: '2026-08-16' },
-  ];
+  const load = useCallback(() => {
+    setLoading(true);
+    setError('');
+    infraService.getApi()
+      .then((r) => setData(r.data))
+      .catch((e) => setError(e.message || 'Could not read the API settings'))
+      .finally(() => setLoading(false));
+  }, []);
+  useEffect(() => { load(); }, [load]);
 
-  const webhooks = [
-    { id: 1, url: 'https://api.dpis-delhi.edu.in/webhooks/scoms', events: 'student.admission, fee.payment', status: 'Healthy' },
-    { id: 2, url: 'https://erp.stxavier-tech.edu.in/scoms-receiver', events: 'staff.registration', status: 'Healthy' },
-  ];
+  if (loading && !data) return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-indigo-600" /></div>;
+  if (error) {
+    return (
+      <div className="glass-card p-10 rounded-2xl border border-rose-200 dark:border-rose-900 text-center space-y-3 text-xs">
+        <ShieldAlert className="w-10 h-10 text-rose-400 mx-auto" />
+        <p className="text-slate-700 dark:text-slate-300">{error}</p>
+        <button onClick={load} className="px-3.5 py-2 font-semibold text-white bg-indigo-600 rounded-xl">Try again</button>
+      </div>
+    );
+  }
 
-  const handleGenKey = () => {
-    success('Generated new API credential Key Pair!');
-  };
-
-  const keyColumns = [
-    { header: 'Credential Owner', key: 'name', render: (val) => <span className="font-bold">{val}</span> },
-    { header: 'Public Access Key Token', key: 'token', render: (val) => <code className="bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded font-mono text-xs text-rose-500">{val}</code> },
-    { header: 'Assigned Role Scope', key: 'role' },
-    { header: 'Date Created', key: 'created', render: (val) => <span className="font-mono text-xs">{val}</span> },
-    { 
-      header: 'Status', 
-      key: 'status',
-      render: (val) => (
-        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300">
-          {val}
-        </span>
-      )
-    }
-  ];
-
-  const webhookColumns = [
-    { header: 'Receiver Endpoint URL', key: 'url', render: (val) => <span className="font-mono text-indigo-600 dark:text-indigo-400 font-semibold">{val}</span> },
-    { header: 'Subscribed Events', key: 'events' },
-    { 
-      header: 'Status', 
-      key: 'status',
-      render: (val) => (
-        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300">
-          {val}
-        </span>
-      )
-    }
-  ];
+  const live = Object.values(data.integrations).filter((v) => v === 'LIVE').length;
+  const flagsOff = data.featureFlags.filter((f) => !f.enabled);
 
   return (
     <div className="space-y-6">
-      <PageHeader title="API Gateway Settings" subtitle="Configure integration API keys, webhook receivers and active rate limits" />
+      <PageHeader title="API Management" subtitle="How the SCOMS API is configured and running right now — read live from the server." />
 
-      {/* KPI Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <StatCard title="API Ingress Traffic" value="2.45M" subtitle="Requests Today" icon={Activity} color="indigo" />
-        <StatCard title="Average Latency" value="42ms" subtitle="Global Ingress" icon={Activity} color="emerald" />
-        <StatCard title="Active API Keys" value="25 Keys" subtitle="Multi-tenant Access" icon={Key} color="indigo" />
-        <StatCard title="Webhook Delivery" value="99.94%" subtitle="Success Rate" icon={Webhook} color="emerald" />
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <StatCard title="Server" value={data.environment === 'production' ? 'Production' : data.environment} subtitle={`Node ${data.nodeVersion}${data.region ? ` · ${data.region}` : ''}`} icon={Server} color="indigo" />
+        <StatCard title="Up for" value={uptime(data.uptimeSeconds)} subtitle={data.release ? `Release ${data.release}` : 'Since the last restart'} icon={Clock} color="emerald" />
+        <StatCard title="Integrations live" value={`${live} of ${Object.keys(data.integrations).length}`} subtitle="Others simulated or off" icon={Plug} color="indigo" />
+        <StatCard title="Platform status" value={data.maintenanceMode ? 'Maintenance' : flagsOff.length ? `${flagsOff.length} switched off` : 'All on'} subtitle={data.maintenanceMode ? 'Portals show "Under maintenance"' : 'Maintenance mode off'} icon={ShieldCheck} color={data.maintenanceMode || flagsOff.length ? 'rose' : 'emerald'} />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 text-xs">
-        {/* API Settings */}
-        <div className="lg:col-span-2 glass-card p-6 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-4">
-          <div className="flex items-center gap-2 pb-2 border-b border-slate-100 dark:border-slate-800">
-            <Settings className="w-5 h-5 text-indigo-500" />
-            <h3 className="font-bold text-sm text-slate-800 dark:text-slate-200">API Gateway Parameters</h3>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block font-bold text-slate-600 dark:text-slate-400 mb-1">Global Rate Limit (Req/min per IP)</label>
-              <input 
-                type="number" 
-                value={rateLimit} 
-                onChange={(e) => setRateLimit(e.target.value)} 
-                className="w-full p-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl"
-              />
-            </div>
-            <div>
-              <label className="block font-bold text-slate-600 dark:text-slate-400 mb-1">API Documentation URL</label>
-              <input 
-                type="text" 
-                readOnly
-                value="https://api-docs.scoms.edu.in/v1" 
-                className="w-full p-2 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-500"
-              />
-            </div>
-          </div>
-          <div className="pt-2">
-            <button onClick={() => success('Gateway parameters saved successfully!')} className="px-4 py-2 font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl">
-              Save Parameters
-            </button>
-          </div>
-        </div>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card icon={Globe} title="Endpoints">
+          <ul className="divide-y divide-slate-100 dark:divide-slate-800">
+            {data.apis.map((a) => (
+              <li key={a.basePath} className="flex justify-between gap-3 py-1.5"><span className="font-semibold text-slate-800 dark:text-slate-200">{a.name}</span><code className="font-mono text-slate-500">{a.basePath}</code></li>
+            ))}
+          </ul>
+        </Card>
 
-        {/* Generate Key */}
-        <div className="glass-card p-6 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-4">
-          <div className="flex items-center gap-2 pb-2 border-b border-slate-100 dark:border-slate-800">
-            <Plus className="w-5 h-5 text-emerald-500" />
-            <h3 className="font-bold text-sm text-slate-800 dark:text-slate-200">Issue API Credentials</h3>
-          </div>
-          <div className="space-y-4 text-slate-500">
-            <p>Generate secure token keys to enable third-party systems or external scripts to integrate with SCOMS core services.</p>
-            <button onClick={handleGenKey} className="w-full py-2 font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl">
-              Issue Key Pair
-            </button>
-          </div>
-        </div>
+        <Card icon={Gauge} title="Protection">
+          <ul className="space-y-1.5">
+            {data.rateLimits.map((r) => (
+              <li key={r.label} className="flex justify-between gap-3"><span className="text-slate-700 dark:text-slate-300">{r.label}</span><span className="font-semibold whitespace-nowrap">{r.max} per {r.windowMinutes} min</span></li>
+            ))}
+            <li className="flex justify-between gap-3"><span className="text-slate-700 dark:text-slate-300">Largest request accepted</span><span className="font-semibold">{data.requestBodyLimit}</span></li>
+            <li className="flex justify-between gap-3"><span className="text-slate-700 dark:text-slate-300">Sign-in lasts</span><span className="font-semibold">{data.tokens.accessExpires} (renewable for {data.tokens.refreshExpires})</span></li>
+            <li className="flex justify-between gap-3">
+              <span className="text-slate-700 dark:text-slate-300">Websites allowed to call the API (CORS)</span>
+              <span className={`font-semibold text-right ${data.cors.open ? 'text-amber-600' : ''}`}>{data.cors.open ? 'Any website' : data.cors.origins.join(', ')}</span>
+            </li>
+          </ul>
+          {data.cors.open && <p className="text-[11px] text-amber-600">Tip: set CORS_ORIGINS on the server to your portal addresses so only your own websites can call the API.</p>}
+        </Card>
+
+        <Card icon={Plug} title="Integrations">
+          <ul className="space-y-1.5">
+            {Object.entries(data.integrations).map(([k, v]) => (
+              <li key={k} className="flex justify-between gap-3">
+                <span className="text-slate-700 dark:text-slate-300">{INTEGRATION_LABEL[k] || k}</span>
+                <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${MODE_STYLE[v] || MODE_STYLE.OFF}`}>{v === 'LIVE' ? 'Live' : v === 'SIMULATED' ? 'Simulated' : 'Off'}</span>
+              </li>
+            ))}
+          </ul>
+          <p className="text-[11px] text-slate-400">"Simulated" means no real credentials are set on the server — messages and payments are logged, not really sent.</p>
+        </Card>
+
+        <Card icon={ShieldCheck} title="Platform switches">
+          <ul className="space-y-1.5">
+            <li className="flex justify-between gap-3"><span className="text-slate-700 dark:text-slate-300">Maintenance mode</span><span className={`px-2 py-0.5 rounded text-[10px] font-bold ${data.maintenanceMode ? MODE_STYLE.SIMULATED : MODE_STYLE.LIVE}`}>{data.maintenanceMode ? 'On' : 'Off'}</span></li>
+            {data.featureFlags.map((f) => (
+              <li key={f.key} className="flex justify-between gap-3"><span className="text-slate-700 dark:text-slate-300">{f.name}</span><span className={`px-2 py-0.5 rounded text-[10px] font-bold ${f.enabled ? MODE_STYLE.LIVE : MODE_STYLE.OFF}`}>{f.enabled ? 'On' : 'Off'}</span></li>
+            ))}
+          </ul>
+          <p className="text-[11px] text-slate-400">Change these on <Link to="/super-admin/maintenance" className="text-indigo-600 hover:underline">Maintenance Mode</Link> and <Link to="/super-admin/feature-flags" className="text-indigo-600 hover:underline">Feature Flags</Link>.</p>
+        </Card>
       </div>
 
-      {/* Keys List */}
-      <div className="glass-card p-6 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-4">
-        <h3 className="font-bold text-sm text-slate-800 dark:text-slate-200">Active API Keys</h3>
-        <DataTable columns={keyColumns} data={keys} />
-      </div>
+      <Card icon={Key} title={`API keys (${data.apiKeys.length})`}>
+        {data.apiKeys.length === 0 ? (
+          <p className="text-slate-500">No API keys have been issued. Institutions create a key for their public admission form in their own Front Office settings.</p>
+        ) : (
+          <table className="w-full text-left">
+            <thead className="text-[10px] uppercase font-bold text-slate-500 border-b border-slate-200 dark:border-slate-800">
+              <tr><th className="py-2 pr-3">Institution</th><th className="py-2 pr-3">Used for</th><th className="py-2 pr-3">Key</th><th className="py-2">Institution status</th></tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+              {data.apiKeys.map((k) => (
+                <tr key={k.code}>
+                  <td className="py-1.5 pr-3 font-semibold">{k.institution} <span className="font-mono text-slate-400">{k.code}</span></td>
+                  <td className="py-1.5 pr-3">{k.purpose}</td>
+                  <td className="py-1.5 pr-3 font-mono">{k.key}</td>
+                  <td className="py-1.5">{k.status}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </Card>
 
-      {/* Webhooks List */}
-      <div className="glass-card p-6 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-4">
-        <h3 className="font-bold text-sm text-slate-800 dark:text-slate-200">Active Webhook Subscriptions</h3>
-        <DataTable columns={webhookColumns} data={webhooks} />
+      <div className="flex justify-end">
+        <button onClick={load} className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-100 dark:bg-slate-800"><RefreshCw className="w-3.5 h-3.5" /> Refresh</button>
       </div>
     </div>
   );

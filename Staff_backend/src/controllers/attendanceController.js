@@ -15,6 +15,7 @@ const {
   attendanceRules,
   teachingScope,
 } = require('../../../shared');
+const { electiveStudentFilterForSection } = require('../../../shared/academic/electives');
 
 const { isAttended, assertDateEditable } = attendanceRules;
 
@@ -86,16 +87,79 @@ const getClassTeacherSections = async (req, res, next) => {
   }
 };
 
+/** Today's date in India (YYYY-MM-DD) — attendance is recorded per calendar day there. */
+const todayInIndia = () => new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+
+/**
+ * The Attendance menu badge — real counts for this staff member, instead of a fixed "Pending":
+ *   unmarkedToday       sections they are class teacher of with no attendance taken today
+ *                       (0 on Sundays and on the institution's HOLIDAY calendar days)
+ *   correctionsToReview correction requests waiting, only for staff who may approve them
+ */
+const getPendingSummary = async (req, res, next) => {
+  try {
+    const today = todayInIndia();
+    const day = new Date(`${today}T00:00:00.000Z`);
+    const { hasPermissionAsync } = require('../../../shared/permissions/permissionMatrix');
+    const { cachedPermissionClient } = require('../../../shared/utils/hotCache');
+    const { PERMISSIONS } = require('../../../shared');
+
+    const [sections, holiday, canApprove] = await Promise.all([
+      prisma.section.findMany({
+        where: { classTeacherId: req.user.staffId, semester: { course: { institutionId: req.institutionId } } },
+        select: { id: true },
+      }),
+      prisma.academicCalendarEvent.findFirst({
+        where: {
+          institutionId: req.institutionId,
+          eventType: 'HOLIDAY',
+          startDate: { lte: day },
+          OR: [{ endDate: null, startDate: day }, { endDate: { gte: day } }],
+        },
+        select: { title: true },
+      }),
+      hasPermissionAsync(cachedPermissionClient, req.user.role, PERMISSIONS.ATTENDANCE_APPROVE),
+    ]);
+
+    const offDay = day.getUTCDay() === 0 || Boolean(holiday);
+    let unmarkedToday = 0;
+    if (!offDay && sections.length > 0) {
+      const marked = await prisma.attendanceSession.findMany({
+        where: { institutionId: req.institutionId, sectionId: { in: sections.map((s) => s.id) }, date: day },
+        select: { sectionId: true },
+        distinct: ['sectionId'],
+      });
+      unmarkedToday = sections.length - marked.length;
+    }
+    const correctionsToReview = canApprove
+      ? await prisma.attendanceCorrectionRequest.count({ where: { institutionId: req.institutionId, status: 'PENDING' } })
+      : 0;
+
+    return sendSuccess(res, {
+      date: today,
+      offDay,
+      holiday: holiday?.title || null,
+      unmarkedToday,
+      correctionsToReview,
+      total: unmarkedToday + correctionsToReview,
+    }, 'Attendance pending summary retrieved');
+  } catch (err) {
+    next(err);
+  }
+};
+
 /** Student roster for a section, in name order — the list a staff member marks attendance against. */
 const getRoster = async (req, res, next) => {
   try {
-    const { sectionId } = req.query;
+    const { sectionId, subjectId } = req.query;
     if (!sectionId) throw new ValidationError('sectionId is required');
     // Only a class this staff member teaches, class-teaches, or (HOD/Principal) oversees
     await teachingScope.assertCanViewSection(req.user, req.institutionId, sectionId);
 
+    // for an elective subject, only the students who chose it
+    const elective = await electiveStudentFilterForSection(prisma, subjectId, sectionId);
     const students = await prisma.student.findMany({
-      where: { sectionId, status: 'ACTIVE' },
+      where: { sectionId, status: 'ACTIVE', ...elective },
       select: { id: true, firstName: true, lastName: true, rollNumber: true, admissionNumber: true, gender: true, status: true },
       orderBy: { rollNumber: 'asc' },
     });
@@ -162,6 +226,13 @@ const markAttendance = async (req, res, next) => {
     // belong to this class.
     await teachingScope.assertCanRecordAttendance(req.user, req.institutionId, { sectionId, subjectId: subjectId || null, date: sessionDate });
     await teachingScope.assertStudentsInSection(records.map((r) => r.studentId), sectionId);
+    // an elective's attendance may only include the students who chose it
+    const elective = await electiveStudentFilterForSection(prisma, subjectId, sectionId);
+    if (elective.electives) {
+      const ids = [...new Set(records.map((r) => r.studentId))];
+      const takers = await prisma.student.count({ where: { id: { in: ids }, sectionId, ...elective } });
+      if (takers !== ids.length) throw new ValidationError(`${ids.length - takers} of these students have not chosen this elective`);
+    }
     await assertDateEditable(sessionDate, req.institutionId);
 
     // Prevent duplicate attendance recording for same section, subject, date, period
@@ -442,6 +513,7 @@ const reviewCorrectionRequest = async (req, res, next) => {
 };
 
 module.exports = {
+  getPendingSummary,
   createCorrectionRequest,
   getMyCorrectionRequests,
   getPendingCorrections,

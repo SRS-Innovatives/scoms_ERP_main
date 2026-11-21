@@ -6,12 +6,12 @@
  * "unpaid leave" concept to auto-derive a deduction from, so leaveDeduction is an
  * explicit, optional admin-entered amount rather than a guessed calculation.
  */
-const { prisma, sendSuccess, NotFoundError, ValidationError } = require('../../../shared');
+const { prisma, sendSuccess, NotFoundError, ValidationError, findList } = require('../../../shared');
 
 const getPayslips = async (req, res, next) => {
   try {
     const { staffId, month, year } = req.query;
-    const payslips = await prisma.payslip.findMany({
+    const { rows: payslips, meta: listMeta } = await findList(prisma.payslip, {
       where: {
         institutionId: req.institutionId,
         ...(staffId && { staffId }),
@@ -20,8 +20,8 @@ const getPayslips = async (req, res, next) => {
       },
       include: { staff: { select: { firstName: true, lastName: true, employeeCode: true, designation: true } } },
       orderBy: [{ year: 'desc' }, { month: 'desc' }],
-    });
-    return sendSuccess(res, payslips, 'Payslips retrieved successfully');
+    }, req);
+    return sendSuccess(res, payslips, 'Payslips retrieved successfully', 200, listMeta);
   } catch (err) {
     next(err);
   }

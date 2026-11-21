@@ -16,14 +16,22 @@ const emptyForm = { code: '', name: '', type: 'THEORY', credits: '' };
  * single subject and (implicitly) as the model for a future bulk matrix view. */
 const ClassMappingModal = ({ subject, courses, onClose, onSave, submitting, unit = 'Class' }) => {
   const [selected, setSelected] = useState([]);
+  const [electives, setElectives] = useState([]);
 
   useEffect(() => {
-    if (subject) setSelected((subject.classMappings || []).map((m) => m.course?.id || m.courseId));
+    if (subject) {
+      setSelected((subject.classMappings || []).map((m) => m.course?.id || m.courseId));
+      setElectives((subject.classMappings || []).filter((m) => m.isElective).map((m) => m.course?.id || m.courseId));
+    }
   }, [subject]);
 
   if (!subject) return null;
 
-  const toggle = (id) => setSelected((prev) => (prev.includes(id) ? prev.filter((c) => c !== id) : [...prev, id]));
+  const toggle = (id) => {
+    setSelected((prev) => (prev.includes(id) ? prev.filter((c) => c !== id) : [...prev, id]));
+    if (selected.includes(id)) setElectives((prev) => prev.filter((c) => c !== id));
+  };
+  const toggleElective = (id) => setElectives((prev) => (prev.includes(id) ? prev.filter((c) => c !== id) : [...prev, id]));
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
@@ -44,20 +52,29 @@ const ClassMappingModal = ({ subject, courses, onClose, onSave, submitting, unit
         ) : (
           <div className="overflow-y-auto flex-1 space-y-1.5 pr-1">
             {courses.map((c) => (
-              <label key={c.id} className="flex items-center gap-2.5 p-2.5 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800/60 cursor-pointer text-xs">
-                <input type="checkbox" checked={selected.includes(c.id)} onChange={() => toggle(c.id)} className="w-4 h-4 rounded text-indigo-600" />
-                <span className="font-semibold text-slate-800 dark:text-slate-200">{c.name}</span>
-                <span className="text-[10px] text-slate-400 font-mono">{c.code}</span>
-              </label>
+              <div key={c.id} className="flex items-center gap-2.5 p-2.5 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800/60 text-xs">
+                <label className="flex items-center gap-2.5 flex-1 cursor-pointer">
+                  <input type="checkbox" checked={selected.includes(c.id)} onChange={() => toggle(c.id)} className="w-4 h-4 rounded text-indigo-600" />
+                  <span className="font-semibold text-slate-800 dark:text-slate-200">{c.name}</span>
+                  <span className="text-[10px] text-slate-400 font-mono">{c.code}</span>
+                </label>
+                {selected.includes(c.id) && (
+                  <label className="flex items-center gap-1.5 cursor-pointer text-[11px] text-amber-700 dark:text-amber-400" title="Only the students you allot under Elective Allotment take it">
+                    <input type="checkbox" checked={electives.includes(c.id)} onChange={() => toggleElective(c.id)} className="w-3.5 h-3.5 rounded text-amber-600" />
+                    Elective
+                  </label>
+                )}
+              </div>
             ))}
           </div>
         )}
+        <p className="text-[11px] text-slate-400 mt-3">Tick <b>Elective</b> when only some students of that {unit.toLowerCase()} take this subject, then choose them under Institution Setup → Elective Allotment.</p>
 
         <div className="flex items-center justify-between gap-2 mt-5 pt-4 border-t border-slate-100 dark:border-slate-800">
           <span className="text-[11px] text-slate-400">{selected.length} {unit.toLowerCase()}(s) selected</span>
           <div className="flex items-center gap-2">
             <button onClick={onClose} className="px-4 py-2 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-lg font-semibold text-xs">Cancel</button>
-            <button onClick={() => onSave(selected)} disabled={submitting} className="flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-semibold text-xs disabled:opacity-50">
+            <button onClick={() => onSave(selected, electives.filter((id) => selected.includes(id)))} disabled={submitting} className="flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-semibold text-xs disabled:opacity-50">
               <Check className="w-3.5 h-3.5" /> {submitting ? 'Saving...' : 'Save Mapping'}
             </button>
           </div>
@@ -164,10 +181,10 @@ export const SubjectSetupPage = () => {
     }
   };
 
-  const handleSaveMapping = async (courseIds) => {
+  const handleSaveMapping = async (courseIds, electiveCourseIds) => {
     setMappingSubmitting(true);
     try {
-      const res = await subjectService.setClassMapping(mappingSubject.id, courseIds);
+      const res = await subjectService.setClassMapping(mappingSubject.id, courseIds, electiveCourseIds);
       notifySuccess(res.message);
       setMappingSubject(null);
       fetchAll();
@@ -185,7 +202,11 @@ export const SubjectSetupPage = () => {
       header: `Mapped ${unit}s`, key: 'classMappings', sortable: false,
       render: (val) => val?.length > 0 ? (
         <div className="flex flex-wrap gap-1">
-          {val.map((m) => <span key={m.course?.id} className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-400">{m.course?.name}</span>)}
+          {val.map((m) => (
+            <span key={m.course?.id} className={`px-2 py-0.5 rounded-md text-[10px] font-semibold ${m.isElective ? 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400' : 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-400'}`}>
+              {m.course?.name}{m.isElective ? ' (elective)' : ''}
+            </span>
+          ))}
         </div>
       ) : <span className="text-[10px] font-semibold text-amber-600 dark:text-amber-400">Not mapped to any {unit.toLowerCase()}</span>,
     },

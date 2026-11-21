@@ -6,6 +6,7 @@
  * mapping, not by any single field on Subject itself.
  */
 const { prisma, sendSuccess } = require('../../../shared');
+const { studentSubjectWhere } = require('../../../shared/academic/electives');
 
 const getQuestions = async (req, res, next) => {
   try {
@@ -13,7 +14,7 @@ const getQuestions = async (req, res, next) => {
     if (!student?.courseId) return sendSuccess(res, [], 'Question bank retrieved');
 
     const questions = await prisma.questionBank.findMany({
-      where: { institutionId: req.institutionId, subject: { classMappings: { some: { courseId: student.courseId } } } },
+      where: { institutionId: req.institutionId, subject: studentSubjectWhere({ id: req.user.studentId, courseId: student.courseId }) /* core subjects + this student's electives */ },
       include: { subject: { select: { name: true } } },
       orderBy: { createdAt: 'desc' },
     });

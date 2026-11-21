@@ -48,6 +48,10 @@ export const MarksheetTemplatePage = () => {
 
   useEffect(() => { generate(); }, [generate]);
 
+  // An External exam combined with internals: per-subject internal / external / final %
+  const combined = (sheet?.subjects || []).some((s) => s.finalPercent !== undefined);
+  const combinedWeight = (sheet?.subjects || []).find((s) => s.internalWeight !== undefined)?.internalWeight;
+
   if (loadingOptions) {
     return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-indigo-600" /></div>;
   }
@@ -113,6 +117,9 @@ export const MarksheetTemplatePage = () => {
                 <th className="p-2 border-r">Subject Title</th>
                 <th className="p-2 border-r text-center">Credit</th>
                 <th className="p-2 border-r text-center">Marks</th>
+                {combined && <th className="p-2 border-r text-center">Internal % (×{combinedWeight}%)</th>}
+                {combined && <th className="p-2 border-r text-center">External %</th>}
+                {combined && <th className="p-2 border-r text-center">Final %</th>}
                 <th className="p-2 border-r text-center">Grade</th>
                 <th className="p-2 border-r text-center">Grade Point</th>
                 <th className="p-2 text-center">Result</th>
@@ -124,7 +131,10 @@ export const MarksheetTemplatePage = () => {
                   <td className="p-2 border-r font-mono font-bold">{m.code}</td>
                   <td className="p-2 border-r font-semibold">{m.title}</td>
                   <td className="p-2 border-r text-center font-mono">{m.credit}</td>
-                  <td className="p-2 border-r text-center font-mono">{m.marksObtained}/{m.maxMarks}</td>
+                  <td className="p-2 border-r text-center font-mono">{m.result === 'ABSENT' ? 'AB' : `${m.marksObtained}/${m.maxMarks}`}</td>
+                  {combined && <td className="p-2 border-r text-center font-mono">{m.internalPercent ?? '—'}</td>}
+                  {combined && <td className="p-2 border-r text-center font-mono">{m.externalPercent ?? '—'}</td>}
+                  {combined && <td className="p-2 border-r text-center font-mono font-bold">{m.finalPercent ?? '—'}</td>}
                   <td className="p-2 border-r text-center font-mono font-bold text-indigo-900">{m.grade || '—'}</td>
                   <td className="p-2 border-r text-center font-mono">{m.gradePoint ?? '—'}</td>
                   <td className={`p-2 text-center font-bold ${m.result === 'PASS' ? 'text-emerald-700' : 'text-rose-700'}`}>{m.result}</td>

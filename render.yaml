@@ -1,16 +1,33 @@
-# Render Blueprint — creates the 4 web backends in one go (Render → New → Blueprint).
+# Render Blueprint — ONE web service runs the whole SCOMS API (Render → New → Blueprint).
+#
+# server/server.js mounts all four portals' routers (super-admin, admin, public, staff,
+# student) in a single process. On the free plan this is the only setup that stays up
+# all month: free instance hours (750/month per workspace) cover exactly one always-on
+# service, and one process means one cold start and one database connection pool.
+# Point every VITE_*_API_URL (or just SCOMS_API_URL) in Vercel at this service's URL.
+#
+# The per-portal servers (SuperAdmin_Backend/src/server.js etc.) still exist for local
+# development (`npm run dev`) and can be deployed separately later if traffic demands it.
+#
 # Mobile gateway (scoms-app-backend) is intentionally not deployed yet; with
 # INTERNAL_PUSH_SECRET unset the backends skip push dispatch and keep working.
 
-envVarGroups:
-  - name: scoms-shared
+services:
+  - type: web
+    name: scoms-api
+    runtime: node
+    plan: free
+    region: singapore # same region as the Supabase database
+    # migrate deploy applies any new prisma/migrations on every deploy, so a new column
+    # in the code can never reach production without its table change (it uses DIRECT_URL)
+    buildCommand: npm install --include=dev && npx prisma generate && npx prisma migrate deploy
+    startCommand: node server/server.js
+    healthCheckPath: /health
     envVars:
       - key: NODE_ENV
         value: production
       - key: NODE_VERSION
         value: "22"
-      # Generated once by Render and shared by all 4 services, so a token issued by
-      # one backend is accepted by the others
       - key: JWT_ACCESS_SECRET
         generateValue: true
       - key: JWT_REFRESH_SECRET
@@ -23,64 +40,9 @@ envVarGroups:
         value: "false"
       - key: RBAC_ENFORCEMENT_ENABLED
         value: "true"
-
-services:
-  - type: web
-    name: scoms-superadmin-api
-    runtime: node
-    plan: free
-    region: singapore # same region as the Supabase database
-    buildCommand: npm install --include=dev && npx prisma generate
-    startCommand: node SuperAdmin_Backend/src/server.js
-    healthCheckPath: /health
-    envVars:
-      - fromGroup: scoms-shared
-      - key: DATABASE_URL # Supabase transaction pooler URL (port 6543, ?pgbouncer=true)
+      - key: DATABASE_URL # Supabase transaction pooler (port 6543) + ?pgbouncer=true&connection_limit=5
         sync: false
-      - key: CORS_ORIGINS # this portal's Vercel URL; blank = allow all
+      - key: DIRECT_URL # Supabase direct/session connection (port 5432) — used only by migrate deploy
         sync: false
-
-  - type: web
-    name: scoms-institute-api
-    runtime: node
-    plan: free
-    region: singapore
-    buildCommand: npm install --include=dev && npx prisma generate
-    startCommand: node IntituteAdmin_Backend/src/server.js
-    healthCheckPath: /health
-    envVars:
-      - fromGroup: scoms-shared
-      - key: DATABASE_URL
-        sync: false
-      - key: CORS_ORIGINS
-        sync: false
-
-  - type: web
-    name: scoms-staff-api
-    runtime: node
-    plan: free
-    region: singapore
-    buildCommand: npm install --include=dev && npx prisma generate
-    startCommand: node Staff_backend/src/server.js
-    healthCheckPath: /health
-    envVars:
-      - fromGroup: scoms-shared
-      - key: DATABASE_URL
-        sync: false
-      - key: CORS_ORIGINS
-        sync: false
-
-  - type: web
-    name: scoms-student-api
-    runtime: node
-    plan: free
-    region: singapore
-    buildCommand: npm install --include=dev && npx prisma generate
-    startCommand: node Student_Backend/src/server.js
-    healthCheckPath: /health
-    envVars:
-      - fromGroup: scoms-shared
-      - key: DATABASE_URL
-        sync: false
-      - key: CORS_ORIGINS
+      - key: CORS_ORIGINS # the Vercel site URL, e.g. https://scoms-erp-main.vercel.app ; blank = allow all
         sync: false

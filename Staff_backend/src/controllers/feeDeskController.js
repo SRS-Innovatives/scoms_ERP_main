@@ -12,8 +12,8 @@ const {
   generateReceiptNumber,
   generateChallanNumber,
   NotFoundError,
-  ValidationError,
-} = require('../../../shared');
+  ValidationError, findList } = require('../../../shared');
+const { allocatePaymentToItems } = require('../../../shared/fees/feeItems');
 
 // ============================================================
 // Fee Structures & Assignments (read-only for the desk)
@@ -38,7 +38,7 @@ const getFeeStructures = async (req, res, next) => {
 const getStudentAssignments = async (req, res, next) => {
   try {
     const { feeStructureId, status, studentId } = req.query;
-    const assignments = await prisma.studentFeeAssignment.findMany({
+    const { rows: assignments, meta: listMeta } = await findList(prisma.studentFeeAssignment, {
       where: {
         feeStructure: { institutionId: req.institutionId },
         ...(feeStructureId && { feeStructureId }),
@@ -51,8 +51,8 @@ const getStudentAssignments = async (req, res, next) => {
         _count: { select: { installments: true, payments: true } },
       },
       orderBy: { createdAt: 'desc' },
-    });
-    return sendSuccess(res, assignments, 'Student fee assignments retrieved');
+    }, req, { max: 10000 });
+    return sendSuccess(res, assignments, 'Student fee assignments retrieved', 200, listMeta);
   } catch (err) {
     next(err);
   }
@@ -103,6 +103,12 @@ const collectOfflineFee = async (req, res, next) => {
       where: { id: studentFeeAssignmentId, studentId, feeStructure: { institutionId: req.institutionId } },
     });
     if (!assignment) throw new NotFoundError('Fee assignment not found or access denied');
+
+    // never accept more than is still due (an extra rupee would push the paid total past the fee)
+    if (Number(amountPaid) <= 0) throw new ValidationError('Amount must be greater than zero');
+    if (Number(amountPaid) > assignment.dueAmount + 0.01) {
+      throw new ValidationError(`Amount ₹${Number(amountPaid)} exceeds the outstanding due of ₹${assignment.dueAmount}`);
+    }
 
     let installment = null;
     if (installmentId) {
@@ -159,6 +165,10 @@ const collectOfflineFee = async (req, res, next) => {
         });
       }
 
+      // also spread this payment over the per-head fee items (shared/fees/feeItems.js) so the
+      // head-wise breakdown matches the totals
+      await allocatePaymentToItems(tx, { assignmentId: studentFeeAssignmentId, paymentId: payment.id, amount: amountPaid });
+
       return { payment, receipt };
     });
 
@@ -190,12 +200,12 @@ const getReceipt = async (req, res, next) => {
 
 const getChallans = async (req, res, next) => {
   try {
-    const challans = await prisma.feeChallan.findMany({
+    const { rows: challans, meta: listMeta } = await findList(prisma.feeChallan, {
       where: { institutionId: req.institutionId },
       include: { student: { select: { firstName: true, lastName: true, rollNumber: true } } },
       orderBy: { createdAt: 'desc' },
-    });
-    return sendSuccess(res, challans, 'Challans retrieved');
+    }, req);
+    return sendSuccess(res, challans, 'Challans retrieved', 200, listMeta);
   } catch (err) {
     next(err);
   }
@@ -235,12 +245,12 @@ const createChallan = async (req, res, next) => {
 // ============================================================
 const getRefunds = async (req, res, next) => {
   try {
-    const refunds = await prisma.feeRefund.findMany({
+    const { rows: refunds, meta: listMeta } = await findList(prisma.feeRefund, {
       where: { institutionId: req.institutionId },
       include: { student: { select: { firstName: true, lastName: true, rollNumber: true } } },
       orderBy: { createdAt: 'desc' },
-    });
-    return sendSuccess(res, refunds, 'Refunds retrieved');
+    }, req);
+    return sendSuccess(res, refunds, 'Refunds retrieved', 200, listMeta);
   } catch (err) {
     next(err);
   }
@@ -286,15 +296,15 @@ const processRefund = async (req, res, next) => {
 // ============================================================
 const getPendingFees = async (req, res, next) => {
   try {
-    const pending = await prisma.studentFeeAssignment.findMany({
+    const { rows: pending, meta: listMeta } = await findList(prisma.studentFeeAssignment, {
       where: { feeStructure: { institutionId: req.institutionId }, status: { in: ['PENDING', 'PARTIAL'] } },
       include: {
         student: { select: { firstName: true, lastName: true, rollNumber: true, course: { select: { name: true } } } },
         feeStructure: { select: { name: true, dueDate: true } },
       },
       orderBy: { feeStructure: { dueDate: 'asc' } },
-    });
-    return sendSuccess(res, pending, 'Pending fees retrieved');
+    }, req, { max: 10000 });
+    return sendSuccess(res, pending, 'Pending fees retrieved', 200, listMeta);
   } catch (err) {
     next(err);
   }

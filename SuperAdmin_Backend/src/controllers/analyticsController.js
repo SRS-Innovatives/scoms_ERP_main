@@ -13,16 +13,31 @@ const normalizeState = (state) => {
 
 const getAnalytics = async (req, res, next) => {
   try {
+    // Start of the 6-month chart window (1st of the month, 5 months back)
+    const windowStart = new Date();
+    windowStart.setDate(1);
+    windowStart.setHours(0, 0, 0, 0);
+    windowStart.setMonth(windowStart.getMonth() - 5);
+
     const [
       institutions,
-      users,
+      totalUsers,
+      usersByMonth,
       totalStudents,
       totalStaff,
       paidInvoices,
       studentsByInstitution
     ] = await Promise.all([
-      prisma.institution.findMany(),
-      prisma.user.findMany({ select: { createdAt: true } }),
+      // Only the columns the charts use — the full row includes the base64 logo (up to
+      // several MB per institution), which was being loaded for every one of them
+      prisma.institution.findMany({ select: { id: true, status: true, planName: true, createdAt: true, state: true, modules: true } }),
+      // Every user account on the platform (all students/staff/parents of every
+      // institution) used to be loaded just to be counted — the database counts instead
+      prisma.user.count(),
+      prisma.$queryRaw`
+        SELECT EXTRACT(YEAR FROM "createdAt")::int AS "year", (EXTRACT(MONTH FROM "createdAt")::int - 1) AS "monthIndex", COUNT(*)::int AS "n"
+        FROM "User" WHERE "createdAt" >= ${windowStart}
+        GROUP BY 1, 2`,
       prisma.student.count(),
       prisma.staff.count(),
       prisma.invoice.findMany({ where: { status: 'PAID' }, select: { totalAmount: true, createdAt: true, planName: true, institutionId: true } }),
@@ -75,13 +90,9 @@ const getAnalytics = async (req, res, next) => {
 
     // 2. Platform User Growth by Month
     const userGrowthTracker = last6Months.map(m => ({ ...m, value: 0 }));
-    users.forEach(u => {
-      const cDate = new Date(u.createdAt);
-      userGrowthTracker.forEach(m => {
-        if (cDate.getMonth() === m.monthIndex && cDate.getFullYear() === m.year) {
-          m.value++;
-        }
-      });
+    usersByMonth.forEach(({ year, monthIndex, n }) => {
+      const m = userGrowthTracker.find((t) => t.monthIndex === monthIndex && t.year === year);
+      if (m) m.value += n;
     });
     const userGrowth = userGrowthTracker.map(m => ({ label: m.label, value: m.value }));
 
@@ -156,7 +167,7 @@ const getAnalytics = async (req, res, next) => {
       activeInstitutions,
       trialInstitutions,
       suspendedInstitutions,
-      totalUsers: users.length,
+      totalUsers,
       totalStudents,
       totalStaff,
       systemHealth: 99.98, // static placeholder — no uptime-monitoring infrastructure exists yet

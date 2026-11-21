@@ -50,6 +50,7 @@ export function FeesScreen() {
   };
 
   const finishPayment = async (order: {
+    orderToken: string;
     razorpayOrderId: string;
     razorpayPaymentId: string;
     razorpaySignature: string;
@@ -58,7 +59,6 @@ export function FeesScreen() {
     try {
       const result = await verifyOnlinePayment({
         studentFeeAssignmentId: selected.id,
-        amountPaid: Number(amount),
         ...order,
       });
       Alert.alert(
@@ -97,6 +97,7 @@ export function FeesScreen() {
           theme: { color: colors.primary },
         });
         await finishPayment({
+          orderToken: order.orderToken,
           razorpayOrderId: checkoutResult.razorpay_order_id,
           razorpayPaymentId: checkoutResult.razorpay_payment_id,
           razorpaySignature: checkoutResult.razorpay_signature,
@@ -107,6 +108,7 @@ export function FeesScreen() {
       // Simulated gateway: the backend already precomputed a valid payment id +
       // signature pair, so verify immediately — no real checkout UI to open.
       await finishPayment({
+        orderToken: order.orderToken,
         razorpayOrderId: order.orderId,
         razorpayPaymentId: order.paymentId!,
         razorpaySignature: order.signature!,

@@ -26,6 +26,7 @@ export const ResultPublishPage = () => {
   const [busyId, setBusyId] = useState(null);
   const [error, setError] = useState(false);
   const [approvalRequired, setApprovalRequired] = useState(false);
+  const [marksheetEnabled, setMarksheetEnabled] = useState(false);
   const [corrections, setCorrections] = useState([]);
   const [modal, setModal] = useState(null); // { kind: 'return' | 'reject', id }
   const [remarks, setRemarks] = useState('');
@@ -40,7 +41,10 @@ export const ResultPublishPage = () => {
       .catch((err) => { notifyError(`Failed to load exams: ${err.message}`); setError(true); })
       .finally(() => setLoading(false));
     settingsService.getSettings()
-      .then((res) => setApprovalRequired(Boolean(res.data?.examApprovalRequired)))
+      .then((res) => {
+        setApprovalRequired(Boolean(res.data?.examApprovalRequired));
+        setMarksheetEnabled(Boolean(res.data?.studentMarksheetEnabled));
+      })
       .catch(() => {});
   }, [notifyError]);
 
@@ -97,6 +101,17 @@ export const ResultPublishPage = () => {
     }
   };
 
+  const handleToggleMarksheet = async () => {
+    const next = !marksheetEnabled;
+    try {
+      await settingsService.updateSettings({ studentMarksheetEnabled: next });
+      setMarksheetEnabled(next);
+      notifySuccess(next ? 'Students can now view their mark card (SGPA / CGPA) for published results.' : 'Mark card hidden — students see only their published subject marks.');
+    } catch (error) {
+      notifyError(`Failed to update setting: ${error.message}`);
+    }
+  };
+
   const handleTogglePublish = (scheduleId) =>
     run(scheduleId, () => examService.publishResults(scheduleId), (res) =>
       res.data.isPublished ? 'Results published — visible to students now!' : 'Results unpublished.');
@@ -123,6 +138,16 @@ export const ResultPublishPage = () => {
             Require marks to be <b>submitted → verified → approved</b> before publishing. Submitted marks are locked; changes go through correction requests.
           </span>
           <input type="checkbox" checked={approvalRequired} onChange={handleToggleApproval} className="w-5 h-5 accent-indigo-600" />
+        </label>
+      </FormSection>
+
+      <FormSection title="Student Mark Card" icon={ShieldCheck}>
+        <label className="flex items-center justify-between gap-4 cursor-pointer">
+          <span className="text-xs text-slate-600 dark:text-slate-300">
+            Show students their <b>mark card</b> — grade points, <b>SGPA / CGPA</b> and classification, printable — for published results.
+            When off, students see only their published subject marks.
+          </span>
+          <input type="checkbox" checked={marksheetEnabled} onChange={handleToggleMarksheet} className="w-5 h-5 accent-indigo-600" />
         </label>
       </FormSection>
 

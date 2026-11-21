@@ -6,6 +6,7 @@
  * a cloud storage integration that doesn't exist yet.
  */
 const { prisma, sendSuccess, NotFoundError, ValidationError } = require('../../../shared');
+const { attachFileLinks } = require('../../../shared/media/mediaUrl');
 
 const VALID_CATEGORIES = ['EVENTS', 'SPORTS', 'ACADEMICS', 'CULTURAL', 'GENERAL'];
 const MAX_IMAGE_BYTES = 6 * 1024 * 1024; // ~6MB decoded, comfortably under the 8mb JSON body limit
@@ -53,11 +54,15 @@ const getAlbumPhotos = async (req, res, next) => {
     const album = await prisma.galleryAlbum.findFirst({ where: { id, institutionId: req.institutionId } });
     if (!album) throw new NotFoundError('Album not found');
 
+    // Photos go out as cacheable links, not inline base64 — an album of 50 phone photos
+    // used to be a ~15 MB response, re-downloaded on every visit (shared/media/mediaUrl.js)
     const photos = await prisma.galleryPhoto.findMany({
       where: { albumId: id },
+      omit: { imageData: true },
       include: { uploadedBy: { select: { firstName: true, lastName: true } } },
       orderBy: { createdAt: 'desc' },
     });
+    await attachFileLinks(prisma, req, 'gallery', photos, 'imageData');
     return sendSuccess(res, { album, photos }, 'Album photos retrieved successfully');
   } catch (err) {
     next(err);

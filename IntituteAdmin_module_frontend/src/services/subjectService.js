@@ -19,8 +19,18 @@ const bulkUpload = (file) => {
 
 const getClassMappingOverview = () => apiCall('/setup/subjects/class-mapping');
 
-const setClassMapping = (subjectId, courseIds) =>
-  apiCall(`/setup/subjects/${subjectId}/class-mapping`, { method: 'PUT', body: { courseIds } });
+// electiveCourseIds: the classes where the subject is an elective (omit = leave unchanged)
+const setClassMapping = (subjectId, courseIds, electiveCourseIds) =>
+  apiCall(`/setup/subjects/${subjectId}/class-mapping`, { method: 'PUT', body: { courseIds, ...(electiveCourseIds && { electiveCourseIds }) } });
 
-export const subjectService = { getAll, create, update, remove, bulkUpload, getClassMappingOverview, setClassMapping };
+// Elective Allotment — /api/v1/admin/electives
+const getElectives = (courseId) => apiCall(`/electives?courseId=${courseId}`);
+const getElectiveStudents = (subjectId, courseId) => apiCall(`/electives/${subjectId}/students?courseId=${courseId}`);
+const setElectiveStudents = (subjectId, courseId, studentIds) =>
+  apiCall(`/electives/${subjectId}/students`, { method: 'PUT', body: { courseId, studentIds } });
+
+export const subjectService = {
+  getAll, create, update, remove, bulkUpload, getClassMappingOverview, setClassMapping,
+  getElectives, getElectiveStudents, setElectiveStudents,
+};
 export default subjectService;

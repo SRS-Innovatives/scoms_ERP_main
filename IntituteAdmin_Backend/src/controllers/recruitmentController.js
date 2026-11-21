@@ -13,6 +13,7 @@
  * rather than a silent auto-create.
  */
 const { prisma, sendSuccess, NotFoundError, ValidationError, BusinessRuleError } = require('../../../shared');
+const { hasValue } = require('../../../shared/media/mediaUrl');
 
 const EMPLOYMENT_TYPES = ['FULL_TIME', 'PART_TIME', 'CONTRACT'];
 const APPLICATION_STATUSES = ['APPLIED', 'SHORTLISTED', 'INTERVIEW_SCHEDULED', 'SELECTED', 'REJECTED', 'HIRED'];
@@ -81,10 +82,14 @@ const getApplications = async (req, res, next) => {
     const opening = await prisma.jobOpening.findFirst({ where: { id, institutionId: req.institutionId } });
     if (!opening) throw new NotFoundError('Job opening not found');
 
+    // résumés aren't shown in the list — say whether there is one instead of sending every file
     const applications = await prisma.candidateApplication.findMany({
       where: { jobOpeningId: id },
+      omit: { resumeData: true },
       orderBy: { appliedAt: 'desc' },
     });
+    const withResume = await hasValue(prisma, 'CandidateApplication', 'resumeData', applications.map((a) => a.id));
+    applications.forEach((a) => { a.hasResume = withResume.get(a.id) || false; });
     return sendSuccess(res, applications, 'Applications retrieved successfully');
   } catch (err) {
     next(err);

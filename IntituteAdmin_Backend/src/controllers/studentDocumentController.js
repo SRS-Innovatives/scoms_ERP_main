@@ -28,7 +28,7 @@ const getStudentDocuments = async (req, res, next) => {
 
     const documents = await prisma.studentDocument.findMany({
       where: { studentId, institutionId: req.institutionId },
-      select: { id: true, documentType: true, title: true, fileName: true, mimeType: true, uploadedAt: true }, // fileData omitted from the list — fetched one at a time below
+      select: { id: true, documentType: true, title: true, fileName: true, mimeType: true, uploadedAt: true, visibleToStudent: true }, // fileData omitted from the list — fetched one at a time below
       orderBy: { uploadedAt: 'desc' },
     });
     return sendSuccess(res, documents, 'Student documents retrieved successfully');
@@ -51,7 +51,7 @@ const getDocumentById = async (req, res, next) => {
 const uploadDocument = async (req, res, next) => {
   try {
     const { studentId } = req.params;
-    const { documentType = 'OTHER', title, fileData, fileName, mimeType } = req.body;
+    const { documentType = 'OTHER', title, fileData, fileName, mimeType, visibleToStudent } = req.body;
     if (!title) throw new ValidationError('title is required');
     if (!DOCUMENT_TYPES.includes(documentType)) throw new ValidationError(`documentType must be one of ${DOCUMENT_TYPES.join(', ')}`);
     validateFileData(fileData);
@@ -69,8 +69,10 @@ const uploadDocument = async (req, res, next) => {
         fileName: fileName || null,
         mimeType: mimeType || null,
         uploadedById: req.user.staffId || req.user.id || null,
+        // shown in the student's own My Documents unless the office keeps it office-only
+        visibleToStudent: visibleToStudent === undefined ? true : visibleToStudent === true || visibleToStudent === 'true',
       },
-      select: { id: true, documentType: true, title: true, fileName: true, mimeType: true, uploadedAt: true },
+      select: { id: true, documentType: true, title: true, fileName: true, mimeType: true, uploadedAt: true, visibleToStudent: true },
     });
     return sendSuccess(res, document, 'Document uploaded successfully', 201);
   } catch (err) {
@@ -90,4 +92,22 @@ const deleteDocument = async (req, res, next) => {
   }
 };
 
-module.exports = { getStudentDocuments, getDocumentById, uploadDocument, deleteDocument };
+/** Show / hide one document in the student's own My Documents (Student portal). */
+const setDocumentVisibility = async (req, res, next) => {
+  try {
+    const { visibleToStudent } = req.body || {};
+    if (typeof visibleToStudent !== 'boolean') throw new ValidationError('visibleToStudent must be true or false');
+    const existing = await prisma.studentDocument.findFirst({ where: { id: req.params.id, institutionId: req.institutionId }, select: { id: true } });
+    if (!existing) throw new NotFoundError('Document not found');
+    const document = await prisma.studentDocument.update({
+      where: { id: existing.id },
+      data: { visibleToStudent },
+      select: { id: true, documentType: true, title: true, fileName: true, mimeType: true, uploadedAt: true, visibleToStudent: true },
+    });
+    return sendSuccess(res, document, visibleToStudent ? 'Now visible to the student' : 'Hidden from the student — office only');
+  } catch (err) {
+    next(err);
+  }
+};
+
+module.exports = { getStudentDocuments, getDocumentById, uploadDocument, deleteDocument, setDocumentVisibility };

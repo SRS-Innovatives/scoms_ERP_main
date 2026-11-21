@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { lazy, Suspense } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import SuperAdminLayout from '../components/layout/SuperAdminLayout';
 
@@ -7,84 +7,78 @@ import LoginPage from '../pages/auth/LoginPage';
 import ForgotPasswordPage from '../pages/auth/ForgotPasswordPage';
 
 // Main Dashboard
-import SuperAdminDashboardPage from '../pages/dashboard/SuperAdminDashboardPage';
-
+const SuperAdminDashboardPage = lazy(() => import('../pages/dashboard/SuperAdminDashboardPage'));
 // Institution Pages
-import InstitutionListPage from '../pages/institutions/InstitutionListPage';
-import ReportManagementPage from '../pages/reports/ReportManagementPage';
-import InstitutionReportAssignmentPage from '../pages/reports/InstitutionReportAssignmentPage';
-import ReportRequestReviewPage from '../pages/reports/ReportRequestReviewPage';
-import OnboardingWizardPage from '../pages/institutions/OnboardingWizardPage';
-import InstitutionDetailPage from '../pages/institutions/InstitutionDetailPage';
-import InstitutionModuleAccessPage from '../pages/institutions/InstitutionModuleAccessPage';
-import InstitutionActivityPage from '../pages/institutions/InstitutionActivityPage';
-import AdmissionFieldApprovalsPage from '../pages/institutions/AdmissionFieldApprovalsPage';
-
+const InstitutionListPage = lazy(() => import('../pages/institutions/InstitutionListPage'));
+const ReportManagementPage = lazy(() => import('../pages/reports/ReportManagementPage'));
+const InstitutionReportAssignmentPage = lazy(() => import('../pages/reports/InstitutionReportAssignmentPage'));
+const ReportRequestReviewPage = lazy(() => import('../pages/reports/ReportRequestReviewPage'));
+const OnboardingWizardPage = lazy(() => import('../pages/institutions/OnboardingWizardPage'));
+const InstitutionDetailPage = lazy(() => import('../pages/institutions/InstitutionDetailPage'));
+const InstitutionModuleAccessPage = lazy(() => import('../pages/institutions/InstitutionModuleAccessPage'));
+const InstitutionActivityPage = lazy(() => import('../pages/institutions/InstitutionActivityPage'));
+const AdmissionFieldApprovalsPage = lazy(() => import('../pages/institutions/AdmissionFieldApprovalsPage'));
 // Subscriptions
-import PlansListPage from '../pages/subscriptions/PlansListPage';
-import CreatePlanPage from '../pages/subscriptions/CreatePlanPage';
-import ActiveSubscriptionsPage from '../pages/subscriptions/ActiveSubscriptionsPage';
-import RenewalManagementPage from '../pages/subscriptions/RenewalManagementPage';
-
+const PlansListPage = lazy(() => import('../pages/subscriptions/PlansListPage'));
+const CreatePlanPage = lazy(() => import('../pages/subscriptions/CreatePlanPage'));
+const ActiveSubscriptionsPage = lazy(() => import('../pages/subscriptions/ActiveSubscriptionsPage'));
+const RenewalManagementPage = lazy(() => import('../pages/subscriptions/RenewalManagementPage'));
 // Billing
-import BillingDashboardPage from '../pages/billing/BillingDashboardPage';
-import InvoicesPage from '../pages/billing/InvoicesPage';
-import InvoicePrintPage from '../pages/billing/InvoicePrintPage';
-import PaymentsPage from '../pages/billing/PaymentsPage';
-import TaxSettingsPage from '../pages/billing/TaxSettingsPage';
-
+const BillingDashboardPage = lazy(() => import('../pages/billing/BillingDashboardPage'));
+const InvoicesPage = lazy(() => import('../pages/billing/InvoicesPage'));
+const InvoicePrintPage = lazy(() => import('../pages/billing/InvoicePrintPage'));
+const PaymentsPage = lazy(() => import('../pages/billing/PaymentsPage'));
+const TaxSettingsPage = lazy(() => import('../pages/billing/TaxSettingsPage'));
 // Users & RBAC
-import AllUsersPage from '../pages/users/AllUsersPage';
-import RolesListPage from '../pages/users/RolesListPage';
-import PermissionMatrixPage from '../pages/users/PermissionMatrixPage';
-
+const AllUsersPage = lazy(() => import('../pages/users/AllUsersPage'));
+const RolesListPage = lazy(() => import('../pages/users/RolesListPage'));
+const PermissionMatrixPage = lazy(() => import('../pages/users/PermissionMatrixPage'));
 // Modules
-import ModuleManagerPage from '../pages/modules/ModuleManagerPage';
-import ModuleRegistryDetailPage from '../pages/modules/ModuleRegistryDetailPage';
-import FeatureFlagsPage from '../pages/modules/FeatureFlagsPage';
-
+const ModuleManagerPage = lazy(() => import('../pages/modules/ModuleManagerPage'));
+const ModuleRegistryDetailPage = lazy(() => import('../pages/modules/ModuleRegistryDetailPage'));
+const FeatureFlagsPage = lazy(() => import('../pages/modules/FeatureFlagsPage'));
 // Communication
-import SmsManagerPage from '../pages/communication/SmsManagerPage';
-import WhatsappManagerPage from '../pages/communication/WhatsappManagerPage';
-import EmailManagerPage from '../pages/communication/EmailManagerPage';
-import NotificationCenterPage from '../pages/communication/NotificationCenterPage';
-import AnnouncementsPage from '../pages/communication/AnnouncementsPage';
-
+const SmsManagerPage = lazy(() => import('../pages/communication/SmsManagerPage'));
+const WhatsappManagerPage = lazy(() => import('../pages/communication/WhatsappManagerPage'));
+const EmailManagerPage = lazy(() => import('../pages/communication/EmailManagerPage'));
+const NotificationCenterPage = lazy(() => import('../pages/communication/NotificationCenterPage'));
+const AnnouncementsPage = lazy(() => import('../pages/communication/AnnouncementsPage'));
 // Support
-import SupportTicketsPage from '../pages/support/SupportTicketsPage';
-import TicketDetailPage from '../pages/support/TicketDetailPage';
-import KnowledgeBasePage from '../pages/support/KnowledgeBasePage';
-
+const SupportTicketsPage = lazy(() => import('../pages/support/SupportTicketsPage'));
+const TicketDetailPage = lazy(() => import('../pages/support/TicketDetailPage'));
+const KnowledgeBasePage = lazy(() => import('../pages/support/KnowledgeBasePage'));
 // Analytics
-import PlatformAnalyticsPage from '../pages/analytics/PlatformAnalyticsPage';
-import StateWiseAnalyticsPage from '../pages/analytics/StateWiseAnalyticsPage';
-import RevenueAnalyticsPage from '../pages/analytics/RevenueAnalyticsPage';
-
+const PlatformAnalyticsPage = lazy(() => import('../pages/analytics/PlatformAnalyticsPage'));
+const StateWiseAnalyticsPage = lazy(() => import('../pages/analytics/StateWiseAnalyticsPage'));
+const RevenueAnalyticsPage = lazy(() => import('../pages/analytics/RevenueAnalyticsPage'));
 // AI Management
-import AiDashboardPage from '../pages/ai/AiDashboardPage';
-import AiConfigPage from '../pages/ai/AiConfigPage';
-
+const AiDashboardPage = lazy(() => import('../pages/ai/AiDashboardPage'));
+const AiConfigPage = lazy(() => import('../pages/ai/AiConfigPage'));
 // Security & Audit
-import AuditLogsPage from '../pages/security/AuditLogsPage';
-import SecurityCenterPage from '../pages/security/SecurityCenterPage';
-import SessionsPage from '../pages/security/SessionsPage';
-
+const AuditLogsPage = lazy(() => import('../pages/security/AuditLogsPage'));
+const SecurityCenterPage = lazy(() => import('../pages/security/SecurityCenterPage'));
+const SessionsPage = lazy(() => import('../pages/security/SessionsPage'));
 // System & Integrations
-import IntegrationsPage from '../pages/system/IntegrationsPage';
-import ApiManagementPage from '../pages/system/ApiManagementPage';
-import StorageManagementPage from '../pages/system/StorageManagementPage';
-import BackupManagementPage from '../pages/system/BackupManagementPage';
-import SystemHealthPage from '../pages/system/SystemHealthPage';
-import MaintenanceModePage from '../pages/system/MaintenanceModePage';
-
+const IntegrationsPage = lazy(() => import('../pages/system/IntegrationsPage'));
+const ApiManagementPage = lazy(() => import('../pages/system/ApiManagementPage'));
+const StorageManagementPage = lazy(() => import('../pages/system/StorageManagementPage'));
+const BackupManagementPage = lazy(() => import('../pages/system/BackupManagementPage'));
+const SystemHealthPage = lazy(() => import('../pages/system/SystemHealthPage'));
+const MaintenanceModePage = lazy(() => import('../pages/system/MaintenanceModePage'));
 // Settings & Profile
-import SettingsPage from '../pages/settings/SettingsPage';
-import BrandingSettingsPage from '../pages/settings/BrandingSettingsPage';
-import SuperAdminProfilePage from '../pages/profile/SuperAdminProfilePage';
+const SettingsPage = lazy(() => import('../pages/settings/SettingsPage'));
+const BrandingSettingsPage = lazy(() => import('../pages/settings/BrandingSettingsPage'));
+const SuperAdminProfilePage = lazy(() => import('../pages/profile/SuperAdminProfilePage'));
+// Shown while a page's code chunk downloads (first visit to that page only)
+const PageLoader = () => (
+  <div className="flex justify-center py-20">
+    <div className="w-8 h-8 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" />
+  </div>
+);
 
 export const AppRoutes = () => {
   return (
-    <Routes>
+    <Suspense fallback={<PageLoader />}><Routes>
       {/* Standalone Auth Routes */}
       <Route path="/login" element={<LoginPage />} />
       <Route path="/super-admin/login" element={<LoginPage />} />
@@ -95,7 +89,7 @@ export const AppRoutes = () => {
         path="/super-admin/*"
         element={
           <SuperAdminLayout>
-            <Routes>
+            <Suspense fallback={<PageLoader />}><Routes>
               <Route path="dashboard" element={<SuperAdminDashboardPage />} />
 
               {/* Institution Routes */}
@@ -182,14 +176,14 @@ export const AppRoutes = () => {
 
               {/* Fallback */}
               <Route path="*" element={<Navigate to="/super-admin/dashboard" replace />} />
-            </Routes>
+            </Routes></Suspense>
           </SuperAdminLayout>
         }
       />
 
       {/* Global Fallback */}
       <Route path="*" element={<Navigate to="/super-admin/dashboard" replace />} />
-    </Routes>
+    </Routes></Suspense>
   );
 };
 

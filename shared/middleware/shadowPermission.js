@@ -29,6 +29,7 @@ const { hasPermissionAsync } = require('../permissions/permissionMatrix');
 const prisma = require('../database/client');
 const logger = require('../utils/logger');
 const { AuthorizationError } = require('../errors/customErrors');
+const { cachedPermissionClient } = require('../utils/hotCache');
 
 const isEnforcementEnabled = () => process.env.RBAC_ENFORCEMENT_ENABLED === 'true';
 
@@ -36,7 +37,7 @@ const shadowPermission = (permission) => {
   return async (req, res, next) => {
     try {
       const role = req.user?.role;
-      const allowed = role ? await hasPermissionAsync(prisma, role, permission) : false;
+      const allowed = role ? await hasPermissionAsync(cachedPermissionClient, role, permission) : false;
       const denied = role && !allowed;
 
       if (!denied) return next();

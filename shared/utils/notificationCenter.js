@@ -66,4 +66,26 @@ const pushNotificationToMany = async ({ userIds, institutionId = null, title, me
   }
 };
 
-module.exports = { pushNotification, pushNotificationToMany };
+/**
+ * Many different notifications (each its own title/message/recipients — e.g. one fee
+ * reminder per student) written in ONE insert instead of one per notification. Returns each
+ * item's count in order (all 0 if the insert fails), like pushNotificationToMany would.
+ */
+const pushNotificationsBatch = async (items) => {
+  const prepared = items.map((it) => ({ ...it, ids: [...new Set((it.userIds || []).filter(Boolean))] }))
+    .map((it) => ({ ...it, ok: it.ids.length > 0 && !!it.title && !!it.message }));
+  const data = prepared.filter((it) => it.ok).flatMap((it) => it.ids.map((userId) => ({
+    userId, institutionId: it.institutionId ?? null, title: it.title, message: it.message, type: it.type ?? null, link: it.link ?? null,
+  })));
+  if (data.length === 0) return prepared.map(() => 0);
+  try {
+    for (let i = 0; i < data.length; i += 5000) await prisma.notification.createMany({ data: data.slice(i, i + 5000) });
+    prepared.filter((it) => it.ok).forEach((it) => dispatchPush({ userIds: it.ids, title: it.title, message: it.message, link: it.link ?? null }));
+    return prepared.map((it) => (it.ok ? it.ids.length : 0));
+  } catch (err) {
+    logger.error('Failed to write batched notifications:', err);
+    return prepared.map(() => 0);
+  }
+};
+
+module.exports = { pushNotification, pushNotificationToMany, pushNotificationsBatch };

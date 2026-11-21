@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import DataTable from '../../components/common/DataTable';
 import PageHeader from '../../components/common/PageHeader';
 import StatusBadge from '../../components/common/StatusBadge';
 import examService from '../../services/examService';
-import { Calendar, Loader2 } from 'lucide-react';
+import { Calendar, Loader2, Ticket } from 'lucide-react';
 import { useNotification } from '../../context/NotificationContext';
 import ErrorState from '../../components/common/ErrorState';
 import { useAcademic } from '../../context/InstitutionContext';
@@ -11,6 +12,7 @@ import { useAcademic } from '../../context/InstitutionContext';
 export const ExamSchedulePage = () => {
   const { error: showError } = useNotification();
   const academic = useAcademic();
+  const navigate = useNavigate();
   const [schedules, setSchedules] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -25,6 +27,16 @@ export const ExamSchedulePage = () => {
   }, [showError]);
 
   useEffect(() => { load(); }, [load]);
+
+  // One "Download hall ticket" button per exam that is still upcoming or running
+  // (the backend issues hall tickets only once the admin releases them, for SCHEDULED / ONGOING exams)
+  const hallTicketExams = useMemo(() => {
+    const byId = new Map();
+    schedules.forEach((s) => {
+      if (s.exam?.hallTicketsReleased && ['SCHEDULED', 'ONGOING'].includes(s.exam?.status) && !byId.has(s.examId)) byId.set(s.examId, s.exam.name);
+    });
+    return [...byId].map(([id, name]) => ({ id, name }));
+  }, [schedules]);
 
   const columns = [
     { header: 'Subject Code', key: 'subject', sortable: false, render: (v) => <span className="font-mono font-bold text-indigo-600">{v?.code}</span> },
@@ -53,7 +65,22 @@ export const ExamSchedulePage = () => {
           <p className="text-xs text-slate-500">No exams scheduled yet.</p>
         </div>
       ) : (
-        <DataTable columns={columns} data={schedules} />
+        <>
+          {hallTicketExams.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {hallTicketExams.map((e) => (
+                <button
+                  key={e.id}
+                  onClick={() => navigate(`/student/exams/${e.id}/hall-ticket`)}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl"
+                >
+                  <Ticket className="w-4 h-4" /> Download hall ticket — {e.name}
+                </button>
+              ))}
+            </div>
+          )}
+          <DataTable columns={columns} data={schedules} />
+        </>
       )}
     </div>
   );

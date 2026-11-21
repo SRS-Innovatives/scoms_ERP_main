@@ -3,7 +3,7 @@
  *
  * A staff member may only log an achievement for a student in a section they actually teach.
  */
-const { prisma, sendSuccess, ValidationError, BusinessRuleError } = require('../../../shared');
+const { prisma, sendSuccess, ValidationError, BusinessRuleError, findList } = require('../../../shared');
 
 const VALID_CATEGORIES = ['ACADEMIC', 'SPORTS', 'CULTURAL', 'TECHNICAL', 'OTHER'];
 
@@ -22,13 +22,13 @@ const getAchievements = async (req, res, next) => {
     const sectionIds = await getMySectionIds(req.user.staffId);
     if (sectionIds.length === 0) return sendSuccess(res, [], 'No assigned classes yet');
 
-    const achievements = await prisma.studentAchievement.findMany({
+    const { rows: achievements, meta: listMeta } = await findList(prisma.studentAchievement, {
       where: { institutionId: req.institutionId, student: { sectionId: { in: sectionIds } } },
       include: { student: { select: { firstName: true, lastName: true, rollNumber: true, section: { select: { name: true } } } } },
       orderBy: { awardedDate: 'desc' },
-    });
+    }, req);
 
-    return sendSuccess(res, achievements, 'Achievements retrieved successfully');
+    return sendSuccess(res, achievements, 'Achievements retrieved successfully', 200, listMeta);
   } catch (err) {
     next(err);
   }

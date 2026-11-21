@@ -200,7 +200,15 @@ export const ConcessionRequestsPanel = () => {
   };
 
   const columns = [
-    { header: 'Student', key: 'student', sortable: false, render: (v) => <span className="font-bold text-slate-900 dark:text-white">{v?.firstName} {v?.lastName} <span className="font-mono text-indigo-600">{v?.rollNumber || v?.admissionNumber}</span></span> },
+    {
+      header: 'Student', key: 'student', sortable: false,
+      render: (v, row) => (
+        <div>
+          <span className="font-bold text-slate-900 dark:text-white">{v?.firstName} {v?.lastName} <span className="font-mono text-indigo-600">{v?.rollNumber || v?.admissionNumber}</span></span>
+          {row.appliedByStudent && <p className="text-[10px] text-slate-500">Applied by student{v?.section?.name ? ` · ${v.section.name}` : ''}</p>}
+        </div>
+      ),
+    },
     { header: 'Scheme', key: 'scheme', sortable: false, render: (v) => v?.name },
     { header: 'Fee', key: 'feeAssignment', sortable: false, render: (v) => <span>{v?.feeStructure?.name} · {inr(v?.totalAmount)}</span> },
     { header: 'Amount', key: 'amount', render: (v) => <span className="font-mono font-bold text-emerald-600">{inr(v)}</span> },
@@ -210,7 +218,14 @@ export const ConcessionRequestsPanel = () => {
       header: 'Actions', key: 'id', sortable: false,
       render: (_, row) => (
         <div className="flex gap-1">
-          {row.status === 'PENDING' && (
+          {/* A student's own application is decided by their class teacher (Staff portal) —
+              the office only follows it, unless the class has no class teacher */}
+          {row.status === 'PENDING' && row.canReview === false && (
+            <span className="text-[11px] font-semibold text-sky-700 dark:text-sky-300 bg-sky-50 dark:bg-sky-950/40 px-2 py-1 rounded-lg" title="Applied by the student — their class teacher approves it in the Staff portal">
+              Class teacher decides{row.classTeacherName ? ` — ${row.classTeacherName}` : ''}
+            </span>
+          )}
+          {row.status === 'PENDING' && row.canReview !== false && (
             <>
               <button disabled={busyId === row.id} onClick={() => act(row.id, () => feeService.reviewConcession(row.id, 'APPROVE'), 'Concession approved and applied')} className={`${btn} bg-emerald-600 hover:bg-emerald-700 text-white`}>Approve</button>
               <button disabled={busyId === row.id} onClick={() => { setRemarks(''); setRemarksFor({ id: row.id, kind: 'reject' }); }} className={`${btn} bg-rose-600 hover:bg-rose-700 text-white`}>Reject</button>

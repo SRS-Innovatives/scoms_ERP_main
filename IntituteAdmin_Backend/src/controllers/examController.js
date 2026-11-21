@@ -14,11 +14,12 @@ const {
   BusinessRuleError,
   getGradeScale,
   resolveGrade,
-  gradePointFor,
   computeGrade,
   resolveRoom,
   resultLifecycle,
 } = require('../../../shared');
+const { buildMarksheet } = require('../../../shared/exams/marksheet');
+const { electiveStudentFilter } = require('../../../shared/academic/electives');
 const ExcelJS = require('exceljs');
 
 // ============================================================
@@ -41,6 +42,46 @@ const getExams = async (req, res, next) => {
   }
 };
 
+/**
+ * Internal / external tagging (see shared/exams/marksheet.js):
+ *   assessmentType   GENERAL (default) | INTERNAL | EXTERNAL
+ *   internalExamIds  EXTERNAL only — INTERNAL exams of the same academic year whose
+ *                    average forms the internal part of the final result
+ */
+const ASSESSMENT_TYPES = ['GENERAL', 'INTERNAL', 'EXTERNAL'];
+const parseAssessment = async (body, { institutionId, academicYearId, examId = null }) => {
+  const assessmentType = body.assessmentType || 'GENERAL';
+  if (!ASSESSMENT_TYPES.includes(assessmentType)) throw new ValidationError(`assessmentType must be one of ${ASSESSMENT_TYPES.join(', ')}`);
+  if (assessmentType !== 'EXTERNAL') {
+    if (Array.isArray(body.internalExamIds) && body.internalExamIds.length) throw new ValidationError('Only an External exam can list internal exams');
+    return { assessmentType, internalExamIds: null };
+  }
+  const ids = [...new Set(Array.isArray(body.internalExamIds) ? body.internalExamIds : [])].filter((x) => x !== examId);
+  if (ids.length) {
+    const found = await prisma.exam.findMany({ where: { id: { in: ids }, institutionId, academicYearId, assessmentType: 'INTERNAL' }, select: { id: true } });
+    if (found.length !== ids.length) throw new ValidationError('Internal exams must be Internal-type exams of the same academic year');
+  }
+  return { assessmentType, internalExamIds: ids.length ? ids : null };
+};
+
+/** PATCH /exams/:id/assessment { assessmentType, internalExamIds } */
+const setExamAssessment = async (req, res, next) => {
+  try {
+    const existing = await prisma.exam.findFirst({ where: { id: req.params.id, institutionId: req.institutionId } });
+    if (!existing) throw new NotFoundError('Exam not found');
+    const assessment = await parseAssessment(req.body, { institutionId: req.institutionId, academicYearId: existing.academicYearId, examId: existing.id });
+    if (existing.assessmentType === 'INTERNAL' && assessment.assessmentType !== 'INTERNAL') {
+      const usedBy = await prisma.exam.findMany({ where: { institutionId: req.institutionId, assessmentType: 'EXTERNAL' }, select: { name: true, internalExamIds: true } });
+      const dependants = usedBy.filter((e) => Array.isArray(e.internalExamIds) && e.internalExamIds.includes(existing.id));
+      if (dependants.length) throw new ValidationError(`"${existing.name}" counts towards ${dependants.map((d) => `"${d.name}"`).join(', ')} — remove it there first`);
+    }
+    const exam = await prisma.exam.update({ where: { id: existing.id }, data: assessment });
+    return sendSuccess(res, exam, 'Exam type updated');
+  } catch (err) {
+    next(err);
+  }
+};
+
 const createExam = async (req, res, next) => {
   try {
     const { name, examType, academicYearId, startDate, endDate } = req.body;
@@ -58,6 +99,8 @@ const createExam = async (req, res, next) => {
     });
     const conductedByInstitutionId = self.type === 'COLLEGE' ? self.affiliatedUniversityId || null : null;
 
+    const assessment = await parseAssessment(req.body, { institutionId: req.institutionId, academicYearId });
+
     const exam = await prisma.exam.create({
       data: {
         institutionId: req.institutionId,
@@ -67,6 +110,7 @@ const createExam = async (req, res, next) => {
         startDate: new Date(startDate),
         endDate: new Date(endDate),
         conductedByInstitutionId,
+        ...assessment,
       },
       include: { conductedByInstitution: { select: { id: true, name: true } } },
     });
@@ -85,6 +129,24 @@ const updateExamStatus = async (req, res, next) => {
 
     const exam = await prisma.exam.update({ where: { id }, data: { status } });
     return sendSuccess(res, exam, 'Exam status updated successfully');
+  } catch (err) {
+    next(err);
+  }
+};
+
+/** PATCH /exams/:id/hall-tickets { released } — students can download their hall ticket
+ * only after the admin releases it (and only while the exam is scheduled / ongoing). */
+const setHallTicketRelease = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const released = req.body.released === true || req.body.released === 'true';
+    const existing = await prisma.exam.findFirst({ where: { id, institutionId: req.institutionId } });
+    if (!existing) throw new NotFoundError('Exam not found');
+    const exam = await prisma.exam.update({ where: { id }, data: { hallTicketsReleased: released } });
+    prisma.auditLog.create({
+      data: { institutionId: req.institutionId, userId: req.user.id, action: released ? 'HALL_TICKETS_RELEASED' : 'HALL_TICKETS_WITHDRAWN', module: 'EXAMINATION', entity: 'Exam', entityId: id },
+    }).catch(() => {});
+    return sendSuccess(res, exam, released ? `Hall tickets released — students can now download them for "${exam.name}"` : `Hall tickets withdrawn for "${exam.name}"`);
   } catch (err) {
     next(err);
   }
@@ -175,7 +237,8 @@ const getMarksRoster = async (req, res, next) => {
 
     const [students, marks] = await Promise.all([
       prisma.student.findMany({
-        where: { courseId: schedule.courseId, status: 'ACTIVE' },
+        // an elective lists only the students who chose it
+        where: { courseId: schedule.courseId, status: 'ACTIVE', ...(await electiveStudentFilter(prisma, schedule.subjectId, schedule.courseId)) },
         select: { id: true, firstName: true, lastName: true, rollNumber: true, section: { select: { name: true } } },
         orderBy: { rollNumber: 'asc' },
       }),
@@ -340,7 +403,7 @@ const parseMarksImport = async (req, res, next) => {
     }
 
     const students = await prisma.student.findMany({
-      where: { courseId: schedule.courseId, status: 'ACTIVE' },
+      where: { courseId: schedule.courseId, status: 'ACTIVE', ...(await electiveStudentFilter(prisma, schedule.subjectId, schedule.courseId)) },
       select: { id: true, firstName: true, lastName: true, rollNumber: true },
     });
     const byRoll = new Map(students.filter((s) => s.rollNumber).map((s) => [String(s.rollNumber).trim().toLowerCase(), s]));
@@ -557,66 +620,13 @@ const getStudentMarksheet = async (req, res, next) => {
     const exam = await prisma.exam.findFirst({ where: { id: examId, institutionId: req.institutionId } });
     if (!exam) throw new NotFoundError('Exam not found');
 
-    const scale = await getGradeScale(req.institutionId);
-
-    // This exam's subject-wise marks (real SGPA input)
-    const examMarks = await prisma.studentMark.findMany({
-      where: { studentId, examSchedule: { examId } },
-      include: { examSchedule: { include: { subject: { select: { name: true, code: true, credits: true } } } } },
-    });
-    if (examMarks.length === 0) {
+    // Grade points / SGPA / CGPA come from the shared calculation (shared/exams/marksheet.js),
+    // the same one the student's own marksheet uses — the admin sees unpublished marks too.
+    const sheet = await buildMarksheet({ institutionId: req.institutionId, studentId, examId, publishedOnly: false });
+    if (!sheet) {
       return sendSuccess(res, { student, exam, subjects: [], sgpa: null, cgpa: null }, 'No marks entered for this student in this exam yet');
     }
-
-    const subjects = examMarks.map((m) => {
-      // An absence never earns (or loses) a grade point — it's shown as "AB" and simply
-      // excluded from both SGPA and CGPA credit-weighting below.
-      if (m.isAbsent) {
-        return {
-          code: m.examSchedule.subject.code, title: m.examSchedule.subject.name, credit: m.examSchedule.subject.credits,
-          marksObtained: null, maxMarks: m.examSchedule.maxMarks, grade: 'AB', gradePoint: null, result: 'ABSENT',
-        };
-      }
-      const grade = m.grade || resolveGrade(scale, m.marksObtained, m.examSchedule.maxMarks);
-      return {
-        code: m.examSchedule.subject.code,
-        title: m.examSchedule.subject.name,
-        credit: m.examSchedule.subject.credits,
-        marksObtained: m.marksObtained,
-        maxMarks: m.examSchedule.maxMarks,
-        grade,
-        gradePoint: gradePointFor(scale, grade),
-        result: m.marksObtained >= m.examSchedule.passMarks ? 'PASS' : 'FAIL',
-      };
-    });
-
-    const sgpaCredits = subjects.reduce((sum, s) => sum + (s.gradePoint !== null ? s.credit : 0), 0);
-    const sgpaPoints = subjects.reduce((sum, s) => sum + (s.gradePoint !== null ? s.gradePoint * s.credit : 0), 0);
-    const sgpa = sgpaCredits > 0 ? Number((sgpaPoints / sgpaCredits).toFixed(2)) : null;
-
-    // CGPA — every exam this student has any marks for, same institution, credit-weighted.
-    const allMarks = await prisma.studentMark.findMany({
-      where: { studentId, examSchedule: { exam: { institutionId: req.institutionId } } },
-      include: { examSchedule: { include: { subject: { select: { credits: true } } } } },
-    });
-    let cgpaCredits = 0;
-    let cgpaPoints = 0;
-    allMarks.filter((m) => !m.isAbsent).forEach((m) => {
-      const grade = m.grade || resolveGrade(scale, m.marksObtained, m.examSchedule.maxMarks);
-      const gp = gradePointFor(scale, grade);
-      if (gp !== null) {
-        cgpaCredits += m.examSchedule.subject.credits;
-        cgpaPoints += gp * m.examSchedule.subject.credits;
-      }
-    });
-    const cgpa = cgpaCredits > 0 ? Number((cgpaPoints / cgpaCredits).toFixed(2)) : null;
-
-    const classification = sgpa === null ? null
-      : sgpa >= 9 ? 'FIRST CLASS WITH DISTINCTION'
-      : sgpa >= 7 ? 'FIRST CLASS'
-      : sgpa >= 6 ? 'SECOND CLASS'
-      : sgpa >= 5 ? 'PASS CLASS'
-      : 'FAIL';
+    const { subjects, sgpa, cgpa, classification } = sheet;
 
     return sendSuccess(res, { student, exam, subjects, sgpa, cgpa, classification }, 'Marksheet retrieved successfully');
   } catch (err) {
@@ -717,6 +727,8 @@ module.exports = {
   getExams,
   createExam,
   updateExamStatus,
+  setHallTicketRelease,
+  setExamAssessment,
   getSchedules,
   createSchedule,
   deleteSchedule,

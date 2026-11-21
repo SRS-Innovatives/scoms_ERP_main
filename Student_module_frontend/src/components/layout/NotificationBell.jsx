@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Bell, FileText, CalendarX, Wallet, CheckCheck, Bell as BellDefault } from 'lucide-react';
 import notificationService from '../../services/notificationService';
 
-const POLL_MS = 20000;
+const POLL_MS = 60000; // while the tab is visible; paused when hidden (see effect below)
 
 const TYPE_ICON = {
   HOMEWORK: FileText,
@@ -34,10 +34,26 @@ export const NotificationBell = () => {
     notificationService.getUnreadCount().then((res) => setUnreadCount(res.data?.count || 0)).catch(() => {});
   }, []);
 
+  // Poll only while the tab is visible — a background tab left open all day used to
+  // hit the server every 20s for nothing — and refresh right away when the user returns
   useEffect(() => {
-    refreshCount();
-    const interval = setInterval(refreshCount, POLL_MS);
-    return () => clearInterval(interval);
+    let interval = null;
+    const start = () => {
+      if (interval) return;
+      refreshCount();
+      interval = setInterval(refreshCount, POLL_MS);
+    };
+    const stop = () => {
+      clearInterval(interval);
+      interval = null;
+    };
+    const onVisibility = () => (document.hidden ? stop() : start());
+    if (!document.hidden) start();
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      stop();
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
   }, [refreshCount]);
 
   useEffect(() => {
@@ -126,6 +142,12 @@ export const NotificationBell = () => {
               })
             )}
           </div>
+          <button
+            onClick={() => { setOpen(false); navigate('/student/notifications'); }}
+            className="w-full mt-3 pt-2 border-t border-slate-200 dark:border-slate-800 text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 hover:underline"
+          >
+            View all notifications
+          </button>
         </div>
       )}
     </div>

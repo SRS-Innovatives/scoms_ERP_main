@@ -103,7 +103,7 @@ export const navigationConfig = [
     key: 'support',
     title: 'Support Desk',
     icon: LifeBuoy,
-    badge: '3 Open',
+    liveBadge: 'openTickets', // real open-ticket count, filled in by the Sidebar
     children: [
       { key: 'support-tickets', title: 'Tickets', path: '/super-admin/tickets' },
       { key: 'knowledge-base', title: 'Knowledge Base', path: '/super-admin/knowledge-base' }
@@ -149,8 +149,8 @@ export const navigationConfig = [
     children: [
       { key: 'integrations', title: 'Integrations', path: '/super-admin/integrations' },
       { key: 'api-management', title: 'API Management', path: '/super-admin/api' },
-      { key: 'storage-mgr', title: 'Storage Management', path: '/super-admin/storage' },
-      { key: 'backups-mgr', title: 'Backup & Restore', path: '/super-admin/backups' },
+      { key: 'storage-mgr', title: 'Storage', path: '/super-admin/storage' },
+      { key: 'backups-mgr', title: 'Database & Backups', path: '/super-admin/backups' },
       { key: 'system-health', title: 'System Health', path: '/super-admin/system-health' },
       { key: 'maintenance-mode', title: 'Maintenance Mode', path: '/super-admin/maintenance' }
     ]

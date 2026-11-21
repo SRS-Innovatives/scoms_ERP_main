@@ -4,7 +4,7 @@
  * `audience`. The attachment is a base64 data URI (same convention as other uploads),
  * returned only by the single-circular endpoint so lists stay light.
  */
-const { prisma, sendSuccess, NotFoundError, ValidationError } = require('../../../shared');
+const { prisma, sendSuccess, NotFoundError, ValidationError, findList } = require('../../../shared');
 
 const AUDIENCES = ['ALL', 'STAFF', 'STUDENTS', 'PARENTS'];
 const ATTACHMENT_PATTERN = /^data:(application\/pdf|image\/(png|jpeg|jpg));base64,/;
@@ -29,12 +29,12 @@ const validate = ({ refNo, title, issuedBy, audience, attachment, issueDate }, p
 
 const getCirculars = async (req, res, next) => {
   try {
-    const circulars = await prisma.circular.findMany({
+    const { rows: circulars, meta: listMeta } = await findList(prisma.circular, {
       where: { institutionId: req.institutionId },
       select: { ...listSelect, attachment: false },
       orderBy: [{ issueDate: 'desc' }, { createdAt: 'desc' }],
-    });
-    return sendSuccess(res, circulars.map((c) => ({ ...c, hasAttachment: !!c.attachmentName })), 'Circulars retrieved');
+    }, req);
+    return sendSuccess(res, circulars.map((c) => ({ ...c, hasAttachment: !!c.attachmentName })), 'Circulars retrieved', 200, listMeta);
   } catch (err) {
     next(err);
   }

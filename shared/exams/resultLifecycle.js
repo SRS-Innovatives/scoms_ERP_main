@@ -16,6 +16,7 @@
  * than the requester approves; the request row (old -> new) is the correction audit trail.
  */
 const prisma = require('../database/client');
+const { electiveStudentFilter } = require('../academic/electives');
 const { getGradeScale, resolveGrade } = require('../utils/grading');
 const { NotFoundError, BusinessRuleError, ValidationError } = require('../errors/customErrors');
 const logger = require('../utils/logger');
@@ -86,9 +87,27 @@ const submitMarks = async ({ scheduleId, institutionId, userId }) => {
 
   const [entered, rosterSize] = await Promise.all([
     prisma.studentMark.count({ where: { examScheduleId: scheduleId } }),
-    prisma.student.count({ where: { courseId: schedule.courseId, institutionId, status: 'ACTIVE' } }),
+    prisma.student.count({ where: { courseId: schedule.courseId, institutionId, status: 'ACTIVE', ...(await electiveStudentFilter(prisma, schedule.subjectId, schedule.courseId)) } }),
   ]);
   if (entered === 0) throw new BusinessRuleError('Enter marks for at least one student before submitting');
+
+  // One paper (schedule) covers every section of the class, and submitting locks it for all
+  // of them. So it can only be submitted once EVERY student has a mark (or is marked
+  // absent) — otherwise the first section's teacher to submit would lock the others out.
+  const missingStudents = await prisma.student.findMany({
+    where: {
+      courseId: schedule.courseId, institutionId, status: 'ACTIVE',
+      ...(await electiveStudentFilter(prisma, schedule.subjectId, schedule.courseId)),
+      studentMarks: { none: { examScheduleId: scheduleId } },
+    },
+    select: { section: { select: { name: true } } },
+  });
+  if (missingStudents.length > 0) {
+    const bySection = {};
+    missingStudents.forEach((s) => { const k = s.section?.name || 'No section'; bySection[k] = (bySection[k] || 0) + 1; });
+    const list = Object.entries(bySection).map(([k, n]) => `${k}: ${n}`).join(', ');
+    throw new BusinessRuleError(`Marks are still missing for ${missingStudents.length} student(s) (${list}). Every section's teacher must finish entering marks (or mark absent) before this paper can be submitted.`);
+  }
 
   const updated = await transition({
     scheduleId,

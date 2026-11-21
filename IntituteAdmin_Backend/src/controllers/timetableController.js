@@ -90,6 +90,16 @@ const saveEntries = async (req, res, next) => {
       roomId: e.roomId || null,
     }));
 
+    // Every teacher must be assigned to the subject they're timetabled for in this class
+    // (Staff → Teacher Assignments) — attendance and marks follow those assignments.
+    const unassigned = await timetableRules.findUnassignedTeaching({ institutionId: req.institutionId, sectionId: timetable.sectionId, entries: rows });
+    if (unassigned.length > 0) {
+      throw new ValidationError(
+        `${unassigned[0].message}${unassigned.length > 1 ? ` (and ${unassigned.length - 1} more)` : ''} — assign them in Staff → Teacher Assignments first.`,
+        unassigned
+      );
+    }
+
     const conflicts = await timetableRules.findConflicts({ institutionId: req.institutionId, timetableId, entries: rows });
     if (conflicts.length > 0 && !req.body.allowConflicts) {
       throw new ValidationError('Teacher or room is already booked in another section for some periods', conflicts);

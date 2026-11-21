@@ -180,12 +180,20 @@ const importBiometric = async (req, res, next) => {
     const takenById = await resolveAdminStaffId(req);
     let created = 0;
     let updated = 0;
+    // All existing daily sheets for the file's classes/dates in one query, not one per sheet
+    const existingSheets = await prisma.attendanceSession.findMany({
+      where: {
+        institutionId: req.institutionId,
+        periodNumber: DAILY_PERIOD,
+        OR: sessions.map((s) => ({ sectionId: s.sectionId, date: new Date(s.date) })),
+      },
+      select: { id: true, sectionId: true, date: true },
+    });
+    const sheetKey = (sectionId, date) => `${sectionId}|${new Date(date).getTime()}`;
+    const existingByKey = new Map(existingSheets.map((x) => [sheetKey(x.sectionId, x.date), { id: x.id }]));
     for (const s of sessions) {
       const date = new Date(s.date);
-      const existing = await prisma.attendanceSession.findFirst({
-        where: { institutionId: req.institutionId, sectionId: s.sectionId, date, periodNumber: DAILY_PERIOD },
-        select: { id: true },
-      });
+      const existing = existingByKey.get(sheetKey(s.sectionId, date));
       const session = existing || await prisma.attendanceSession.create({
         data: { institutionId: req.institutionId, sectionId: s.sectionId, subjectId: null, takenById, date, periodNumber: DAILY_PERIOD },
         select: { id: true },

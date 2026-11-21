@@ -6,6 +6,7 @@
  * matches on it, so a student only ever sees assignments actually targeted at their class.
  */
 const { prisma, sendSuccess, NotFoundError, ValidationError, formatClassLabel, pushNotification } = require('../../../shared');
+const { hasValue } = require('../../../shared/media/mediaUrl');
 
 const getMyAssignments = async (req, res, next) => {
   try {
@@ -19,16 +20,20 @@ const getMyAssignments = async (req, res, next) => {
 
     const className = formatClassLabel(student.course.name, student.section.name);
 
+    // Files are only needed on the detail page — the list carries neither the homework
+    // attachment nor the student's own submitted file, just whether there is one
     const assignments = await prisma.assignment.findMany({
       where: { institutionId: req.institutionId, className, status: 'PUBLISHED' },
+      omit: { attachmentUrl: true },
       include: {
         staff: { select: { firstName: true, lastName: true } },
-        submissions: { where: { studentId: req.user.studentId } },
+        submissions: { where: { studentId: req.user.studentId }, omit: { fileUrl: true } },
       },
       orderBy: { dueDate: 'asc' },
     });
+    const withAttachment = await hasValue(prisma, 'Assignment', 'attachmentUrl', assignments.map((a) => a.id));
 
-    const withMySubmission = assignments.map((a) => ({ ...a, mySubmission: a.submissions[0] || null, submissions: undefined }));
+    const withMySubmission = assignments.map((a) => ({ ...a, hasAttachment: withAttachment.get(a.id) || false, mySubmission: a.submissions[0] || null, submissions: undefined }));
     return sendSuccess(res, withMySubmission, 'Assignments retrieved successfully');
   } catch (err) {
     next(err);

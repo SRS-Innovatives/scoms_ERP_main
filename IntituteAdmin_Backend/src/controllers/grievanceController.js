@@ -1,18 +1,18 @@
 /**
  * Institute Admin — Grievance Resolution Controller
  */
-const { prisma, sendSuccess, NotFoundError, ValidationError } = require('../../../shared');
+const { prisma, sendSuccess, NotFoundError, ValidationError, findList } = require('../../../shared');
 
 const VALID_STATUSES = ['SUBMITTED', 'UNDER_REVIEW', 'RESOLVED'];
 
 const getGrievances = async (req, res, next) => {
   try {
-    const grievances = await prisma.grievance.findMany({
+    const { rows: grievances, meta: listMeta } = await findList(prisma.grievance, {
       where: { institutionId: req.institutionId },
       include: { student: { select: { firstName: true, lastName: true, rollNumber: true, admissionNumber: true } } },
       orderBy: { createdAt: 'desc' },
-    });
-    return sendSuccess(res, grievances, 'Grievances retrieved successfully');
+    }, req);
+    return sendSuccess(res, grievances, 'Grievances retrieved successfully', 200, listMeta);
   } catch (err) {
     next(err);
   }

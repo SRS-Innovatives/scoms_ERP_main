@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import FormSection from '../../components/common/FormSection';
 import ReceiptTemplate from '../../components/print/ReceiptTemplate';
 import { useNotification } from '../../context/NotificationContext';
@@ -6,6 +6,9 @@ import { Search, CreditCard, CheckCircle2, Loader2, Printer } from 'lucide-react
 import feeEngineService from '../../services/feeEngineService';
 import studentService from '../../services/studentService';
 import { useAcademic } from '../../context/InstitutionContext';
+import feePolicyService from '../../services/feePolicyService';
+import StudentFeeStatusPanel from '../../components/fee/StudentFeeStatusPanel';
+import RecalcStudentFees from '../../components/fee/RecalcStudentFees';
 
 const PAYMENT_MODES = ['CASH', 'UPI_MANUAL', 'ONLINE_CARD', 'BANK_TRANSFER', 'CHEQUE', 'DD'];
 
@@ -23,9 +26,21 @@ export const FeeCollectionV2Page = () => {
   const [collecting, setCollecting] = useState(false);
   const [receipt, setReceipt] = useState(null);
   const [reprinting, setReprinting] = useState(false);
+  // Fee Policy: late fee paid with the fee (FIRST / LAST), and the admin's override reason
+  const [policy, setPolicy] = useState(null);
+  const [lateByAssignment, setLateByAssignment] = useState({});
+  const [lateFeeAmount, setLateFeeAmount] = useState('');
+  const [override, setOverride] = useState(false);
+  const [overrideReason, setOverrideReason] = useState('');
+  const [statusKey, setStatusKey] = useState(0);
+  useEffect(() => { feePolicyService.getPolicy().then((r) => setPolicy(r.data.policy)).catch(() => {}); }, []);
 
   const loadItems = async (studentId) => {
     const res = await feeEngineService.getStudentFeeItems(studentId);
+    const late = {};
+    (res.data || []).forEach((a) => { late[a.id] = { due: a.lateFee?.due || 0, name: a.feeStructure?.name }; });
+    setLateByAssignment(late);
+    setStatusKey((k) => k + 1);
     const flattened = (res.data || []).flatMap((assignment) =>
       (assignment.items || [])
         .filter((item) => item.status !== 'PAID')
@@ -58,6 +73,13 @@ export const FeeCollectionV2Page = () => {
     }
   };
 
+  // the fee this payment is for (one fee per payment) and its late fee
+  const payingItems = items.filter((item) => Number(payingMap[item.id]) > 0);
+  const payingAssignment = payingItems[0]?.studentFeeAssignmentId;
+  const lateDue = payingAssignment ? lateByAssignment[payingAssignment]?.due || 0 : 0;
+  const lateWithFee = policy && policy.lateFeeOrder !== 'SEPARATE' && lateDue > 0;
+  useEffect(() => { setLateFeeAmount(lateWithFee && policy.lateFeeOrder === 'FIRST' ? String(lateDue) : ''); }, [lateWithFee, lateDue, policy]);
+
   const totalPaying = items.reduce((acc, item) => acc + Number(payingMap[item.id] || 0), 0);
   const totalBalanceLeft = items.reduce((acc, item) => acc + Math.max(0, item.dueAmount - Number(payingMap[item.id] || 0)), 0);
 
@@ -75,7 +97,12 @@ export const FeeCollectionV2Page = () => {
         paymentMode,
         transactionReference: txnRef,
         remarks,
+        ...(lateWithFee && Number(lateFeeAmount) > 0 && { lateFeeAmount: Number(lateFeeAmount) }),
+        ...(override && overrideReason.trim() && { overrideReason: overrideReason.trim() }),
       });
+      if (res.data.lateFeeReceipt) notifySuccess(`Late fee ₹${res.data.lateFeePaid} collected — receipt ${res.data.lateFeeReceipt}`);
+      setOverride(false);
+      setOverrideReason('');
       const { receipt: receiptRow, allocations: paidAllocations } = res.data;
       notifySuccess(`Collected ₹${totalPaying.toLocaleString()} from ${selectedStudent.firstName} ${selectedStudent.lastName}! Receipt generated.`, 'Fee Collected');
       setReceipt({
@@ -159,6 +186,13 @@ export const FeeCollectionV2Page = () => {
         </div>
       )}
 
+      {selectedStudent && (
+        <div className="flex justify-end">
+          <RecalcStudentFees studentId={selectedStudent.id} onChanged={() => loadItems(selectedStudent.id)} />
+        </div>
+      )}
+      {selectedStudent && <StudentFeeStatusPanel studentId={selectedStudent.id} refreshKey={statusKey} onChanged={() => loadItems(selectedStudent.id)} />}
+
       {selectedStudent && items.length > 0 && (
         <form onSubmit={handleCollect} className="space-y-6">
           <FormSection title="Fee Head Breakdown & Collecting Amount">
@@ -233,6 +267,24 @@ export const FeeCollectionV2Page = () => {
               </div>
             </div>
           </FormSection>
+
+          {(lateWithFee || policy) && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+              {lateWithFee && (
+                <label className="block font-semibold text-slate-700 dark:text-slate-300">
+                  Late fee paying now (due ₹{lateDue.toLocaleString()}{policy.lateFeeOrder === 'FIRST' ? ' — your policy collects it first' : ' — only once the fee is fully paid'})
+                  <input type="number" min="0" max={lateDue} value={lateFeeAmount} onChange={(e) => setLateFeeAmount(e.target.value)} className="mt-1 w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg font-mono" />
+                </label>
+              )}
+              <div>
+                <label className="flex items-center gap-2 font-semibold text-slate-700 dark:text-slate-300">
+                  <input type="checkbox" checked={override} onChange={(e) => setOverride(e.target.checked)} className="w-4 h-4 rounded" />
+                  Bypass the Fee Policy for this payment
+                </label>
+                {override && <input required value={overrideReason} onChange={(e) => setOverrideReason(e.target.value)} placeholder="Reason (recorded in the audit log)" className="mt-1 w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg" />}
+              </div>
+            </div>
+          )}
 
           <div className="flex justify-end pt-2">
             <button type="submit" disabled={collecting || totalPaying <= 0} className="flex items-center gap-2 px-8 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl shadow-xl transition-all active:scale-95 disabled:opacity-50">

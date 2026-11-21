@@ -58,6 +58,7 @@ export const navigationConfig = [
       { key: 'semester', title: 'Semester Setup', path: '/admin/setup/semester', level: 'semester' },
       { key: 'section', title: 'Section Setup', path: '/admin/setup/section', level: 'section' },
       { key: 'subject', title: 'Subject Setup', path: '/admin/setup/subject', level: 'subject' },
+      { key: 'electives', title: 'Elective Allotment', path: '/admin/setup/electives' },
       { key: 'house', title: 'House / Group Setup', path: '/admin/setup/house' },
       { key: 'affiliated-colleges', title: 'Affiliated Colleges', path: '/admin/setup/affiliated-colleges', types: ['UNIVERSITY'] }
     ]
@@ -72,11 +73,11 @@ export const navigationConfig = [
     key: 'student',
     title: 'Student Management',
     icon: GraduationCap,
-    badge: '3,450',
     children: [
       { key: 'admission', title: 'Admission Form', path: '/admin/student/admission' },
       { key: 'bulk-admission', title: 'Bulk Admission Upload', path: '/admin/student/bulk-admission' },
       { key: 'student-list', title: 'Student Directory', path: '/admin/student/list' },
+      { key: 'student-leave', title: 'Student Leave Requests', path: '/admin/student/leave' },
       { key: 'student-profile', title: 'Student Profile', path: '/admin/student/profile' },
       { key: 'tc', title: 'Transfer Certificate (TC)', path: '/admin/student/tc' },
       { key: 'bonafide', title: 'Bonafide Certificate', path: '/admin/student/bonafide' },
@@ -108,7 +109,6 @@ export const navigationConfig = [
     key: 'staff',
     title: 'Staff Management',
     icon: Users,
-    badge: '285',
     children: [
       { key: 'registration', title: 'Staff Registration', path: '/admin/staff/registration' },
       { key: 'staff-profile-fields', title: 'Staff Form Builder', path: '/admin/staff/form-builder' },
@@ -168,6 +168,7 @@ export const navigationConfig = [
     children: [
       { key: 'exam-setup', title: 'Exam Setup', path: '/admin/examination/setup' },
       { key: 'exam-schedule', title: 'Exam Schedule', path: '/admin/examination/schedule' },
+      { key: 'exam-duties', title: 'Exam Duties', path: '/admin/examination/duties' },
       { key: 'hall-ticket', title: 'Hall Ticket Generator', path: '/admin/examination/hall-ticket' },
       { key: 'marks-entry', title: 'Marks Entry', path: '/admin/examination/marks-entry' },
       { key: 'grade-setup', title: 'Grade Setup', path: '/admin/examination/grade-setup' },
@@ -181,11 +182,11 @@ export const navigationConfig = [
     key: 'fee',
     title: 'Fee Management',
     icon: CreditCard,
-    badge: 'Important',
     children: [
       { key: 'fee-dashboard', title: 'Fee Dashboard', path: '/admin/fee/dashboard' },
       { key: 'fee-heads-setup', title: 'Fee Heads', path: '/admin/fee/heads' },
       { key: 'fee-structure-builder', title: 'Fee Structure Builder', path: '/admin/fee/structure-builder' },
+      { key: 'fee-policy', title: 'Fee Policy', path: '/admin/fee/policy' },
       { key: 'fee-category', title: 'Fee Category Setup (Legacy)', path: '/admin/fee/category' },
       { key: 'fee-structure', title: 'Fee Structure (Legacy, view only)', path: '/admin/fee/structure' },
       { key: 'student-assignment', title: 'Student Fee Assignment (Legacy, view only)', path: '/admin/fee/assignment' },
@@ -197,6 +198,7 @@ export const navigationConfig = [
       { key: 'receipt-preview', title: 'Fee Receipt Printable', path: '/admin/fee/receipt' },
       { key: 'installments', title: 'Installment Setup', path: '/admin/fee/installments' },
       { key: 'scholarship', title: 'Scholarship / Concession', path: '/admin/fee/scholarship' },
+      { key: 'late-fees', title: 'Late Fees', path: '/admin/fee/late-fees' },
       { key: 'refund', title: 'Refund Management', path: '/admin/fee/refund' },
       { key: 'fee-reports', title: 'Fee Collection Reports', path: '/admin/fee/reports' },
       { key: 'cash-book', title: 'Cash Book', path: '/admin/fee/cash-book' },

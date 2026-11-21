@@ -24,7 +24,7 @@ const requireTenant = require('./middleware/requireTenant');
 const requireModule = require('./middleware/requireModule');
 const resolveActiveChild = require('./middleware/resolveActiveChild');
 const blockParentWrite = require('./middleware/blockParentWrite');
-const { loginLimiter, otpLimiter, publicSubmissionLimiter } = require('./middleware/rateLimiter');
+const { loginLimiter, otpLimiter, publicFormSchemaLimiter, publicSubmissionLimiter } = require('./middleware/rateLimiter');
 const { requirePermission, requirePermissionStrict, requireRole } = require('./middleware/requirePermission');
 const shadowPermission = require('./middleware/shadowPermission');
 const errorHandler = require('./middleware/errorHandler');
@@ -36,6 +36,7 @@ const { sendEmailNotification, sendSMSNotification, sendWhatsAppNotification } =
 const paymentGateway = require('./utils/paymentGateway');
 const { formatClassLabel } = require('./utils/classLabel');
 const { getHealthPayload } = require('./utils/health');
+const { findList, findConversation } = require('./utils/findList');
 const reportEngine = require('./reportEngine');
 const moduleRegistry = require('./moduleRegistry');
 const certificateEngine = require('./certificateEngine');
@@ -87,6 +88,8 @@ module.exports = {
   paymentGateway,
   formatClassLabel,
   getHealthPayload,
+  findList,
+  findConversation,
   reportEngine,
   moduleRegistry,
   certificateEngine,
@@ -99,6 +102,7 @@ module.exports = {
   blockParentWrite,
   loginLimiter,
   otpLimiter,
+  publicFormSchemaLimiter,
   publicSubmissionLimiter,
   generateApiKey,
   DEFAULT_GRADE_CURVE,

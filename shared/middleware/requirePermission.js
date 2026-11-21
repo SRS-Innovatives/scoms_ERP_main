@@ -52,8 +52,8 @@ const requirePermissionStrict = (permission) => {
       if (!req.user || !req.user.role) {
         throw new AuthorizationError('Authentication required');
       }
-      const prisma = require('../database/client');
-      if (!(await hasPermissionAsync(prisma, req.user.role, permission))) {
+      const { cachedPermissionClient } = require('../utils/hotCache');
+      if (!(await hasPermissionAsync(cachedPermissionClient, req.user.role, permission))) {
         throw new AuthorizationError(`Permission denied: '${permission}' required`);
       }
       next();

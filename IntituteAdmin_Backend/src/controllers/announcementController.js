@@ -8,12 +8,11 @@ const {
   prisma,
   sendSuccess,
   NotFoundError,
-  ValidationError,
-} = require('../../../shared');
+  ValidationError, findList } = require('../../../shared');
 
 const getAnnouncements = async (req, res, next) => {
   try {
-    const announcements = await prisma.announcement.findMany({
+    const { rows: announcements, meta: listMeta } = await findList(prisma.announcement, {
       where: { OR: [{ institutionId: req.institutionId }, { institutionId: null }] },
       include: {
         author: { select: { email: true, role: true } },
@@ -21,8 +20,8 @@ const getAnnouncements = async (req, res, next) => {
         targetSection: { select: { name: true } },
       },
       orderBy: { createdAt: 'desc' },
-    });
-    return sendSuccess(res, announcements, 'Announcements retrieved successfully');
+    }, req);
+    return sendSuccess(res, announcements, 'Announcements retrieved successfully', 200, listMeta);
   } catch (err) {
     next(err);
   }

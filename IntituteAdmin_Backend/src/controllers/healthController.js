@@ -1,20 +1,20 @@
 /**
  * Institute Admin — Student Health Records Controller
  */
-const { prisma, sendSuccess, NotFoundError, ValidationError } = require('../../../shared');
+const { prisma, sendSuccess, NotFoundError, ValidationError, findList } = require('../../../shared');
 
 const getHealthRecords = async (req, res, next) => {
   try {
     const { studentId } = req.query;
-    const records = await prisma.healthRecord.findMany({
+    const { rows: records, meta: listMeta } = await findList(prisma.healthRecord, {
       where: { institutionId: req.institutionId, ...(studentId && { studentId }) },
       include: {
         student: { select: { firstName: true, lastName: true, admissionNumber: true, rollNumber: true } },
         recordedBy: { select: { firstName: true, lastName: true } },
       },
       orderBy: { visitDate: 'desc' },
-    });
-    return sendSuccess(res, records, 'Health records retrieved successfully');
+    }, req);
+    return sendSuccess(res, records, 'Health records retrieved successfully', 200, listMeta);
   } catch (err) {
     next(err);
   }

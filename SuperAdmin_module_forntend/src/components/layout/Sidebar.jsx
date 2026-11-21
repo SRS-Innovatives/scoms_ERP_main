@@ -1,13 +1,34 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { navigationConfig } from '../../routes/navigationConfig';
 import { ChevronDown, ChevronRight, Search, ShieldCheck, X } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { can } from '../../utils/permissions';
+import supportService from '../../services/supportService';
+
+const LIVE_BADGE_REFRESH_MS = 2 * 60 * 1000;
 
 export const Sidebar = ({ isOpen, setIsOpen }) => {
   const location = useLocation();
   const { user } = useAuth();
+
+  // Live menu badges (navigationConfig `liveBadge`) — real counts, refreshed every 2 minutes,
+  // hidden when zero or not loaded. Today: open support tickets.
+  const [liveCounts, setLiveCounts] = useState({});
+  useEffect(() => {
+    let cancelled = false;
+    const load = () => supportService.getOpenCount()
+      .then((res) => { if (!cancelled) setLiveCounts((p) => ({ ...p, openTickets: res?.data?.open ?? 0 })); })
+      .catch(() => {});
+    load();
+    const timer = setInterval(load, LIVE_BADGE_REFRESH_MS);
+    return () => { cancelled = true; clearInterval(timer); };
+  }, []);
+  const badgeOf = (item) => {
+    if (!item.liveBadge) return item.badge;
+    const n = liveCounts[item.liveBadge];
+    return n > 0 ? `${n} Open` : null;
+  };
 
   // A child with no requiredPermission is always visible (most pages still have real
   // view-only value even for a role that can't mutate there); a parent group with no
@@ -127,9 +148,9 @@ export const Sidebar = ({ isOpen, setIsOpen }) => {
                     <Icon className="w-4 h-4 shrink-0" />
                     {isOpen && <span>{item.title}</span>}
                   </div>
-                  {isOpen && item.badge && (
+                  {isOpen && badgeOf(item) && (
                     <span className="text-[10px] px-2 py-0.5 rounded-full bg-rose-500 text-white font-bold">
-                      {item.badge}
+                      {badgeOf(item)}
                     </span>
                   )}
                 </NavLink>
@@ -153,9 +174,9 @@ export const Sidebar = ({ isOpen, setIsOpen }) => {
                   </div>
                   {isOpen && (
                     <div className="flex items-center gap-1.5">
-                      {item.badge && (
+                      {badgeOf(item) && (
                         <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500 text-white font-bold">
-                          {item.badge}
+                          {badgeOf(item)}
                         </span>
                       )}
                       {isMenuExpanded ? (

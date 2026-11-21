@@ -46,6 +46,7 @@ export interface PaymentOrder {
   simulated: boolean;
   paymentId?: string; // only present when simulated — the mock gateway's precomputed pair
   signature?: string;
+  orderToken: string; // the server's signed record of this order's fee + amount — sent back on verify
 }
 
 export async function initiateOnlinePayment(studentFeeAssignmentId: string, amount: number): Promise<PaymentOrder> {
@@ -58,7 +59,7 @@ export async function initiateOnlinePayment(studentFeeAssignmentId: string, amou
 
 export interface VerifyPaymentPayload {
   studentFeeAssignmentId: string;
-  amountPaid: number;
+  orderToken: string; // the server credits the amount fixed in this token, not one sent by the app
   razorpayOrderId: string;
   razorpayPaymentId: string;
   razorpaySignature: string;

@@ -9,6 +9,7 @@ const apiRoutes = require('./routes/apiRoutes');
 const { errorHandler, getHealthPayload } = require('../../shared');
 
 const app = express();
+app.set('trust proxy', 1); // real client IP behind Render's proxy — otherwise all users share one rate-limit bucket
 
 // CORS_ORIGINS: comma-separated frontend URLs allowed in production; unset = allow all (local dev)
 const corsOrigins = process.env.CORS_ORIGINS ? process.env.CORS_ORIGINS.split(',').map((o) => o.trim()) : '*';
@@ -21,7 +22,11 @@ app.get('/health', async (req, res) => {
   res.json(await getHealthPayload('SCOMS Student Backend'));
 });
 
+// Platform Maintenance Mode (Super Admin → System) — 503 for these portals while it is on
+app.use('/api/v1/student', require('../../shared/middleware/maintenanceMode').blockDuringMaintenance);
 app.use('/api/v1/student', apiRoutes);
+// Profile photos + institution logos as cacheable image files (signed links — see shared/media/mediaUrl.js)
+app.use('/api/v1/media', require('../../shared/media/mediaRoutes'));
 app.use(errorHandler);
 
 module.exports = app;

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import StatCard from '../../components/common/StatCard';
+import MyHouseCard from '../../components/dashboard/MyHouseCard';
 import StatusBadge from '../../components/common/StatusBadge';
 import { useStudentAuth } from '../../context/StudentAuthContext';
 import { useNotification } from '../../context/NotificationContext';
@@ -151,6 +152,9 @@ export const StudentDashboardPage = () => {
           </div>
         </div>
       </div>
+
+      {/* My House — hidden when the student isn't in a house */}
+      <MyHouseCard />
 
       {/* KPI Cards — real, computed from live data */}
       <div>

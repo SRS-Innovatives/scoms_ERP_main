@@ -17,6 +17,8 @@ const logger = require('./logger');
 const prisma = require('../database/client');
 const { ROLES } = require('../constants/roles');
 const { pushNotificationToMany } = require('./notificationCenter');
+const { isFeatureOn } = require('./featureFlags');
+const { isOptedOut } = require('./notificationPreferences');
 
 // ============================================================
 // Generic per-channel wallet + logging helpers
@@ -96,6 +98,11 @@ const logEmail = async ({ to, subject, provider, status, institutionId, purpose 
  * when a wallet has been provisioned for that institution, for credit enforcement.
  */
 const sendEmailNotification = async ({ to, subject, text, html, institutionId, purpose }) => {
+  // Feature Flag "Email sending" (Super Admin) — switched off: skip, but keep a record
+  if (!(await isFeatureOn('email'))) {
+    await logEmail({ to, subject, provider: 'Disabled by platform', status: 'DISABLED', institutionId, purpose });
+    return false;
+  }
   const host = process.env.SMTP_HOST;
   const port = process.env.SMTP_PORT || 587;
   const user = process.env.SMTP_USER;
@@ -187,6 +194,16 @@ const logSms = async ({ to, message, provider, status, institutionId, purpose, s
  * can see it in their own Message History.
  */
 const sendSMSNotification = async ({ to, message, institutionId, purpose, sentByStaffId }) => {
+  // Feature Flag "SMS sending" (Super Admin) — switched off: skip (no credit used), keep a record
+  if (!(await isFeatureOn('sms'))) {
+    await logSms({ to, message, provider: 'Disabled by platform', status: 'DISABLED', institutionId, purpose, sentByStaffId });
+    return false;
+  }
+  // the student / parent switched this kind of SMS off (Student portal → Settings) — no credit used
+  if (await isOptedOut({ institutionId, to, channel: 'sms', purpose })) {
+    await logSms({ to, message, provider: 'Recipient preference', status: 'OPTED_OUT', institutionId, purpose, sentByStaffId });
+    return false;
+  }
   const apiKey = process.env.SMS_API_KEY;
 
   const credit = await consumeInstitutionCredit(prisma.institutionSmsWallet, institutionId, 'SMS');
@@ -264,6 +281,16 @@ const logWhatsapp = async ({ to, message, provider, status, institutionId, purpo
  * when a wallet has been provisioned for that institution, for credit enforcement.
  */
 const sendWhatsAppNotification = async ({ to, message, institutionId, purpose }) => {
+  // Feature Flag "WhatsApp sending" (Super Admin) — switched off: skip (no credit used), keep a record
+  if (!(await isFeatureOn('whatsapp'))) {
+    await logWhatsapp({ to, message, provider: 'Disabled by platform', status: 'DISABLED', institutionId, purpose });
+    return false;
+  }
+  // the student / parent switched this kind of WhatsApp off (Student portal → Settings) — no credit used
+  if (await isOptedOut({ institutionId, to, channel: 'whatsapp', purpose })) {
+    await logWhatsapp({ to, message, provider: 'Recipient preference', status: 'OPTED_OUT', institutionId, purpose });
+    return false;
+  }
   const accessToken = process.env.WHATSAPP_ACCESS_TOKEN;
   const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
 

@@ -36,6 +36,14 @@ app.get('/health', async (req, res) => {
   res.json(await getHealthPayload('SCOMS Mobile Backend'));
 });
 
+// Platform Maintenance Mode (Super Admin → System) — 503 for these portals while it is on
+app.use(['/api/v1/mobile/student', '/api/v1/mobile/staff'], require('../../shared/middleware/maintenanceMode').blockDuringMaintenance);
+// Feature Flag "Mobile apps access" (Super Admin) — off: the apps are told to use the website
+const { isFeatureOn } = require('../../shared/utils/featureFlags');
+app.use(['/api/v1/mobile/student', '/api/v1/mobile/staff'], async (req, res, next) => {
+  if (req.method === 'OPTIONS' || (await isFeatureOn('mobile_apps'))) return next();
+  return res.status(503).json({ success: false, code: 'FEATURE_DISABLED', message: 'The SCOMS mobile app is temporarily unavailable. Please use the website for now.' });
+});
 app.use('/api/v1/mobile/student', studentRoutes);
 app.use('/api/v1/mobile/student', pushNotificationRoutes); // falls through here with req.user already set by studentRoutes' own requireAuth
 app.use('/api/v1/mobile/staff', staffRoutes);

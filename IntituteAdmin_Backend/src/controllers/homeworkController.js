@@ -4,6 +4,7 @@
  * action per subject/section, same division as attendance oversight).
  */
 const { prisma, sendSuccess, NotFoundError } = require('../../../shared');
+const { hasValue } = require('../../../shared/media/mediaUrl');
 
 /** Every homework post in this institution, most recent first, with real submission
  * counts computed from AssignmentSubmission — never a fabricated completion rate. */
@@ -17,12 +18,15 @@ const getHomeworkList = async (req, res, next) => {
         ...(subjectName && { subjectName }),
         ...(staffId && { staffId }),
       },
+      // the attachment is only needed on the detail page — not every file in the list
+      omit: { attachmentUrl: true },
       include: {
         staff: { select: { id: true, firstName: true, lastName: true, user: { select: { email: true } } } },
         _count: { select: { submissions: true } },
       },
       orderBy: { createdAt: 'desc' },
     });
+    const withAttachment = await hasValue(prisma, 'Assignment', 'attachmentUrl', assignments.map((a) => a.id));
 
     // className is a formatted label (not a real FK), so section-size and section-filter
     // are resolved by matching that label against real Section→Semester→Course records.
@@ -46,7 +50,7 @@ const getHomeworkList = async (req, res, next) => {
       ...a,
       totalStudents: sizeByClassName[a.className] ?? null,
       submissionCount: a._count.submissions,
-      hasAttachment: !!a.attachmentUrl,
+      hasAttachment: withAttachment.get(a.id) || false,
       _count: undefined,
     }));
 

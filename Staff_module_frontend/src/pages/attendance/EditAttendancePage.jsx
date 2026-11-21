@@ -54,7 +54,7 @@ export const EditAttendancePage = () => {
     setSession(null);
     Promise.all([
       attendanceService.getSession(selectedMapping.section.id, selectedDate, periodNumber),
-      attendanceService.getRoster(selectedMapping.section.id),
+      attendanceService.getRoster(selectedMapping.section.id, selectedMapping.daily ? null : selectedMapping.subject?.id),
     ])
       .then(([sessionRes, rosterRes]) => {
         setSession(sessionRes.data);

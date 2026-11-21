@@ -4,6 +4,8 @@ import apiCall from './api';
 const getExams = () => apiCall('/exams');
 const createExam = (payload) => apiCall('/exams', { method: 'POST', body: payload });
 const updateExamStatus = (id, status) => apiCall(`/exams/${id}/status`, { method: 'PATCH', body: { status } });
+const setHallTicketRelease = (id, released) => apiCall(`/exams/${id}/hall-tickets`, { method: 'PATCH', body: { released } });
+const setExamAssessment = (id, payload) => apiCall(`/exams/${id}/assessment`, { method: 'PATCH', body: payload });
 const getRankList = (examId) => apiCall(`/exams/${examId}/rank-list`);
 const getConsolidatedReport = (examId, sectionId) =>
   apiCall(`/exams/${examId}/consolidated-report${sectionId ? `?sectionId=${sectionId}` : ''}`);
@@ -33,15 +35,21 @@ const getReviewQueue = () => apiCall('/exam-review/queue');
 const createCorrectionRequest = (scheduleId, payload) =>
   apiCall(`/exam-schedules/${scheduleId}/corrections`, { method: 'POST', body: payload });
 const getCorrectionRequests = (status) => apiCall(`/exam-corrections${status ? `?status=${status}` : ''}`);
+// Exam Duty Allotment — per exam: papers with their duties + the staff to pick from
+const getExamDuties = (examId) => apiCall(`/exams/${examId}/duties`);
+const assignDuty = (payload) => apiCall('/exam-duties', { method: 'POST', body: payload });
+const removeDuty = (id) => apiCall(`/exam-duties/${id}`, { method: 'DELETE' });
+
 const reviewCorrectionRequest = (id, decision, remarks) =>
   apiCall(`/exam-corrections/${id}/review`, { method: 'POST', body: { decision, remarks } });
 
 export const examService = {
-  getExams, createExam, updateExamStatus, getRankList, getConsolidatedReport,
+  getExams, createExam, updateExamStatus, setHallTicketRelease, setExamAssessment, getRankList, getConsolidatedReport,
   getSchedules, createSchedule, deleteSchedule, getMarksRoster, saveMarks, publishResults,
   getSubjectAnalysis, getHallTickets, getProgressReport,
   unlockSchedule, importMarksCsv,
   submitMarks, verifyMarks, approveMarks, returnMarks, getReviewQueue,
   createCorrectionRequest, getCorrectionRequests, reviewCorrectionRequest,
+  getExamDuties, assignDuty, removeDuty,
 };
 export default examService;

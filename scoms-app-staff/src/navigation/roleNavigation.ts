@@ -25,7 +25,7 @@ const ROLE_TABS: Record<string, StaffTabKey[]> = {
   HOD: ['Home', 'Attendance', 'Homework', 'Examination', 'More'],
   LIBRARIAN: ['Home', 'Library', 'More'],
   TRANSPORT_MANAGER: ['Home', 'Transport', 'More'],
-  ACCOUNTANT: ['Home', 'FeeDesk', 'More'],
+  // ACCOUNTANT: no Fee Desk tab — fees are handled by the Institute Admin only (falls back to DEFAULT_TABS)
   HOSTEL_WARDEN: ['Home', 'Hostel', 'More'],
   EXAM_ADMIN: ['Home', 'ExamSetup', 'More'],
   PLACEMENT_OFFICER: ['Home', 'Placement', 'More'],

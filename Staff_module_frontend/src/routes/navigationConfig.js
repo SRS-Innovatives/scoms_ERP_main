@@ -55,14 +55,17 @@ export const navigationConfig = [
       { key: 'class-details', title: 'Class Overview', path: '/staff/classes/details' },
       { key: 'student-list', title: 'Student Directory', path: '/staff/classes/students' },
       { key: 'subject-mapping', title: 'Subject Mapping', path: '/staff/classes/mapping' },
-      { key: 'class-strength', title: 'Class Strength Summary', path: '/staff/classes/strength' }
+      { key: 'class-strength', title: 'Class Strength Summary', path: '/staff/classes/strength' },
+      // class teacher decides students' scholarship / concession applications
+      { key: 'scholarship-approvals', title: 'Scholarship Approvals', path: '/staff/scholarship-approvals', module: 'fee' }
     ]
   },
   {
     key: 'attendance',
     title: 'Attendance Module',
     icon: CheckSquare,
-    badge: 'Pending',
+    // real count from /attendance/pending-summary (Sidebar.jsx); hidden when nothing is pending
+    liveBadge: 'attendancePending',
     children: [
       { key: 'take-attendance', title: 'Take Attendance', path: '/staff/attendance/take' },
       { key: 'edit-attendance', title: 'Edit Attendance', path: '/staff/attendance/edit' },
@@ -270,12 +273,7 @@ export const navigationConfig = [
       { key: 'print-duty', title: 'Duty Allotment Letter', path: '/staff/print/duty-letter' }
     ]
   },
-  {
-    key: 'fee',
-    title: 'Fee Collection Desk',
-    icon: Wallet,
-    path: '/staff/finance/fee-desk'
-  },
+  // (Fee Collection Desk removed — fees are handled by the Institute Admin only)
   {
     key: 'expense_management',
     title: 'Expense Log',

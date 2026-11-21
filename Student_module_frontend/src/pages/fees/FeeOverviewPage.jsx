@@ -73,17 +73,62 @@ export const FeeOverviewPage = () => {
         ) : (
           <div className="divide-y divide-slate-200 dark:divide-slate-800 text-xs">
             {assignments.map((a) => (
-              <div key={a.id} className="py-3 flex items-center justify-between">
-                <div>
-                  <p className="font-bold text-slate-800 dark:text-slate-200">{a.feeStructure?.name}</p>
-                  <p className="text-[11px] text-slate-500">
-                    Amount: ₹{a.totalAmount.toLocaleString()}{a.discountAmount > 0 ? ` (₹${a.discountAmount.toLocaleString()} scholarship applied)` : ''}
-                  </p>
+              <div key={a.id} className="py-3 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-bold text-slate-800 dark:text-slate-200">{a.feeStructure?.name}</p>
+                    <p className="text-[11px] text-slate-500">
+                      Amount: ₹{a.totalAmount.toLocaleString()}{a.discountAmount > 0 ? ` (₹${a.discountAmount.toLocaleString()} scholarship applied)` : ''}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <p className="font-mono font-bold text-slate-900 dark:text-slate-100">Balance: ₹{a.dueAmount.toLocaleString()}</p>
+                    <StatusBadge status={a.status} size="sm" />
+                  </div>
                 </div>
-                <div className="flex items-center gap-3">
-                  <p className="font-mono font-bold text-slate-900 dark:text-slate-100">Balance: ₹{a.dueAmount.toLocaleString()}</p>
-                  <StatusBadge status={a.status} size="sm" />
-                </div>
+
+                {/* Late fee — separate from the fee, collected only at the fee office */}
+                {a.lateFee?.due > 0 && (
+                  <div className="flex flex-wrap items-center justify-between gap-2 p-3 rounded-xl bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900 text-[11px]">
+                    <span className="text-rose-700 dark:text-rose-300">
+                      <b>Late fee due: ₹{a.lateFee.due.toLocaleString()}</b>
+                      {a.lateFee.daysLate ? ` · ${a.lateFee.daysLate} day(s) overdue` : ''} — please pay at the fee office.
+                    </span>
+                    {(a.lateFee.paid > 0 || a.lateFee.waived > 0) && (
+                      <span className="text-slate-500">Charged ₹{a.lateFee.charged.toLocaleString()} · paid ₹{a.lateFee.paid.toLocaleString()} · waived ₹{a.lateFee.waived.toLocaleString()}</span>
+                    )}
+                  </div>
+                )}
+
+                {/* Instalments: due dates, what's paid, and which fee heads each one covers */}
+                {a.installments?.length > 0 && (
+                  <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700">
+                    <table className="w-full text-[11px] text-left">
+                      <thead className="bg-slate-50 dark:bg-slate-800 text-slate-500 uppercase font-semibold">
+                        <tr>
+                          <th className="p-2">Instalment</th>
+                          <th className="p-2">Due date</th>
+                          <th className="p-2">Covers</th>
+                          <th className="p-2 text-right">Amount</th>
+                          <th className="p-2 text-right">Paid</th>
+                          <th className="p-2 text-right">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                        {a.installments.map((i) => (
+                          <tr key={i.id} className={i.overdue ? 'bg-rose-50/60 dark:bg-rose-950/20' : ''}>
+                            <td className="p-2 font-semibold text-slate-800 dark:text-slate-200">#{i.installmentNumber}</td>
+                            <td className={`p-2 ${i.overdue ? 'text-rose-600 font-bold' : ''}`}>{new Date(i.dueDate).toLocaleDateString('en-IN')}{i.overdue ? ' · overdue' : ''}</td>
+                            <td className="p-2 text-slate-500">{i.heads?.length ? i.heads.map((h) => `${h.feeHeadName} ₹${h.amount.toLocaleString()}`).join(' + ') : '—'}</td>
+                            <td className="p-2 text-right font-mono">₹{i.amount.toLocaleString()}</td>
+                            <td className="p-2 text-right font-mono">₹{i.paidAmount.toLocaleString()}</td>
+                            <td className="p-2 text-right"><StatusBadge status={i.status} size="sm" /></td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </div>
             ))}
           </div>

@@ -16,8 +16,8 @@ const {
   ValidationError,
   BusinessRuleError,
   generateGatePassNumber,
-  resolveRoom,
-} = require('../../../shared');
+  resolveRoom, findList } = require('../../../shared');
+const { autoSyncStudentFees } = require('../../../shared/fees/feeSync');
 
 const toDateOnly = (dateStr) => {
   if (dateStr) return new Date(dateStr);
@@ -35,12 +35,14 @@ const getHostels = async (req, res, next) => {
       include: { _count: { select: { beds: true } } },
       orderBy: { name: 'asc' },
     });
-    const withOccupancy = await Promise.all(
-      hostels.map(async (h) => {
-        const occupied = await prisma.hostelBed.count({ where: { hostelId: h.id, isOccupied: true } });
-        return { ...h, occupiedBeds: occupied };
-      })
-    );
+    // occupied beds of every hostel in one grouped count, not one count per hostel
+    const occupied = hostels.length ? await prisma.hostelBed.groupBy({
+      by: ['hostelId'],
+      where: { hostelId: { in: hostels.map((h) => h.id) }, isOccupied: true },
+      _count: { _all: true },
+    }) : [];
+    const occupiedBy = new Map(occupied.map((o) => [o.hostelId, o._count._all]));
+    const withOccupancy = hostels.map((h) => ({ ...h, occupiedBeds: occupiedBy.get(h.id) || 0 }));
     return sendSuccess(res, withOccupancy, 'Hostels retrieved successfully');
   } catch (err) {
     next(err);
@@ -162,6 +164,8 @@ const allocateBed = async (req, res, next) => {
         ...(customFields && Object.keys(customFields).length > 0 && { customFields }),
       },
     });
+    // Fee Policy "adjust fees when hostel / transport changes" (shared/fees/feeSync.js)
+    await autoSyncStudentFees(prisma, { institutionId: req.institutionId, studentId: studentId, event: 'SERVICE_CHANGE', userId: req.user.id });
     return sendSuccess(res, updated, 'Bed allocated to student successfully');
   } catch (err) {
     next(err);
@@ -175,6 +179,10 @@ const vacateBed = async (req, res, next) => {
     if (!bed) throw new NotFoundError('Bed not found');
 
     const updated = await prisma.hostelBed.update({ where: { id }, data: { studentId: null, isOccupied: false } });
+    if (bed.studentId) {
+      // Fee Policy "adjust fees when hostel / transport changes" (shared/fees/feeSync.js)
+      await autoSyncStudentFees(prisma, { institutionId: req.institutionId, studentId: bed.studentId, event: 'SERVICE_CHANGE', userId: req.user.id });
+    }
     return sendSuccess(res, updated, 'Bed vacated successfully');
   } catch (err) {
     next(err);
@@ -261,15 +269,15 @@ const getMessFees = async (req, res, next) => {
 // ============================================================
 const getVisitors = async (req, res, next) => {
   try {
-    const visitors = await prisma.hostelVisitorLog.findMany({
+    const { rows: visitors, meta: listMeta } = await findList(prisma.hostelVisitorLog, {
       where: { hostel: { institutionId: req.institutionId } },
       include: {
         hostel: { select: { name: true } },
         student: { select: { firstName: true, lastName: true, rollNumber: true } },
       },
       orderBy: { checkInAt: 'desc' },
-    });
-    return sendSuccess(res, visitors, 'Visitor register retrieved successfully');
+    }, req);
+    return sendSuccess(res, visitors, 'Visitor register retrieved successfully', 200, listMeta);
   } catch (err) {
     next(err);
   }

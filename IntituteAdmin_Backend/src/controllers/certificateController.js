@@ -12,8 +12,8 @@ const {
   NotFoundError,
   ValidationError,
   generateCertificateNumber,
-  certificateEngine,
-} = require('../../../shared');
+  certificateEngine, findList } = require('../../../shared');
+const { assertNoFeeHold } = require('../../../shared/fees/feePolicy');
 
 const TYPE_TITLES = {
   BONAFIDE: 'Bonafide Certificate',
@@ -30,12 +30,12 @@ const REQUEST_TYPE_TO_CERT_TYPE = certificateEngine.REQUEST_TYPE_TO_TEMPLATE_COD
 const getCertificates = async (req, res, next) => {
   try {
     const { type } = req.query;
-    const certificates = await prisma.certificate.findMany({
+    const { rows: certificates, meta: listMeta } = await findList(prisma.certificate, {
       where: { institutionId: req.institutionId, ...(type && { type }) },
       include: { student: { select: { firstName: true, lastName: true, rollNumber: true, registerNumber: true } } },
       orderBy: { createdAt: 'desc' },
-    });
-    return sendSuccess(res, certificates, 'Certificates retrieved successfully');
+    }, req);
+    return sendSuccess(res, certificates, 'Certificates retrieved successfully', 200, listMeta);
   } catch (err) {
     next(err);
   }
@@ -54,6 +54,8 @@ const issueCertificate = async ({ institutionId, studentId, type, details }) => 
     },
   });
   if (!student) throw new NotFoundError('Student not found or access denied');
+  // the Fee Policy may hold certificates (TC and others) while fees are overdue
+  await assertNoFeeHold(prisma, { institutionId, studentId: student.id, type: 'CERTIFICATES' });
 
   const count = await prisma.certificate.count({ where: { institutionId } });
   const certificateNo = generateCertificateNumber(type, count + 1);
@@ -109,12 +111,12 @@ const generateCertificate = async (req, res, next) => {
 /** Student-submitted certificate requests awaiting Admin review. */
 const getCertificateRequests = async (req, res, next) => {
   try {
-    const requests = await prisma.certificateRequest.findMany({
+    const { rows: requests, meta: listMeta } = await findList(prisma.certificateRequest, {
       where: { student: { institutionId: req.institutionId } },
       include: { student: { select: { firstName: true, lastName: true, rollNumber: true, admissionNumber: true } } },
       orderBy: { createdAt: 'desc' },
-    });
-    return sendSuccess(res, requests, 'Certificate requests retrieved successfully');
+    }, req);
+    return sendSuccess(res, requests, 'Certificate requests retrieved successfully', 200, listMeta);
   } catch (err) {
     next(err);
   }

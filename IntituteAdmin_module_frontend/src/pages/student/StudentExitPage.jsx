@@ -8,9 +8,62 @@ import { useNotification } from '../../context/NotificationContext';
 import { LogOut, X, CheckCircle2, XCircle, ArrowRightCircle } from 'lucide-react';
 import studentService from '../../services/studentService';
 import studentExitService from '../../services/studentExitService';
+import feePolicyService from '../../services/feePolicyService';
 
 const EXIT_TYPES = [{ value: 'WITHDRAWAL', label: 'Withdrawal' }, { value: 'TRANSFER', label: 'Transfer to Another Institution' }];
 const emptyForm = { studentId: '', exitType: 'WITHDRAWAL', reason: '', transferToInstitution: '' };
+
+const MODES = [['KEEP', 'Keep all dues'], ['STOP_FUTURE', 'Stop future instalments'], ['WRITE_OFF', 'Write off everything']];
+
+/** Fees on leaving (Fee Policy onLeaving): preview what would be cancelled / written off, then apply. */
+const SettleFeesBox = ({ studentId, onDone }) => {
+  const { notifySuccess, notifyError } = useNotification();
+  const [mode, setMode] = useState(null);
+  const [plan, setPlan] = useState(null);
+  const [reason, setReason] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    feePolicyService.previewLeaving(studentId, mode || undefined)
+      .then((r) => { setPlan(r.data); if (!mode) setMode(r.data.policyMode); })
+      .catch(() => setPlan(null));
+  }, [studentId, mode]);
+
+  const apply = async () => {
+    setBusy(true);
+    try {
+      notifySuccess((await feePolicyService.applyLeaving(studentId, { mode, reason })).message);
+      onDone();
+    } catch (e) {
+      notifyError(e.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (!plan) return null;
+  return (
+    <div className="p-3 rounded-xl border border-indigo-200 dark:border-indigo-900 bg-indigo-50/60 dark:bg-indigo-950/30 space-y-2">
+      <p className="font-bold text-slate-900 dark:text-white">Settle fees on leaving</p>
+      <select value={mode || ''} onChange={(e) => setMode(e.target.value)} className="w-full p-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg">
+        {MODES.map(([v, l]) => <option key={v} value={v}>{l}{v === plan.policyMode ? ' (your Fee Policy)' : ''}</option>)}
+      </select>
+      {plan.fees.map((f) => (
+        <p key={f.assignmentId} className="text-slate-600 dark:text-slate-400">
+          {f.name}: ₹{f.due.toLocaleString('en-IN')} due{f.waive > 0 ? ` → ₹${f.waive.toLocaleString('en-IN')} ${mode === 'WRITE_OFF' ? 'written off' : 'cancelled'}` : ' — kept'}
+        </p>
+      ))}
+      {mode !== 'KEEP' && plan.totalWaive > 0 && (
+        <>
+          <input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Reason (required — recorded in the audit log)" className="w-full p-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg" />
+          <button onClick={apply} disabled={busy || !reason.trim()} className="px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-semibold disabled:opacity-50">
+            {busy ? 'Applying…' : `Apply — ₹${plan.remaining.toLocaleString('en-IN')} stays due`}
+          </button>
+        </>
+      )}
+    </div>
+  );
+};
 
 const ClearanceModal = ({ record: initialRecord, onClose, onRefresh }) => {
   const { notifySuccess, notifyError } = useNotification();
@@ -127,6 +180,9 @@ const ClearanceModal = ({ record: initialRecord, onClose, onRefresh }) => {
                 </label>
               </div>
             ))}
+            {!computed.fees.cleared && !['COMPLETED', 'CANCELLED'].includes(record.status) && (
+              <SettleFeesBox studentId={record.studentId} onDone={fetchClearance} />
+            )}
           </div>
         )}
 

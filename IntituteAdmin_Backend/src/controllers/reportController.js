@@ -7,7 +7,7 @@
  *   2. Verifies any id submitted in filters actually belongs to this institution.
  *   3. Calls the engine and formats the HTTP response (including binary exports).
  */
-const { prisma, sendSuccess, NotFoundError, ValidationError, reportEngine } = require('../../../shared');
+const { prisma, sendSuccess, NotFoundError, ValidationError, reportEngine, findList } = require('../../../shared');
 const { getReportDefinition, runReport, resolveFilterOptions, toCsv, toExcelBuffer, toPdfBuffer } = reportEngine;
 
 /** Every report visible to this institution (catalog ∩ institution configuration), for the
@@ -250,11 +250,11 @@ const createReportRequest = async (req, res, next) => {
 
 const getReportRequests = async (req, res, next) => {
   try {
-    const requests = await prisma.reportRequest.findMany({
+    const { rows: requests, meta: listMeta } = await findList(prisma.reportRequest, {
       where: { institutionId: req.institutionId },
       orderBy: { createdAt: 'desc' },
-    });
-    return sendSuccess(res, requests, 'Report requests retrieved successfully');
+    }, req);
+    return sendSuccess(res, requests, 'Report requests retrieved successfully', 200, listMeta);
   } catch (err) {
     next(err);
   }

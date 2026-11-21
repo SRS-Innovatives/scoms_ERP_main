@@ -3,12 +3,12 @@
  * degree a University (or an autonomous College) confers, distinct from the Certificates
  * module's TC/bonafide/conduct paperwork every institution type issues.
  */
-const { prisma, sendSuccess, NotFoundError, ValidationError, pushNotification } = require('../../../shared');
+const { prisma, sendSuccess, NotFoundError, ValidationError, pushNotification, findList } = require('../../../shared');
 
 const getDegrees = async (req, res, next) => {
   try {
     const { studentId, status } = req.query;
-    const degrees = await prisma.degreeRecord.findMany({
+    const { rows: degrees, meta: listMeta } = await findList(prisma.degreeRecord, {
       where: {
         institutionId: req.institutionId,
         ...(studentId && { studentId }),
@@ -19,8 +19,8 @@ const getDegrees = async (req, res, next) => {
         issuingInstitution: { select: { id: true, name: true } },
       },
       orderBy: { createdAt: 'desc' },
-    });
-    return sendSuccess(res, degrees, 'Degree records retrieved successfully');
+    }, req);
+    return sendSuccess(res, degrees, 'Degree records retrieved successfully', 200, listMeta);
   } catch (err) {
     next(err);
   }

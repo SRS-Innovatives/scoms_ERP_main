@@ -18,8 +18,14 @@ const {
   ValidationError,
   BusinessRuleError,
   pushNotification,
-  pushNotificationToMany,
-} = require('../../../shared');
+  pushNotificationToMany, findList } = require('../../../shared');
+const { recomputeItems } = require('../../../shared/fees/feeItems');
+const { recomputeInstallments } = require('../../../shared/fees/installments');
+const { refreshLateFee } = require('../../../shared/fees/lateFee');
+const {
+  getFeePolicy, effectivePolicy, planPayment, applyToAssignment, recordLatePart, addCredit, autoApplyCredit, round2,
+} = require('../../../shared/fees/feePolicy');
+const { previousDuesRule, spreadOverPreviousDues, recordPreviousDuesPayments } = require('../../../shared/fees/previousDues');
 
 /** This legacy single-amount fee system is sunset for NEW billing as of this change —
  * two fee systems (this one and the Dynamic Fee Engine in feeEngineController.js) were
@@ -146,7 +152,7 @@ const computeAssignment = (structure, discountAmount = 0) => ({
 const getStudentAssignments = async (req, res, next) => {
   try {
     const { feeStructureId, status, studentId } = req.query;
-    const assignments = await prisma.studentFeeAssignment.findMany({
+    const { rows: assignments, meta: listMeta } = await findList(prisma.studentFeeAssignment, {
       where: {
         feeStructure: { institutionId: req.institutionId },
         ...(feeStructureId && { feeStructureId }),
@@ -159,8 +165,8 @@ const getStudentAssignments = async (req, res, next) => {
         _count: { select: { installments: true, payments: true } },
       },
       orderBy: { createdAt: 'desc' },
-    });
-    return sendSuccess(res, assignments, 'Student fee assignments retrieved');
+    }, req, { max: 10000 });
+    return sendSuccess(res, assignments, 'Student fee assignments retrieved', 200, listMeta);
   } catch (err) {
     next(err);
   }
@@ -304,19 +310,31 @@ const createInstallmentPlan = async (req, res, next) => {
       throw new ValidationError(`Installment amounts (₹${planTotal}) must add up to the outstanding due amount (₹${assignment.dueAmount})`);
     }
 
-    await prisma.feeInstallment.deleteMany({ where: { studentFeeAssignmentId } });
-    const created = await prisma.$transaction(
-      installments.map((inst, idx) =>
-        prisma.feeInstallment.create({
-          data: {
-            studentFeeAssignmentId,
-            installmentNumber: idx + 1,
-            amount: Number(inst.amount),
-            dueDate: new Date(inst.dueDate),
-          },
-        })
-      )
-    );
+    // A CUSTOM plan for this one student (overrides the structure's schedule). It covers what
+    // is left to pay right now, so the amount already paid is recorded as its base; payments
+    // then fill the instalments in order (shared/fees/installments.js). All in one
+    // transaction — the old plan is never lost if the new one fails.
+    const created = await prisma.$transaction(async (tx) => {
+      const old = await tx.feeInstallment.findMany({ where: { studentFeeAssignmentId }, select: { id: true } });
+      if (old.length) {
+        // past payments may point at the old instalments — keep the payments, drop the link
+        await tx.feePayment.updateMany({ where: { installmentId: { in: old.map((o) => o.id) } }, data: { installmentId: null } });
+        await tx.feeInstallment.deleteMany({ where: { studentFeeAssignmentId } });
+      }
+      await tx.feeInstallment.createMany({
+        data: installments.map((inst, idx) => ({
+          studentFeeAssignmentId,
+          installmentNumber: idx + 1,
+          amount: Number(inst.amount),
+          dueDate: new Date(inst.dueDate),
+        })),
+      });
+      await tx.studentFeeAssignment.update({
+        where: { id: studentFeeAssignmentId },
+        data: { installmentPlan: 'CUSTOM', installmentBase: assignment.paidAmount },
+      });
+      return recomputeInstallments(tx, studentFeeAssignmentId);
+    });
 
     return sendSuccess(res, created, 'Installment plan created successfully', 201);
   } catch (err) {
@@ -350,66 +368,110 @@ const collectOfflineFee = async (req, res, next) => {
       where: { id: studentFeeAssignmentId, studentId, feeStructure: { institutionId: req.institutionId } },
     });
     if (!assignment) throw new NotFoundError('Fee assignment not found or access denied');
+    if (paymentMode === 'CREDIT') throw new ValidationError('Use "Pay from credit" to pay a fee from the student\'s credit');
+    // bring the late fee up to date BEFORE this payment, so lateness counts up to today
+    const lateFee = await refreshLateFee(prisma, assignment.id);
 
-    let installment = null;
     if (installmentId) {
-      installment = await prisma.feeInstallment.findFirst({ where: { id: installmentId, studentFeeAssignmentId } });
+      const installment = await prisma.feeInstallment.findFirst({ where: { id: installmentId, studentFeeAssignmentId } });
       if (!installment) throw new NotFoundError('Installment not found or access denied');
     }
 
+    // the institution's Fee Policy decides what this payment may be and where it goes:
+    // late fee first/last, part payments, minimum, older fee first, extra money as credit
+    const full = await prisma.studentFeeAssignment.findUnique({
+      where: { id: assignment.id },
+      include: { feeStructure: { select: { policyOverride: true } }, installments: true },
+    });
+    const policy = effectivePolicy(await getFeePolicy(prisma, req.institutionId), full.feeStructure);
+    const overrideReason = req.body.overrideReason ? String(req.body.overrideReason).trim().slice(0, 300) : null;
+    // previous academic year's dues (Fee Policy): BLOCK is enforced inside planPayment;
+    // AUTO_ADJUST sends the money to them first (oldest year first) — shared/fees/previousDues.js
+    const pyRule = await previousDuesRule(prisma, { policy, assignment: full });
+    const spread = spreadOverPreviousDues(pyRule, amountPaid);
+    const clearedIds = spread.previous.filter((p) => p.amount >= (pyRule.dues.fees.find((x) => x.id === p.id)?.dueAmount || 0) - 0.009).map((p) => p.id);
+    let split = { fee: 0, late: 0, credit: 0 }; // everything went to previous dues
+    if (!spread.previous.length || spread.rest > 0.009) {
+      try {
+        split = await planPayment(prisma, {
+          policy, assignment: full, installments: full.installments, lateDue: lateFee.due,
+          amount: spread.rest, channel: 'COUNTER', overrideReason, clearedIds,
+        });
+      } catch (e) {
+        const previous = round2(spread.previous.reduce((t, p) => t + p.amount, 0));
+        if (previous > 0 && e instanceof ValidationError && /exceeds/.test(e.message)) {
+          throw new ValidationError(`Amount ₹${round2(amountPaid)} exceeds the outstanding due of ₹${round2(previous + full.dueAmount + (policy.lateFeeOrder === 'SEPARATE' ? 0 : lateFee.due))} (including ₹${previous} previous year dues)`);
+        }
+        throw e;
+      }
+    }
+    const received = round2(split.fee + split.credit); // money recorded as the fee payment
+
     const inst = await prisma.institution.findUnique({ where: { id: req.institutionId }, select: { code: true } });
     const receiptCount = await prisma.feeReceipt.count({ where: { institutionId: req.institutionId } });
-    const receiptNumber = generateReceiptNumber(inst ? inst.code : 'SCOMS', receiptCount + 1);
+    const receiptNo = (i) => generateReceiptNumber(inst ? inst.code : 'SCOMS', receiptCount + 1 + i);
+    const receiptNumber = receiptNo(spread.previous.length);
 
     const result = await prisma.$transaction(async (tx) => {
-      const payment = await tx.feePayment.create({
-        data: {
-          institutionId: req.institutionId,
-          studentId,
-          studentFeeAssignmentId,
-          installmentId: installmentId || null,
-          amountPaid: Number(amountPaid),
-          paymentMode: paymentMode || 'CASH',
-          paymentStatus: 'SUCCESS',
-          transactionReference,
-          bankName,
-          chequeNumber,
-          receivedBy: req.user.email,
-          remarks,
-        },
+      const previousDuesPayments = await recordPreviousDuesPayments(tx, {
+        institutionId: req.institutionId, studentId, previous: spread.previous, receiptNo,
+        base: { paymentMode: paymentMode || 'CASH', transactionReference, bankName, chequeNumber, receivedBy: req.user.email, remarks },
       });
-
-      const receipt = await tx.feeReceipt.create({
-        data: {
-          receiptNumber,
-          institutionId: req.institutionId,
-          studentId,
-          paymentId: payment.id,
-          amount: Number(amountPaid),
-        },
-      });
-
-      const newPaidAmount = assignment.paidAmount + Number(amountPaid);
-      const newDueAmount = Math.max(0, assignment.totalAmount - assignment.discountAmount - newPaidAmount);
-      const newStatus = newDueAmount <= 0 ? 'PAID' : 'PARTIAL';
-
-      await tx.studentFeeAssignment.update({
-        where: { id: studentFeeAssignmentId },
-        data: { paidAmount: newPaidAmount, dueAmount: newDueAmount, status: newStatus },
-      });
-
-      if (installment) {
-        const instPaid = installment.paidAmount + Number(amountPaid);
-        await tx.feeInstallment.update({
-          where: { id: installment.id },
-          data: { paidAmount: instPaid, status: instPaid >= installment.amount ? 'PAID' : 'PARTIAL' },
+      let payment = null;
+      let receipt = null;
+      if (received > 0) {
+        payment = await tx.feePayment.create({
+          data: {
+            institutionId: req.institutionId,
+            studentId,
+            studentFeeAssignmentId,
+            installmentId: installmentId || null,
+            amountPaid: received,
+            creditAmount: split.credit,
+            paymentMode: paymentMode || 'CASH',
+            paymentStatus: 'SUCCESS',
+            transactionReference,
+            bankName,
+            chequeNumber,
+            receivedBy: req.user.email,
+            remarks,
+          },
         });
-      }
 
-      return { payment, receipt };
+        receipt = await tx.feeReceipt.create({
+          data: {
+            receiptNumber,
+            institutionId: req.institutionId,
+            studentId,
+            paymentId: payment.id,
+            amount: received,
+          },
+        });
+
+        // totals, per-head allocation and instalments (shared/fees/feePolicy.js)
+        if (split.fee > 0) await applyToAssignment(tx, { assignmentId: studentFeeAssignmentId, paymentId: payment.id, amount: split.fee });
+        if (split.credit > 0) {
+          await addCredit(tx, { institutionId: req.institutionId, studentId, amount: split.credit, feePaymentId: payment.id, reason: 'Paid more than was due', userId: req.user.id });
+        }
+      }
+      const lateFeeEntry = await recordLatePart(tx, {
+        institutionId: req.institutionId, assignmentId: studentFeeAssignmentId, amount: split.late,
+        paymentMode: paymentMode || 'CASH', receiptNumber, userId: req.user.id,
+      });
+
+      return { payment, receipt, split: { fee: split.fee, lateFee: split.late, credit: split.credit }, lateFeeReceipt: lateFeeEntry?.receiptNumber || null, previousDuesPayments };
     });
 
-    return sendSuccess(res, result, 'Fee payment collected and receipt generated', 201);
+    if (overrideReason) {
+      prisma.auditLog.create({
+        data: { institutionId: req.institutionId, userId: req.user.id, action: 'FEE_POLICY_OVERRIDDEN', module: 'FEES', entity: 'StudentFeeAssignment', entityId: studentFeeAssignmentId, newValues: JSON.stringify({ amount: Number(amountPaid), reason: overrideReason }) },
+      }).catch(() => {});
+    }
+    if (split.credit > 0) await autoApplyCredit(prisma, { institutionId: req.institutionId, studentId });
+
+    const adjusted = round2(spread.previous.reduce((t, p) => t + p.amount, 0));
+    const extra = [adjusted > 0 && `₹${adjusted} adjusted to previous year dues`, split.late > 0 && `₹${split.late} to the late fee`, split.credit > 0 && `₹${split.credit} kept as credit`].filter(Boolean).join(', ');
+    return sendSuccess(res, result, `Fee payment collected and receipt generated${extra ? ` (${extra})` : ''}`, 201);
   } catch (err) {
     next(err);
   }
@@ -437,12 +499,12 @@ const getReceipt = async (req, res, next) => {
 
 const getChallans = async (req, res, next) => {
   try {
-    const challans = await prisma.feeChallan.findMany({
+    const { rows: challans, meta: listMeta } = await findList(prisma.feeChallan, {
       where: { institutionId: req.institutionId },
       include: { student: { select: { firstName: true, lastName: true, rollNumber: true } } },
       orderBy: { createdAt: 'desc' },
-    });
-    return sendSuccess(res, challans, 'Challans retrieved');
+    }, req);
+    return sendSuccess(res, challans, 'Challans retrieved', 200, listMeta);
   } catch (err) {
     next(err);
   }
@@ -482,15 +544,15 @@ const createChallan = async (req, res, next) => {
 // ============================================================
 const getScholarships = async (req, res, next) => {
   try {
-    const scholarships = await prisma.studentFeeAssignment.findMany({
+    const { rows: scholarships, meta: listMeta } = await findList(prisma.studentFeeAssignment, {
       where: { feeStructure: { institutionId: req.institutionId }, discountAmount: { gt: 0 } },
       include: {
         student: { select: { firstName: true, lastName: true, rollNumber: true } },
         feeStructure: { select: { name: true } },
       },
       orderBy: { createdAt: 'desc' },
-    });
-    return sendSuccess(res, scholarships, 'Scholarships retrieved');
+    }, req, { max: 10000 });
+    return sendSuccess(res, scholarships, 'Scholarships retrieved', 200, listMeta);
   } catch (err) {
     next(err);
   }
@@ -509,9 +571,14 @@ const applyScholarship = async (req, res, next) => {
     const newDueAmount = Math.max(0, assignment.totalAmount - newDiscount - assignment.paidAmount);
     const newStatus = newDueAmount <= 0 ? 'PAID' : assignment.paidAmount > 0 ? 'PARTIAL' : 'PENDING';
 
-    const updated = await prisma.studentFeeAssignment.update({
-      where: { id },
-      data: { discountAmount: newDiscount, dueAmount: newDueAmount, status: newStatus, scholarshipName, scholarshipRef },
+    const updated = await prisma.$transaction(async (tx) => {
+      const row = await tx.studentFeeAssignment.update({
+        where: { id },
+        data: { discountAmount: newDiscount, dueAmount: newDueAmount, status: newStatus, scholarshipName, scholarshipRef },
+      });
+      // reflect the discount on the per-head breakdown too (no-op for legacy fees without heads)
+      await recomputeItems(tx, id);
+      return row;
     });
     return sendSuccess(res, updated, 'Scholarship applied successfully');
   } catch (err) {
@@ -524,12 +591,12 @@ const applyScholarship = async (req, res, next) => {
 // ============================================================
 const getRefunds = async (req, res, next) => {
   try {
-    const refunds = await prisma.feeRefund.findMany({
+    const { rows: refunds, meta: listMeta } = await findList(prisma.feeRefund, {
       where: { institutionId: req.institutionId },
       include: { student: { select: { firstName: true, lastName: true, rollNumber: true } } },
       orderBy: { createdAt: 'desc' },
-    });
-    return sendSuccess(res, refunds, 'Refunds retrieved');
+    }, req);
+    return sendSuccess(res, refunds, 'Refunds retrieved', 200, listMeta);
   } catch (err) {
     next(err);
   }
@@ -575,15 +642,15 @@ const processRefund = async (req, res, next) => {
 // ============================================================
 const getPendingFees = async (req, res, next) => {
   try {
-    const pending = await prisma.studentFeeAssignment.findMany({
+    const { rows: pending, meta: listMeta } = await findList(prisma.studentFeeAssignment, {
       where: { feeStructure: { institutionId: req.institutionId }, status: { in: ['PENDING', 'PARTIAL'] } },
       include: {
         student: { select: { firstName: true, lastName: true, rollNumber: true, course: { select: { name: true } } } },
         feeStructure: { select: { name: true, dueDate: true } },
       },
       orderBy: { feeStructure: { dueDate: 'asc' } },
-    });
-    return sendSuccess(res, pending, 'Pending fees retrieved');
+    }, req, { max: 10000 });
+    return sendSuccess(res, pending, 'Pending fees retrieved', 200, listMeta);
   } catch (err) {
     next(err);
   }
@@ -597,12 +664,12 @@ const getFeeDashboard = async (req, res, next) => {
 
     const [todayAgg, monthAgg, allAssignments, defaulterCount] = await Promise.all([
       prisma.feePayment.aggregate({
-        where: { institutionId: req.institutionId, paymentStatus: 'SUCCESS', paidAt: { gte: startOfToday } },
+        where: { institutionId: req.institutionId, paymentStatus: 'SUCCESS', paymentMode: { not: 'CREDIT' }, paidAt: { gte: startOfToday } },
         _sum: { amountPaid: true },
         _count: { _all: true },
       }),
       prisma.feePayment.aggregate({
-        where: { institutionId: req.institutionId, paymentStatus: 'SUCCESS', paidAt: { gte: startOfMonth } },
+        where: { institutionId: req.institutionId, paymentStatus: 'SUCCESS', paymentMode: { not: 'CREDIT' }, paidAt: { gte: startOfMonth } },
         _sum: { amountPaid: true },
         _count: { _all: true },
       }),
@@ -639,7 +706,7 @@ const getFeeReports = async (req, res, next) => {
     toDate.setHours(23, 59, 59, 999);
 
     const payments = await prisma.feePayment.findMany({
-      where: { institutionId: req.institutionId, paymentStatus: 'SUCCESS', paidAt: { gte: fromDate, lte: toDate } },
+      where: { institutionId: req.institutionId, paymentStatus: 'SUCCESS', paymentMode: { not: 'CREDIT' }, paidAt: { gte: fromDate, lte: toDate } },
       include: { studentFeeAssignment: { include: { feeStructure: { select: { category: true } } } } },
     });
 
@@ -673,7 +740,7 @@ const getDayBook = async (req, res, next) => {
     const end = new Date(day.setHours(23, 59, 59, 999));
 
     const payments = await prisma.feePayment.findMany({
-      where: { institutionId: req.institutionId, paidAt: { gte: start, lte: end } },
+      where: { institutionId: req.institutionId, paymentMode: { not: 'CREDIT' }, paidAt: { gte: start, lte: end } },
       include: { student: { select: { firstName: true, lastName: true, rollNumber: true } }, receipt: { select: { receiptNumber: true } } },
       orderBy: { paidAt: 'asc' },
     });

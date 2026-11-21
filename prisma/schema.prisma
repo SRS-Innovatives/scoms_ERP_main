@@ -2,11 +2,14 @@
 // Prisma Schema for PostgreSQL
 
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  // `omit` lets list queries leave out large base64 file columns while keeping their
+  // includes (Prisma 5.13+ preview; generally available from Prisma 6.2)
+  previewFeatures = ["omitApi"]
 }
 
 datasource db {
-  provider = "postgresql"
+  provider  = "postgresql"
   url       = env("DATABASE_URL")
   // Migrations need a direct (non-pooled) connection — on Supabase the pooler URL is
   // DATABASE_URL and the direct one is DIRECT_URL. Locally both are the same.
@@ -155,6 +158,7 @@ model Institution {
   academicCalendarEvents          AcademicCalendarEvent[]
   scheduledNotifications          ScheduledNotification[]
   studentDocuments                StudentDocument[]
+  staffDocuments                  StaffDocument[]
   expenses                        Expense[]
   budgets                         Budget[]
   studentExitRecords              StudentExitRecord[]
@@ -361,14 +365,23 @@ model User {
   @@index([institutionId, status])
 }
 
+// One row = one signed-in session (a login on one device). Its id is the `sid` inside every
+// access token, so revoking the row signs that device out (shared/auth/sessions.js).
 model RefreshToken {
-  id        String   @id @default(uuid())
-  userId    String
-  token     String   @unique
-  expiresAt DateTime
-  createdAt DateTime @default(now())
+  id         String   @id @default(uuid())
+  userId     String
+  token      String   @unique
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  portal     String? // SUPER_ADMIN | INSTITUTE_ADMIN | STAFF | STUDENT | MOBILE_STAFF | MOBILE_STUDENT
+  ipAddress  String?
+  userAgent  String?
+  lastUsedAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
 }
 
 // One row per (user, device) — a device re-registering the same token just updates
@@ -892,6 +905,7 @@ model Subject {
   questionBanks      QuestionBank[]
   examSchedules      ExamSchedule[]
   courseFeedback     CourseFeedback[]
+  electives          StudentElective[]
 
   @@unique([institutionId, code])
 }
@@ -900,10 +914,11 @@ model Subject {
 /// in. A Subject is created once, institution-wide, then mapped here to as many classes
 /// as it's actually taught in — the same "Mathematics" row serves Class 6, 7 and 8 alike.
 model SubjectClassMapping {
-  id        String   @id @default(uuid())
-  subjectId String
-  courseId  String
-  createdAt DateTime @default(now())
+  id         String   @id @default(uuid())
+  subjectId  String
+  courseId   String
+  isElective Boolean  @default(false) // elective in this class: only the students who chose it (StudentElective) take it
+  createdAt  DateTime @default(now())
 
   subject Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
   course  Course  @relation(fields: [courseId], references: [id], onDelete: Cascade)
@@ -922,6 +937,9 @@ model SubjectTeacherMapping {
   subject Subject  @relation(fields: [subjectId], references: [id], onDelete: Cascade)
   staff   Staff    @relation(fields: [staffId], references: [id], onDelete: Cascade)
   section Section? @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+
+  @@index([staffId])
+  @@index([sectionId])
 }
 
 // ------------------------------------------------------
@@ -1060,8 +1078,16 @@ model Student {
   section               Section?                      @relation(fields: [sectionId], references: [id])
   batch                 Batch?                        @relation(fields: [batchId], references: [id], onDelete: SetNull)
   house                 House?                        @relation(fields: [houseId], references: [id], onDelete: SetNull)
+  electives             StudentElective[]
+  feeCredits            StudentFeeCredit[]
+  feeHoldExemptions     FeeHoldExemption[]
   markCorrections       MarkCorrectionRequest[]
   attendanceCorrections AttendanceCorrectionRequest[]
+  // SMS / WhatsApp the student or parent switched off (Student portal → Settings):
+  // { sms: { attendance, fees, announcements }, whatsapp: { ... } } — false = don't send. null = all on.
+  // Enforced in shared/utils/notifications.js (shared/utils/notificationPreferences.js).
+  notificationPrefs     Json?
+  feeDuesExceptions     FeeDuesException[]
   parents               ParentStudent[]
   attendanceRecords     AttendanceRecord[]
   leaveRequests         LeaveRequest[]
@@ -1076,6 +1102,7 @@ model Student {
   bookIssues            BookIssue[]
   libraryMember         LibraryMember?
   documents             StudentDocument[]
+  materialDownloads     MaterialDownload[]
   exitRecords           StudentExitRecord[]
   transport             StudentTransportMapping?
   hostelBed             HostelBed?
@@ -1135,6 +1162,7 @@ model ParentStudent {
   student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
   @@unique([parentId, studentId])
+  @@index([studentId])
 }
 
 // ------------------------------------------------------
@@ -1188,6 +1216,8 @@ model Staff {
   assignments               Assignment[]
   materials                 StudyMaterial[]
   leaveRequests             LeaveRequest[]
+  documents                 StaffDocument[]
+  examDuties                ExamDuty[]
   qualifications            StaffQualification[]
   experiences               StaffExperience[]
   salary                    StaffSalary?
@@ -1222,6 +1252,8 @@ model StaffQualification {
   createdAt       DateTime @default(now())
 
   staff Staff @relation(fields: [staffId], references: [id], onDelete: Cascade)
+
+  @@index([staffId])
 }
 
 model StaffExperience {
@@ -1235,6 +1267,8 @@ model StaffExperience {
   createdAt    DateTime  @default(now())
 
   staff Staff @relation(fields: [staffId], references: [id], onDelete: Cascade)
+
+  @@index([staffId])
 }
 
 model StaffSalary {
@@ -1296,6 +1330,7 @@ model AttendanceCorrectionRequest {
 
   @@index([institutionId, status])
   @@index([sessionId])
+  @@index([studentId])
 }
 
 model AttendanceSession {
@@ -1316,6 +1351,8 @@ model AttendanceSession {
   corrections AttendanceCorrectionRequest[]
 
   @@unique([institutionId, sectionId, date, periodNumber])
+  @@index([sectionId])
+  @@index([institutionId, date]) // daily register, dashboard, attendance trend
 }
 
 model AttendanceRecord {
@@ -1329,6 +1366,7 @@ model AttendanceRecord {
   student Student           @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
   @@unique([sessionId, studentId])
+  @@index([studentId])
 }
 
 enum LeaveStatus {
@@ -1356,6 +1394,10 @@ model LeaveRequest {
   institution Institution @relation(fields: [institutionId], references: [id])
   student     Student?    @relation(fields: [studentId], references: [id])
   staff       Staff?      @relation(fields: [staffId], references: [id])
+
+  @@index([institutionId])
+  @@index([studentId])
+  @@index([staffId])
 }
 
 // ------------------------------------------------------
@@ -1374,6 +1416,7 @@ model Timetable {
   section     Section     @relation(fields: [sectionId], references: [id])
 
   @@unique([institutionId, sectionId])
+  @@index([sectionId])
 }
 
 model TimetableEntry {
@@ -1396,6 +1439,7 @@ model TimetableEntry {
   substituteRequests SubstituteRequest[]
 
   @@unique([timetableId, dayOfWeek, period])
+  @@index([staffId])
 }
 
 enum SubstituteStatus {
@@ -1454,6 +1498,9 @@ model Assignment {
   institution Institution            @relation(fields: [institutionId], references: [id])
   staff       Staff                  @relation(fields: [staffId], references: [id])
   submissions AssignmentSubmission[]
+
+  @@index([institutionId])
+  @@index([staffId])
 }
 
 model AssignmentSubmission {
@@ -1471,6 +1518,7 @@ model AssignmentSubmission {
   student    Student    @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
   @@unique([assignmentId, studentId])
+  @@index([studentId])
 }
 
 model StudyMaterial {
@@ -1485,9 +1533,33 @@ model StudyMaterial {
   fileSize      String?
   createdAt     DateTime @default(now())
 
-  institution Institution @relation(fields: [institutionId], references: [id])
-  staff       Staff       @relation(fields: [staffId], references: [id])
-  subject     Subject?    @relation(fields: [subjectId], references: [id])
+  institution Institution        @relation(fields: [institutionId], references: [id])
+  staff       Staff              @relation(fields: [staffId], references: [id])
+  subject     Subject?           @relation(fields: [subjectId], references: [id])
+  downloads   MaterialDownload[]
+
+  @@index([institutionId])
+  @@index([staffId])
+}
+
+/// Who opened which study material — one row per student per material (openCount, first/last
+/// time). Written when a student opens the material in the Student portal; read by the
+/// teacher's "Download History" in the Staff portal. Parents viewing it are not counted.
+model MaterialDownload {
+  id            String   @id @default(uuid())
+  institutionId String
+  materialId    String
+  studentId     String
+  openCount     Int      @default(1)
+  firstOpenedAt DateTime @default(now())
+  lastOpenedAt  DateTime @default(now())
+
+  material StudyMaterial @relation(fields: [materialId], references: [id], onDelete: Cascade)
+  student  Student       @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([materialId, studentId])
+  @@index([institutionId])
+  @@index([studentId])
 }
 
 // ------------------------------------------------------
@@ -1522,6 +1594,8 @@ model QuestionBank {
 
   institution Institution @relation(fields: [institutionId], references: [id])
   subject     Subject     @relation(fields: [subjectId], references: [id])
+
+  @@index([institutionId])
 }
 
 model Exam {
@@ -1533,6 +1607,9 @@ model Exam {
   startDate                DateTime
   endDate                  DateTime
   status                   String   @default("SCHEDULED")
+  hallTicketsReleased      Boolean  @default(false) // students can download hall tickets only after the admin releases them
+  assessmentType           String   @default("GENERAL") // GENERAL | INTERNAL | EXTERNAL — see shared/exams/marksheet.js
+  internalExamIds          Json? // EXTERNAL exams only: the INTERNAL exams whose average forms the internal part of the final result
   // Who actually holds authority over this exam — the paper, the evaluation, the result.
   // Null (the common case) means the institution itself sets and conducts it: true for
   // every School, every University, and an Autonomous College. Set only when a plain
@@ -1546,6 +1623,8 @@ model Exam {
   academicYear           AcademicYear   @relation(fields: [academicYearId], references: [id])
   conductedByInstitution Institution?   @relation("ExamConductedBy", fields: [conductedByInstitutionId], references: [id])
   schedules              ExamSchedule[]
+
+  @@index([institutionId])
 }
 
 model ExamSchedule {
@@ -1581,8 +1660,32 @@ model ExamSchedule {
   room               Room?                   @relation(fields: [roomId], references: [id], onDelete: SetNull)
   studentMarks       StudentMark[]
   correctionRequests MarkCorrectionRequest[]
+  duties             ExamDuty[]
 
   @@index([markStatus])
+  @@index([examId])
+}
+
+/// Exam duty allotment — a staff member's duty for one exam paper (invigilation, superintendent,
+/// squad, reliever). Allotted by the Institute Admin under Examination → Exam Duties; the staff
+/// member sees it and prints the Duty Allotment Letter in the Staff portal.
+model ExamDuty {
+  id            String   @id @default(uuid())
+  institutionId String
+  scheduleId    String
+  staffId       String
+  role          String   @default("INVIGILATOR") // INVIGILATOR, CHIEF_SUPERINTENDENT, ROOM_SUPERINTENDENT, SQUAD, RELIEVER
+  roomLabel     String? // where to report, when different from the paper's own room
+  remarks       String?
+  assignedById  String? // User.id
+  createdAt     DateTime @default(now())
+
+  schedule ExamSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  staff    Staff        @relation(fields: [staffId], references: [id], onDelete: Cascade)
+
+  @@unique([scheduleId, staffId])
+  @@index([institutionId])
+  @@index([staffId])
 }
 
 enum ExamMarkStatus {
@@ -1617,6 +1720,7 @@ model MarkCorrectionRequest {
 
   @@index([institutionId, status])
   @@index([examScheduleId])
+  @@index([studentId])
 }
 
 enum CorrectionRequestStatus {
@@ -1640,6 +1744,7 @@ model StudentMark {
   student      Student      @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
   @@unique([examScheduleId, studentId])
+  @@index([studentId])
 }
 
 // ------------------------------------------------------
@@ -1717,6 +1822,10 @@ model FeeStructure {
   totalAmount       Float // cached sum of item amounts once published; kept in sync by the builder
   dueDate           DateTime
   lateFeePerDay     Float              @default(0)
+  lateFeeGraceDays  Int                @default(0) // days after the due date before the late fee starts
+  lateFeeMaxAmount  Float? // the most late fee one student can be charged on this fee (null = no limit)
+  // this fee's own payment rules, overriding the institution's Fee Policy (shared/fees/feePolicy.js)
+  policyOverride    Json?
   frequency         String             @default("ANNUAL") // ONE_TIME, MONTHLY, QUARTERLY, HALF_YEARLY, ANNUAL, SEMESTER, INSTALLMENT, CUSTOM
   status            FeeStructureStatus @default(DRAFT)
   version           Int                @default(1)
@@ -1724,15 +1833,70 @@ model FeeStructure {
   createdAt         DateTime           @default(now())
   updatedAt         DateTime           @updatedAt
 
-  institution     Institution            @relation(fields: [institutionId], references: [id])
-  academicYear    AcademicYear           @relation(fields: [academicYearId], references: [id])
-  course          Course?                @relation(fields: [courseId], references: [id])
-  parentStructure FeeStructure?          @relation("StructureVersions", fields: [parentStructureId], references: [id])
-  versions        FeeStructure[]         @relation("StructureVersions")
-  items           FeeStructureItem[]
-  assignments     StudentFeeAssignment[]
+  institution         Institution               @relation(fields: [institutionId], references: [id])
+  academicYear        AcademicYear              @relation(fields: [academicYearId], references: [id])
+  course              Course?                   @relation(fields: [courseId], references: [id])
+  parentStructure     FeeStructure?             @relation("StructureVersions", fields: [parentStructureId], references: [id])
+  versions            FeeStructure[]            @relation("StructureVersions")
+  items               FeeStructureItem[]
+  assignments         StudentFeeAssignment[]
+  installmentSchedule FeeStructureInstallment[]
 
   @@index([institutionId, status])
+  @@index([sectionId])
+}
+
+/// Which students take an elective subject (SubjectClassMapping.isElective). Core subjects
+/// need no rows — every student of the class takes them.
+model StudentElective {
+  id            String   @id @default(uuid())
+  institutionId String
+  studentId     String
+  subjectId     String
+  createdAt     DateTime @default(now())
+
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  subject Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, subjectId])
+  @@index([subjectId])
+}
+
+/// A late fee collected or waived by the Institute Admin (the charge itself accrues on
+/// StudentFeeAssignment.lateFeeCharged).
+model LateFeeEntry {
+  id                     String   @id @default(uuid())
+  institutionId          String
+  studentFeeAssignmentId String
+  type                   String // PAYMENT | WAIVER
+  amount                 Float
+  paymentMode            String?
+  receiptNumber          String?  @unique
+  reason                 String?
+  createdById            String? // User.id
+  createdAt              DateTime @default(now())
+
+  studentFeeAssignment StudentFeeAssignment @relation(fields: [studentFeeAssignmentId], references: [id], onDelete: Cascade)
+
+  @@index([studentFeeAssignmentId])
+  @@index([institutionId, createdAt])
+}
+
+/// Instalment schedule defined once on a fee structure (e.g. Term 1 = 40% by 15 Jun).
+/// Every student assigned the structure gets these instalments automatically; each one is
+/// a slice of the student's fee after discount, taken in head order (shared/fees/installments.js).
+model FeeStructureInstallment {
+  id                String   @id @default(uuid())
+  feeStructureId    String
+  installmentNumber Int
+  label             String? // e.g. "Term 1"
+  percent           Float // share of the fee after discount; a structure's rows add up to 100
+  dueDate           DateTime
+  createdAt         DateTime @default(now())
+
+  feeStructure FeeStructure @relation(fields: [feeStructureId], references: [id], onDelete: Cascade)
+
+  @@unique([feeStructureId, installmentNumber])
 }
 
 /// One fee-head line item within a structure — e.g. "Tuition Fee: ₹30,000 Annual" — the
@@ -1746,6 +1910,8 @@ model FeeStructureItem {
   dueDate        DateTime?
   mandatory      Boolean   @default(true)
   sortOrder      Int       @default(0)
+  // who this head applies to and how much (shared/fees/feeRules.js) — null = everyone, the amount above
+  rule           Json?
 
   feeStructure FeeStructure @relation(fields: [feeStructureId], references: [id], onDelete: Cascade)
   feeHead      FeeHead      @relation(fields: [feeHeadId], references: [id])
@@ -1766,19 +1932,32 @@ model StudentFeeAssignment {
   dueAmount        Float
   status           String   @default("PENDING") // PENDING, PARTIAL, PAID
   createdAt        DateTime @default(now())
+  // Instalments: NONE | SCHEDULE (from the structure's schedule) | CUSTOM (a plan the fee
+  // office set for this one student). installmentBase = amount already paid when a CUSTOM
+  // plan was made (that plan covers only what was left at the time).
+  installmentPlan  String   @default("NONE")
+  installmentBase  Float    @default(0)
+  // Late fee — kept separate from the fee itself (shared/fees/lateFee.js). charged accrues
+  // automatically after the grace days, up to the structure's maximum; only the Institute
+  // Admin collects or waives it (LateFeeEntry rows).
+  lateFeeCharged   Float    @default(0)
+  lateFeeWaived    Float    @default(0)
+  lateFeePaid      Float    @default(0)
 
   // Institution-specific extra assignment fields (SuperAdmin-approved only — see
   // AdmissionCustomField, entityType FEE_ASSIGNMENT), e.g. "Sponsor Name".
   customFields Json?
 
-  feeStructure FeeStructure            @relation(fields: [feeStructureId], references: [id])
-  student      Student                 @relation(fields: [studentId], references: [id])
-  payments     FeePayment[]
-  installments FeeInstallment[]
-  items        StudentFeeItem[]
-  concessions  ConcessionApplication[]
+  feeStructure   FeeStructure            @relation(fields: [feeStructureId], references: [id])
+  student        Student                 @relation(fields: [studentId], references: [id])
+  payments       FeePayment[]
+  installments   FeeInstallment[]
+  lateFeeEntries LateFeeEntry[]
+  items          StudentFeeItem[]
+  concessions    ConcessionApplication[]
 
   @@unique([feeStructureId, studentId])
+  @@index([studentId])
 }
 
 /// Reusable scholarship / concession rule. Approved applications add their amount to
@@ -1831,6 +2010,7 @@ model ConcessionApplication {
 
   @@index([institutionId, status])
   @@index([feeAssignmentId])
+  @@index([studentId])
 }
 
 /// The per-student, per-fee-head breakdown — snapshotted from FeeStructureItem at
@@ -1846,6 +2026,10 @@ model StudentFeeItem {
   paidAmount             Float    @default(0)
   dueAmount              Float
   status                 String   @default("PENDING") // PENDING, PARTIAL, PAID
+  // fee rules sync (shared/fees/feeSync.js): the full-year amount this head was last worked
+  // out at for this student (null = amount), and how (e.g. "Route 5 fare × 10 months")
+  basisAmount            Float?
+  note                   String?
   createdAt              DateTime @default(now())
 
   studentFeeAssignment StudentFeeAssignment @relation(fields: [studentFeeAssignmentId], references: [id], onDelete: Cascade)
@@ -1895,6 +2079,7 @@ enum PaymentMode {
   RAZORPAY
   ONLINE_CARD
   OTHER
+  CREDIT // paid from the student's fee credit — not new money (excluded from collection totals)
 }
 
 enum PaymentStatus {
@@ -1923,6 +2108,8 @@ model FeePayment {
   chequeDate             DateTime?
   receivedBy             String?
   remarks                String?
+  // part of amountPaid kept as the student's fee credit (an overpayment) — not applied to this fee
+  creditAmount           Float         @default(0)
   paidAt                 DateTime      @default(now())
 
   institution          Institution          @relation(fields: [institutionId], references: [id])
@@ -1933,6 +2120,8 @@ model FeePayment {
   allocations          PaymentAllocation[]
 
   @@index([institutionId, studentId])
+  @@index([studentId])
+  @@index([institutionId, paidAt]) // dashboard monthly collection, collection reports
 }
 
 model FeeReceipt {
@@ -1949,6 +2138,9 @@ model FeeReceipt {
   institution Institution @relation(fields: [institutionId], references: [id])
   student     Student     @relation(fields: [studentId], references: [id])
   payment     FeePayment  @relation(fields: [paymentId], references: [id])
+
+  @@index([institutionId])
+  @@index([studentId])
 }
 
 model FeeChallan {
@@ -1964,6 +2156,9 @@ model FeeChallan {
 
   institution Institution @relation(fields: [institutionId], references: [id])
   student     Student     @relation(fields: [studentId], references: [id])
+
+  @@index([institutionId])
+  @@index([studentId])
 }
 
 model FeeRefund {
@@ -1979,6 +2174,9 @@ model FeeRefund {
 
   institution Institution @relation(fields: [institutionId], references: [id])
   student     Student     @relation(fields: [studentId], references: [id])
+
+  @@index([institutionId])
+  @@index([studentId])
 }
 
 // ------------------------------------------------------
@@ -1998,6 +2196,8 @@ model Book {
 
   institution Institution @relation(fields: [institutionId], references: [id])
   issues      BookIssue[]
+
+  @@index([institutionId])
 }
 
 model BookIssue {
@@ -2013,6 +2213,8 @@ model BookIssue {
 
   book    Book    @relation(fields: [bookId], references: [id])
   student Student @relation(fields: [studentId], references: [id])
+
+  @@index([studentId])
 }
 
 /// Optional formal library-card registration for a student — entirely separate from
@@ -2057,6 +2259,8 @@ model Vehicle {
   institution Institution      @relation(fields: [institutionId], references: [id])
   routes      TransportRoute[]
   trips       VehicleTrip[]
+
+  @@index([institutionId])
 }
 
 model VehicleTrip {
@@ -2086,6 +2290,8 @@ model TransportRoute {
   institution Institution               @relation(fields: [institutionId], references: [id])
   vehicle     Vehicle?                  @relation(fields: [vehicleId], references: [id])
   mappings    StudentTransportMapping[]
+
+  @@index([institutionId])
 }
 
 model StudentTransportMapping {
@@ -2116,6 +2322,8 @@ model Hostel {
   institution Institution        @relation(fields: [institutionId], references: [id])
   beds        HostelBed[]
   visitors    HostelVisitorLog[]
+
+  @@index([institutionId])
 }
 
 model HostelBed {
@@ -2165,6 +2373,8 @@ model HostelVisitorLog {
 
   hostel  Hostel  @relation(fields: [hostelId], references: [id])
   student Student @relation(fields: [studentId], references: [id])
+
+  @@index([studentId])
 }
 
 // ------------------------------------------------------
@@ -2182,6 +2392,8 @@ model CertificateRequest {
   createdAt     DateTime  @default(now())
 
   student Student @relation(fields: [studentId], references: [id])
+
+  @@index([studentId])
 }
 
 model Certificate {
@@ -2201,6 +2413,9 @@ model Certificate {
   institution Institution          @relation(fields: [institutionId], references: [id])
   student     Student?             @relation(fields: [studentId], references: [id])
   template    CertificateTemplate? @relation(fields: [templateId], references: [id])
+
+  @@index([institutionId])
+  @@index([studentId])
 }
 
 model Announcement {
@@ -2240,6 +2455,7 @@ model Notification {
 
   @@index([userId, isRead])
   @@index([userId, createdAt])
+  @@index([institutionId])
 }
 
 model Event {
@@ -2253,6 +2469,8 @@ model Event {
 
   institution   Institution         @relation(fields: [institutionId], references: [id])
   registrations EventRegistration[]
+
+  @@index([institutionId])
 }
 
 model EventRegistration {
@@ -2267,6 +2485,7 @@ model EventRegistration {
   student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
   @@unique([eventId, studentId])
+  @@index([studentId])
 }
 
 model Club {
@@ -2279,6 +2498,8 @@ model Club {
 
   institution Institution  @relation(fields: [institutionId], references: [id])
   members     ClubMember[]
+
+  @@index([institutionId])
 }
 
 model ClubMember {
@@ -2291,6 +2512,7 @@ model ClubMember {
   student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
   @@unique([clubId, studentId])
+  @@index([studentId])
 }
 
 model Grievance {
@@ -2306,6 +2528,9 @@ model Grievance {
 
   institution Institution @relation(fields: [institutionId], references: [id])
   student     Student     @relation(fields: [studentId], references: [id])
+
+  @@index([institutionId])
+  @@index([studentId])
 }
 
 model Message {
@@ -2316,6 +2541,9 @@ model Message {
   createdAt  DateTime @default(now())
 
   sender User @relation("SentMessages", fields: [senderId], references: [id])
+
+  @@index([senderId, receiverId, createdAt]) // a conversation thread (both directions), newest first
+  @@index([receiverId])
 }
 
 model StudentResume {
@@ -2341,6 +2569,9 @@ model StudentAchievement {
 
   institution Institution @relation(fields: [institutionId], references: [id])
   student     Student     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([institutionId])
+  @@index([studentId])
 }
 
 // Anonymous end-of-semester faculty/course feedback. studentId is kept (never null) only
@@ -2374,6 +2605,10 @@ model Appointment {
   institution Institution @relation(fields: [institutionId], references: [id])
   student     Student     @relation(fields: [studentId], references: [id], onDelete: Cascade)
   staff       Staff       @relation(fields: [staffId], references: [id], onDelete: Cascade)
+
+  @@index([institutionId])
+  @@index([studentId])
+  @@index([staffId])
 }
 
 // Parent-Teacher Meeting minutes logged by a staff member after a real conversation with a
@@ -2394,6 +2629,7 @@ model ParentMeetingNote {
 
   @@index([staffId])
   @@index([studentId])
+  @@index([institutionId])
 }
 
 // Placement Cell — internships & job postings managed by the Institute Admin, applied to
@@ -2414,6 +2650,8 @@ model JobPosting {
 
   institution  Institution      @relation(fields: [institutionId], references: [id])
   applications JobApplication[]
+
+  @@index([institutionId])
 }
 
 model JobApplication {
@@ -2427,6 +2665,7 @@ model JobApplication {
   student    Student    @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
   @@unique([jobPostingId, studentId])
+  @@index([studentId])
 }
 
 // ------------------------------------------------------
@@ -2467,6 +2706,8 @@ model JobOpening {
 
   institution  Institution            @relation(fields: [institutionId], references: [id])
   applications CandidateApplication[]
+
+  @@index([institutionId])
 }
 
 model CandidateApplication {
@@ -2508,6 +2749,7 @@ model ResearchPublication {
   staff       Staff       @relation(fields: [staffId], references: [id], onDelete: Cascade)
 
   @@index([institutionId, staffId])
+  @@index([staffId])
 }
 
 // ------------------------------------------------------
@@ -2603,6 +2845,7 @@ model InstitutionSettings {
   idCardOrientation         String   @default("VERTICAL") // VERTICAL | HORIZONTAL — the institution's chosen ID card layout, applied everywhere a student/staff ID card renders
   idCardTemplate            String   @default("CLASSIC") // CLASSIC | MODERN | MINIMAL — the institution's chosen visual style
   examApprovalRequired      Boolean  @default(false) // on = marks must be SUBMITTED -> VERIFIED -> APPROVED before they can be published
+  studentMarksheetEnabled   Boolean  @default(false) // on = students see the formal mark card (SGPA/CGPA/classification); off = only their published subject marks
   attendanceLockDays        Int? // null = never lock; N = sessions older than N days need an approved correction request
   paymentGatewayProvider    String?
   paymentKeyId              String? // public key/merchant id only — secrets stay server-side (.env), never stored here
@@ -2629,6 +2872,7 @@ model AuditLog {
   user        User?        @relation(fields: [userId], references: [id])
 
   @@index([institutionId, createdAt])
+  @@index([userId])
 }
 
 model SubscriptionPlan {
@@ -2656,6 +2900,8 @@ model Subscription {
   institution Institution      @relation(fields: [institutionId], references: [id])
   plan        SubscriptionPlan @relation(fields: [planId], references: [id])
   invoices    Invoice[]
+
+  @@index([institutionId])
 }
 
 model Invoice {
@@ -2760,6 +3006,9 @@ model PlatformSetting {
   currency        String  @default("INR (₹)")
   localization    String  @default("English")
   maintenanceMode Boolean @default(false)
+  // Feature Flags (Super Admin) — platform-wide switches, e.g. { "sms": { "enabled": false, "updatedAt": …, "updatedBy": … } };
+  // a key that is missing means ON (shared/utils/featureFlags.js)
+  featureFlags    Json?
 
   // Platform's own GST billing identity — the "supplier" side of every invoice generated
   companyName    String @default("SCOMS Educational Software Solutions Pvt. Ltd.")
@@ -2788,6 +3037,7 @@ model AiUsageLog {
 
   @@index([institutionId, createdAt])
   @@index([module])
+  @@index([userId])
 }
 
 // Platform-wide AI provider config — one real API key/model the whole SaaS uses, set once
@@ -3081,6 +3331,8 @@ model Vendor {
   Asset              Asset[]
   expenses           Expense[]
   maintenanceRecords AssetMaintenanceRecord[]
+
+  @@index([institutionId])
 }
 
 /// Institution operating expenses — salaries advances, utilities, maintenance, etc.
@@ -3232,6 +3484,8 @@ model ComputerLab {
   createdAt       DateTime @default(now())
 
   institution Institution @relation(fields: [institutionId], references: [id])
+
+  @@index([institutionId])
 }
 
 model StockItem {
@@ -3247,6 +3501,8 @@ model StockItem {
 
   institution  Institution        @relation(fields: [institutionId], references: [id])
   transactions StockTransaction[]
+
+  @@index([institutionId])
 }
 
 model StockTransaction {
@@ -3274,6 +3530,8 @@ model PurchaseOrder {
 
   institution Institution @relation(fields: [institutionId], references: [id])
   vendor      Vendor      @relation(fields: [vendorId], references: [id])
+
+  @@index([institutionId])
 }
 
 // ------------------------------------------------------
@@ -3484,6 +3742,7 @@ model SavedReport {
   user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([institutionId, reportId])
+  @@index([userId])
 }
 
 /// Institution → Super Admin workflow for reports that don't exist in the catalog yet.
@@ -3684,6 +3943,7 @@ model DisciplineRecord {
   reportedBy  Staff?      @relation(fields: [reportedById], references: [id])
 
   @@index([institutionId, studentId])
+  @@index([studentId])
 }
 
 // ------------------------------------------------------
@@ -3709,6 +3969,7 @@ model HealthRecord {
   recordedBy  Staff?      @relation(fields: [recordedById], references: [id])
 
   @@index([institutionId, studentId])
+  @@index([studentId])
 }
 
 // ------------------------------------------------------
@@ -3771,21 +4032,45 @@ enum StudentDocumentType {
 }
 
 model StudentDocument {
-  id            String              @id @default(uuid())
-  institutionId String
-  studentId     String
-  documentType  StudentDocumentType @default(OTHER)
-  title         String
-  fileData      String // base64 data URI
-  fileName      String?
-  mimeType      String?
-  uploadedById  String? // Staff.id or the Institute Admin's User.id — no FK, either can upload
-  uploadedAt    DateTime            @default(now())
+  id               String              @id @default(uuid())
+  institutionId    String
+  studentId        String
+  documentType     StudentDocumentType @default(OTHER)
+  title            String
+  fileData         String // base64 data URI
+  fileName         String?
+  mimeType         String?
+  uploadedById     String? // Staff.id or the Institute Admin's User.id — no FK, either can upload
+  uploadedAt       DateTime            @default(now())
+  visibleToStudent Boolean             @default(true) // false = office-only (e.g. a medical record): hidden from the Student portal
 
   institution Institution @relation(fields: [institutionId], references: [id])
   student     Student     @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
   @@index([institutionId, studentId])
+  @@index([studentId])
+}
+
+/// A staff member's own documents (ID proof, certificates, experience letters, ...) — uploaded
+/// from the Staff portal. Stored as a base64 data URI like StudentDocument, and served through
+/// the signed media link (/api/v1/media/staffdoc/:id), never inside list responses.
+model StaffDocument {
+  id            String   @id @default(uuid())
+  institutionId String
+  staffId       String
+  documentType  String   @default("OTHER") // ID_PROOF, ADDRESS_PROOF, EDUCATION, EXPERIENCE, BANK, PHOTO, OTHER
+  title         String
+  fileData      String // base64 data URI
+  fileName      String?
+  mimeType      String?
+  fileSize      Int? // bytes
+  uploadedAt    DateTime @default(now())
+
+  institution Institution @relation(fields: [institutionId], references: [id])
+  staff       Staff       @relation(fields: [staffId], references: [id], onDelete: Cascade)
+
+  @@index([institutionId, staffId])
+  @@index([staffId])
 }
 
 model GalleryPhoto {
@@ -4084,4 +4369,144 @@ model HousePointEntry {
   house House @relation(fields: [houseId], references: [id], onDelete: Cascade)
 
   @@index([houseId, createdAt])
+}
+
+// ============================================================
+// Fee Policy — each institution's own payment, credit, hold and reminder rules
+// (shared/fees/feePolicy.js). No row = today's behaviour.
+// ============================================================
+model FeePolicy {
+  id            String @id @default(uuid())
+  institutionId String @unique
+
+  // payments
+  partialPayment    String  @default("ALLOWED") // ALLOWED | NOT_ALLOWED (whole instalments only) | COUNTER_ONLY (online must clear whole instalments)
+  minPaymentType    String  @default("NONE") // NONE | FIXED | PERCENT (of what is due now)
+  minPaymentValue   Float   @default(0)
+  counterHeadChoice Boolean @default(true) // the admin may pick which heads a counter payment goes to
+  lateFeeOrder      String  @default("SEPARATE") // SEPARATE | FIRST (payments clear the late fee first) | LAST (after the fee)
+  oldestFeeFirst    Boolean @default(false) // an older unpaid fee must be cleared before a newer one
+
+  // extra payments
+  excessPayment         String  @default("REJECT") // REJECT | CREDIT
+  creditUse             String  @default("MANUAL") // AUTO (applied to the next dues) | MANUAL
+  creditRefundable      Boolean @default(true)
+  creditSiblingTransfer Boolean @default(false)
+
+  // holds while fees are unpaid
+  holds              Json? // e.g. ["HALL_TICKET","RESULTS","CERTIFICATES","LIBRARY"]
+  holdTrigger        String  @default("ANY_OVERDUE") // ANY_OVERDUE | OVERDUE_DAYS | AMOUNT
+  holdDays           Int     @default(0)
+  holdAmount         Float   @default(0)
+  holdIncludeLateFee Boolean @default(true)
+
+  // reminders (in-app; SMS/WhatsApp come later)
+  remindersEnabled       Boolean @default(false)
+  reminderBeforeDays     Int     @default(3) // 0 = none
+  reminderOnDueDate      Boolean @default(true)
+  reminderAfterEveryDays Int     @default(7) // 0 = none
+  reminderAfterMaxTimes  Int     @default(3)
+  reminderRecipients     String  @default("BOTH") // STUDENT | PARENT | BOTH
+  reminderMessage        String?
+
+  // SMS reminders (shared/fees/feeReminders.js) — to people with unpaid fees, on the same
+  // schedule; each SMS uses the institution's SMS credits
+  smsRemindersEnabled Boolean @default(false)
+  smsOn               String  @default("OVERDUE") // OVERDUE (only once a due date has passed) | ALL (every reminder)
+  smsRecipients       String  @default("PARENT") // PARENT | STUDENT | BOTH
+  smsMinDue           Float   @default(0) // only when at least this much is unpaid
+  smsMessage          String?
+
+  // automatic fee assignment (shared/fees/feeSync.js)
+  autoAssignOnAdmission     Boolean @default(false)
+  autoAssignOnPromotion     Boolean @default(false)
+  autoAdjustOnServiceChange Boolean @default(false) // hostel / transport added, changed or ended
+  midYearChange             String  @default("PRORATA") // FULL | PRORATA (by months left) | NEXT_TERM (no change now)
+  onLeaving                 String  @default("KEEP") // KEEP | STOP_FUTURE (cancel instalments not yet due) | WRITE_OFF
+
+  // previous academic year's unpaid fees (shared/fees/previousDues.js)
+  previousYearDues     String  @default("ALLOW") // ALLOW (as before) | BLOCK (clear them before paying a later year's fee) | AUTO_ADJUST (a payment clears them first, the rest goes to the chosen fee)
+  previousYearOverride Boolean @default(true) // the fee office may bypass BLOCK for one payment with a reason (audited)
+  previousYearMinDue   Float   @default(0) // previous dues below this never block / auto-adjust
+  carryForward         String  @default("KEEP") // KEEP (old fee stays open) | MOVE (balance moved into the new year as arrears)
+  carryForwardLateFee  Boolean @default(true) // include the unpaid late fee when moving a balance
+  promotionWithDues    String  @default("WARN") // ALLOW | WARN (admin confirms) | BLOCK (unless overridden with a reason)
+
+  updatedById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+/// One student allowed to pay a later year's fee although previous-year dues are unpaid
+/// (management approval) — until validUntil, unless revoked. Fee Policy → Previous year dues.
+model FeeDuesException {
+  id            String    @id @default(uuid())
+  institutionId String
+  studentId     String
+  reason        String
+  validUntil    DateTime
+  createdById   String? // User.id
+  createdAt     DateTime  @default(now())
+  revokedAt     DateTime?
+  revokedById   String?
+
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([institutionId])
+  @@index([studentId])
+}
+
+/// The student's fee credit ledger — balance = sum of amounts (CREDIT/TRANSFER_IN positive,
+/// USE/REFUND/TRANSFER_OUT negative).
+model StudentFeeCredit {
+  id            String   @id @default(uuid())
+  institutionId String
+  studentId     String
+  type          String // CREDIT | USE | REFUND | TRANSFER_IN | TRANSFER_OUT
+  amount        Float
+  feePaymentId  String? // the overpayment that created it, or the CREDIT payment that used it
+  reason        String?
+  createdById   String?
+  createdAt     DateTime @default(now())
+
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([studentId])
+  @@index([institutionId, createdAt])
+}
+
+/// An admin's exception: this student is not blocked by fee holds (all, or the listed ones).
+model FeeHoldExemption {
+  id            String    @id @default(uuid())
+  institutionId String
+  studentId     String
+  holdTypes     Json? // null = every hold
+  reason        String
+  expiresAt     DateTime?
+  revokedAt     DateTime?
+  createdById   String?
+  createdAt     DateTime  @default(now())
+
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([studentId])
+  @@index([institutionId])
+}
+
+/// One row per reminder sent, so the daily job never sends the same reminder twice.
+model FeeReminderLog {
+  id            String   @id @default(uuid())
+  institutionId String
+  assignmentId  String
+  targetKey     String // instalment id, or the assignment id when the fee has no instalments
+  kind          String // BEFORE | DUE | AFTER | MANUAL
+  seq           Int      @default(0) // AFTER: 1, 2, 3 …
+  sentOn        String // YYYY-MM-DD
+  recipients    Int      @default(0)
+  smsSent       Int      @default(0)
+  createdAt     DateTime @default(now())
+
+  @@unique([targetKey, kind, seq]) // MANUAL uses the day number as seq — once a day
+  @@index([institutionId, createdAt])
+  @@index([assignmentId])
 }
