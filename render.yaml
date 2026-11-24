@@ -13,6 +13,10 @@
 # (scoms-app-backend/src/mobileRoutes.js, mounted in server/app.js). Push notifications are
 # delivered in-process; set FIREBASE_SERVICE_ACCOUNT_JSON (below) to send real pushes —
 # without it they are simulated (logged) and everything else keeps working.
+#
+# NOTE: production currently runs the four per-portal services instead (scoms-erp-main,
+# -1, -2, -3.onrender.com). There the Student and Staff backends serve their own app's
+# mobile API — see docs/deployment.md "Mobile apps — production".
 
 services:
   - type: web

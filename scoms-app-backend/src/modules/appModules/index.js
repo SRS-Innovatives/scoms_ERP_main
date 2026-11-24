@@ -8,7 +8,7 @@
  * prefix, so req.user is already set by that router's own requireAuth.
  */
 const express = require('express');
-const { sendSuccess, appModules } = require('@scoms/shared');
+const { sendSuccess, appModules } = require('../../../../shared');
 
 const forApp = (appKey) => {
   const router = express.Router();

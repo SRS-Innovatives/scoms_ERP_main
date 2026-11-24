@@ -4,7 +4,7 @@
  * configured, the send is simulated (logged, not dispatched) instead of failing —
  * so the whole notification flow keeps working in dev with nothing to set up.
  */
-const { logger } = require('@scoms/shared');
+const { logger } = require('../../../../shared');
 
 let firebaseApp = null;
 

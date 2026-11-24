@@ -69,7 +69,7 @@ app.use('/api/v1/student', studentRoutes);
 // served by this same process — the same router the standalone gateway uses
 // (scoms-app-backend/src/mobileRoutes.js). Loading it also makes push delivery in-process
 // for notifications written by ANY portal here (shared/utils/notificationCenter.js).
-app.use(require('../scoms-app-backend/src/mobileRoutes'));
+app.use(require('../scoms-app-backend/src/mobileRoutes').combinedMobileRouter());
 
 app.use(errorHandler);
 

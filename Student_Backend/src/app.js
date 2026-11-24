@@ -25,6 +25,9 @@ app.get('/health', async (req, res) => {
 // Platform Maintenance Mode (Super Admin → System) — 503 for these portals while it is on
 app.use('/api/v1/student', require('../../shared/middleware/maintenanceMode').blockDuringMaintenance);
 app.use('/api/v1/student', apiRoutes);
+// The Student / Parent mobile app (/api/v1/mobile/student/*) is served by this same service
+// in production — scoms-app-backend/src/mobileRoutes.js. Also delivers push in-process.
+app.use(require('../../scoms-app-backend/src/mobileRoutes').mobileRouterFor('student'));
 // Profile photos + institution logos as cacheable image files (signed links — see shared/media/mediaUrl.js)
 app.use('/api/v1/media', require('../../shared/media/mediaRoutes'));
 app.use(errorHandler);

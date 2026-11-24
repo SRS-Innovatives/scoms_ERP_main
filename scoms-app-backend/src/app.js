@@ -15,7 +15,7 @@ const cors = require('cors');
 const helmet = require('helmet');
 const { errorHandler, getHealthPayload } = require('../../shared');
 
-const mobileRoutes = require('./mobileRoutes');
+const { combinedMobileRouter } = require('./mobileRoutes');
 
 const app = express();
 
@@ -34,7 +34,7 @@ app.use('/api/v1/media', require('../../shared/media/mediaRoutes'));
 
 // /api/v1/mobile/{student,staff}/* and /internal/push — see mobileRoutes.js (the combined
 // production server mounts the same router)
-app.use(mobileRoutes);
+app.use(combinedMobileRouter());
 
 app.use(errorHandler);
 

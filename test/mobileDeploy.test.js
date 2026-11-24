@@ -56,6 +56,23 @@ const mountedPaths = (stack, prefix = '') => {
     assert.ok(paths.some((p) => p.startsWith('/api/v1/student/')), 'web student routes still there');
   });
 
+  await test('split production: each portal service serves its own app, and only that one', () => {
+    const student = mountedPaths(require('../Student_Backend/src/app')._router.stack);
+    const staff = mountedPaths(require('../Staff_backend/src/app')._router.stack);
+    assert.ok(student.includes('/api/v1/mobile/student/app-modules'), 'Student backend serves the student / parent app');
+    assert.ok(!student.some((p) => p.startsWith('/api/v1/mobile/staff')), 'not the staff app');
+    assert.ok(staff.includes('/api/v1/mobile/staff/app-modules'), 'Staff backend serves the staff app');
+    assert.ok(!staff.some((p) => p.startsWith('/api/v1/mobile/student')), 'not the student app');
+    for (const b of ['IntituteAdmin_Backend', 'SuperAdmin_Backend']) {
+      assert.ok(/mobileRoutes'\)\.enableLocalPush\(\)/.test(read(`${b}/src/app.js`)), `${b} pushes in-process`);
+    }
+  });
+
+  await test('each app points at its own production service', () => {
+    assert.ok(read('scoms-app-student/src/constants/config.ts').includes("PRODUCTION_API_ORIGIN = 'https://scoms-erp-main-3.onrender.com'"), 'student app → Student backend');
+    assert.ok(read('scoms-app-staff/src/constants/config.ts').includes("PRODUCTION_API_ORIGIN = 'https://scoms-erp-main.onrender.com'"), 'staff app → Staff backend');
+  });
+
   await test('the gateway uses the shared Prisma client (no stale generated copy)', () => {
     assert.strictEqual(require('../scoms-app-backend/src/database/client'), prisma);
     assert.ok(!fs.existsSync(path.join(__dirname, '../scoms-app-backend/prisma/schema.prisma')), 'stale schema copy removed');

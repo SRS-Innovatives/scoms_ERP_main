@@ -3,10 +3,10 @@ import { Platform } from 'react-native';
 /**
  * Where the app's API lives.
  *
- * Release builds → the production server. It is the same single Render service that runs the
- * web portals (server/server.js), which also serves /api/v1/mobile/* — see
- * scoms-app-backend/src/mobileRoutes.js. Set PRODUCTION_API_ORIGIN to that service's URL
- * (the same value as SCOMS_API_URL in Vercel) before building a release.
+ * Release builds → the production Staff backend (one Render service per portal), which also
+ * serves /api/v1/mobile/staff/* — see scoms-app-backend/src/mobileRoutes.js and
+ * Staff_backend/src/app.js. If that service moves, change PRODUCTION_API_ORIGIN
+ * (it matches VITE_STAFF_API_URL used by the web portal).
  *
  * Debug builds → the local mobile gateway (`npm run start:mobile`, port 5005), which mounts
  * Staff_backend's own routes untouched. The Android emulator reaches the host machine via
