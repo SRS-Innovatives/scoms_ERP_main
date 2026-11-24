@@ -1,12 +1,7 @@
 /**
- * scoms-app-backend's own Prisma Client — generated from this folder's own
- * prisma/schema.prisma (an exact copy of the platform schema, same models, same
- * Postgres database) into src/generated/prisma-client. Kept separate from the root
- * shared/database/client.js instance so this folder's own queries (e.g. device
- * token registration) never depend on regenerating the root client.
+ * The gateway uses the ONE shared Prisma client (shared/database/client.js, generated from
+ * the root prisma/schema.prisma). It used to generate its own client from a copy of the
+ * schema that had drifted ~1,100 lines behind, opened a second connection pool, and — its
+ * generated folder being git-ignored — would not even exist on a fresh production install.
  */
-const { PrismaClient } = require('../generated/prisma-client');
-
-const prisma = new PrismaClient();
-
-module.exports = prisma;
+module.exports = require('../../../shared/database/client');

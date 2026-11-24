@@ -167,15 +167,20 @@ const getRoster = async (req, res, next) => {
     // Real, computed attendance % per student from actual recorded sessions in this
     // section — null (not 0) when nothing has been recorded yet, so the UI can show
     // "No data" instead of a misleading 0%.
-    const records = await prisma.attendanceRecord.findMany({
-      where: { session: { sectionId }, studentId: { in: students.map((s) => s.id) } },
-      select: { studentId: true, status: true },
-    });
+    // Counted in the database per (student, status) — a handful of rows per student —
+    // instead of loading every attendance record of the section for the whole year.
+    const groups = students.length
+      ? await prisma.attendanceRecord.groupBy({
+          by: ['studentId', 'status'],
+          where: { session: { sectionId }, studentId: { in: students.map((s) => s.id) } },
+          _count: { _all: true },
+        })
+      : [];
     const statsByStudent = {};
-    records.forEach((r) => {
-      if (!statsByStudent[r.studentId]) statsByStudent[r.studentId] = { total: 0, present: 0 };
-      statsByStudent[r.studentId].total += 1;
-      if (isAttended(r.status)) statsByStudent[r.studentId].present += 1;
+    groups.forEach((g) => {
+      if (!statsByStudent[g.studentId]) statsByStudent[g.studentId] = { total: 0, present: 0 };
+      statsByStudent[g.studentId].total += g._count._all;
+      if (isAttended(g.status)) statsByStudent[g.studentId].present += g._count._all;
     });
 
     const withStats = students.map((s) => ({
@@ -490,7 +495,9 @@ const getMyCorrectionRequests = async (req, res, next) => {
 
 const getPendingCorrections = async (req, res, next) => {
   try {
-    const requests = await attendanceRules.listCorrectionRequests({ institutionId: req.institutionId, status: req.query.status || 'PENDING' });
+    // HOD: their department's sections only; Principal / VP: the whole institution
+    const sectionIds = await teachingScope.getCorrectionReviewSectionIds(req.user, req.institutionId);
+    const requests = await attendanceRules.listCorrectionRequests({ institutionId: req.institutionId, status: req.query.status || 'PENDING', sectionIds });
     return sendSuccess(res, requests, 'Correction requests retrieved');
   } catch (err) {
     next(err);
@@ -499,10 +506,12 @@ const getPendingCorrections = async (req, res, next) => {
 
 const reviewCorrectionRequest = async (req, res, next) => {
   try {
+    const sectionIds = await teachingScope.getCorrectionReviewSectionIds(req.user, req.institutionId);
     const result = await attendanceRules.reviewCorrectionRequest({
       requestId: req.params.id,
       institutionId: req.institutionId,
       userId: req.user.id,
+      sectionIds,
       decision: req.body.decision,
       remarks: req.body.remarks,
     });

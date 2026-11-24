@@ -8,6 +8,8 @@ import { EmptyView } from '../../../components/EmptyView';
 import { Card } from '../../../components/Card';
 import { Button } from '../../../components/Button';
 import { TextField } from '../../../components/TextField';
+import { useDebouncedValue } from '../../../hooks/useDebouncedValue';
+import { queryKeys } from '../../../services/api/queryKeys';
 import {
   BookIssue,
   LibraryBook,
@@ -24,25 +26,23 @@ import {
 type Tab = 'issue' | 'active' | 'fines';
 
 function IssueBookTab() {
+  const queryClient = useQueryClient();
   const [bookQuery, setBookQuery] = useState('');
   const [studentQuery, setStudentQuery] = useState('');
-  const [books, setBooks] = useState<LibraryBook[]>([]);
-  const [students, setStudents] = useState<LibraryStudent[]>([]);
   const [selectedBook, setSelectedBook] = useState<LibraryBook | null>(null);
   const [selectedStudent, setSelectedStudent] = useState<LibraryStudent | null>(null);
   const [issuing, setIssuing] = useState(false);
 
-  const runBookSearch = async (q: string) => {
-    setBookQuery(q);
-    if (q.length < 2) return setBooks([]);
-    setBooks(await searchBooks(q).catch(() => []));
-  };
-
-  const runStudentSearch = async (q: string) => {
-    setStudentQuery(q);
-    if (q.length < 2) return setStudents([]);
-    setStudents(await searchStudents(q).catch(() => []));
-  };
+  // Debounced + cached: one request per pause in typing, and a slow older answer can't
+  // overwrite the results for what was typed later (each query string is its own key)
+  const bq = useDebouncedValue(bookQuery.trim(), 300);
+  const sq = useDebouncedValue(studentQuery.trim(), 300);
+  const booksQ = useQuery({ queryKey: ['library', 'books', bq], queryFn: () => searchBooks(bq), enabled: bq.length >= 2 && !selectedBook, staleTime: 30_000 });
+  const studentsQ = useQuery({ queryKey: ['library', 'students', sq], queryFn: () => searchStudents(sq), enabled: sq.length >= 2 && !selectedStudent, staleTime: 30_000 });
+  const books: LibraryBook[] = bq.length >= 2 ? booksQ.data ?? [] : [];
+  const students: LibraryStudent[] = sq.length >= 2 ? studentsQ.data ?? [] : [];
+  const runBookSearch = (q: string) => setBookQuery(q);
+  const runStudentSearch = (q: string) => setStudentQuery(q);
 
   const handleIssue = async () => {
     if (!selectedBook || !selectedStudent) return;
@@ -54,8 +54,7 @@ function IssueBookTab() {
       setSelectedStudent(null);
       setBookQuery('');
       setStudentQuery('');
-      setBooks([]);
-      setStudents([]);
+      queryClient.invalidateQueries({ queryKey: queryKeys.dashboardAll }); // librarian dashboard counts
     } catch (err: any) {
       Alert.alert('Error', err?.response?.data?.message || 'Could not issue this book.');
     } finally {
@@ -71,7 +70,7 @@ function IssueBookTab() {
         onChangeText={(t) => { setSelectedBook(null); runBookSearch(t); }}
       />
       {!selectedBook && books.map((b) => (
-        <TouchableOpacity key={b.id} onPress={() => { setSelectedBook(b); setBooks([]); }}>
+        <TouchableOpacity key={b.id} onPress={() => setSelectedBook(b)}>
           <Card style={styles.resultCard}>
             <Text style={styles.title}>{b.title}</Text>
             <Text style={styles.meta}>{b.author} · {b.availableCopies} available</Text>
@@ -85,7 +84,7 @@ function IssueBookTab() {
         onChangeText={(t) => { setSelectedStudent(null); runStudentSearch(t); }}
       />
       {!selectedStudent && students.map((s) => (
-        <TouchableOpacity key={s.id} onPress={() => { setSelectedStudent(s); setStudents([]); }}>
+        <TouchableOpacity key={s.id} onPress={() => setSelectedStudent(s)}>
           <Card style={styles.resultCard}>
             <Text style={styles.title}>{s.firstName} {s.lastName}</Text>
             <Text style={styles.meta}>Roll {s.rollNumber}</Text>
@@ -112,6 +111,7 @@ function ActiveIssuesTab() {
     try {
       await returnBook(issue.id);
       queryClient.invalidateQueries({ queryKey: ['library'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.dashboardAll });
     } catch (err: any) {
       Alert.alert('Error', err?.response?.data?.message || 'Could not return this book.');
     }
@@ -146,6 +146,7 @@ function FinesTab() {
     try {
       await collectFine(issue.id);
       queryClient.invalidateQueries({ queryKey: ['library'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.dashboardAll });
     } catch (err: any) {
       Alert.alert('Error', err?.response?.data?.message || 'Could not collect this fine.');
     }

@@ -15,16 +15,7 @@ const cors = require('cors');
 const helmet = require('helmet');
 const { errorHandler, getHealthPayload } = require('../../shared');
 
-const studentRoutes = require('../../Student_Backend/src/routes/apiRoutes');
-const staffRoutes = require('../../Staff_backend/src/routes/apiRoutes');
-
-// The one piece of API surface that's genuinely mobile-only (push device-token
-// registration) — has no equivalent on the web app, so it's built here using this
-// folder's own Prisma client/schema instead of extending the reused routers above.
-// Organized as modules/<name>/{routes,controller,service}.js, same pattern the
-// frontend apps use, so any future mobile-only module drops in the same shape.
-const pushNotificationRoutes = require('./modules/pushNotifications');
-const internalPushRoutes = require('./modules/pushNotifications/internalRoutes');
+const mobileRoutes = require('./mobileRoutes');
 
 const app = express();
 
@@ -36,23 +27,14 @@ app.get('/health', async (req, res) => {
   res.json(await getHealthPayload('SCOMS Mobile Backend'));
 });
 
-// Platform Maintenance Mode (Super Admin → System) — 503 for these portals while it is on
-app.use(['/api/v1/mobile/student', '/api/v1/mobile/staff'], require('../../shared/middleware/maintenanceMode').blockDuringMaintenance);
-// Feature Flag "Mobile apps access" (Super Admin) — off: the apps are told to use the website
-const { isFeatureOn } = require('../../shared/utils/featureFlags');
-app.use(['/api/v1/mobile/student', '/api/v1/mobile/staff'], async (req, res, next) => {
-  if (req.method === 'OPTIONS' || (await isFeatureOn('mobile_apps'))) return next();
-  return res.status(503).json({ success: false, code: 'FEATURE_DISABLED', message: 'The SCOMS mobile app is temporarily unavailable. Please use the website for now.' });
-});
-app.use('/api/v1/mobile/student', studentRoutes);
-app.use('/api/v1/mobile/student', pushNotificationRoutes); // falls through here with req.user already set by studentRoutes' own requireAuth
-app.use('/api/v1/mobile/staff', staffRoutes);
-app.use('/api/v1/mobile/staff', pushNotificationRoutes); // same router, same fall-through, mounted a second time under the staff prefix
+// Signed file links (uploaded study materials, gallery photos, documents, avatars). The
+// reused controllers build them on THIS host (shared/media/mediaUrl.js signedUrl), so the
+// gateway must serve them too. Each URL carries its own signature, so no auth header.
+app.use('/api/v1/media', require('../../shared/media/mediaRoutes'));
 
-// Server-to-server only (secret-header authenticated) — every backend's
-// shared/utils/notificationCenter.js calls this after writing an in-app
-// notification, so registered devices actually receive a push for it.
-app.use('/internal/push', internalPushRoutes);
+// /api/v1/mobile/{student,staff}/* and /internal/push — see mobileRoutes.js (the combined
+// production server mounts the same router)
+app.use(mobileRoutes);
 
 app.use(errorHandler);
 

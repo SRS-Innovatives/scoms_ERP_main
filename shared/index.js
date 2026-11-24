@@ -39,6 +39,7 @@ const { getHealthPayload } = require('./utils/health');
 const { findList, findConversation } = require('./utils/findList');
 const reportEngine = require('./reportEngine');
 const moduleRegistry = require('./moduleRegistry');
+const appModules = require('./appModules');
 const certificateEngine = require('./certificateEngine');
 const { pushNotification, pushNotificationToMany } = require('./utils/notificationCenter');
 const { askAi, getAiSettings } = require('./utils/aiProvider');
@@ -92,6 +93,7 @@ module.exports = {
   findConversation,
   reportEngine,
   moduleRegistry,
+  appModules,
   certificateEngine,
   ROLE_PERMISSIONS,
   hasPermission,

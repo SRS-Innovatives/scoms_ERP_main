@@ -1,6 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { clearTokens, getTokens, saveTokens } from '../utils/secureStorage';
 import { setSessionExpiredHandler } from '../services/api/client';
+import { queryClient } from '../services/api/queryClient';
 import { fetchMe, login as loginRequest, logout as logoutRequest } from '../modules/auth/services/authService';
 import { AuthUser } from '../types/auth';
 
@@ -22,6 +23,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const forceLogout = useCallback(async () => {
     await clearTokens();
     setUser(null);
+    queryClient.clear(); // next account on this device never sees this one's cached data
   }, []);
 
   useEffect(() => {
@@ -56,6 +58,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
     await clearTokens();
     setUser(null);
+    queryClient.clear(); // next account on this device never sees this one's cached data
   }, []);
 
   const refreshUser = useCallback(async () => {

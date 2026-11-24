@@ -87,16 +87,25 @@ const getMyLeaves = async (req, res, next) => {
 const applyLeave = async (req, res, next) => {
   try {
     const { type, startDate, endDate, reason } = req.body;
-    if (!startDate || !endDate || !reason) throw new ValidationError('startDate, endDate and reason are required');
+    if (!startDate || !endDate || !reason || !String(reason).trim()) throw new ValidationError('startDate, endDate and reason are required');
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) throw new ValidationError('startDate and endDate must be valid dates');
+    if (end < start) throw new ValidationError('endDate cannot be before startDate');
+    if (String(reason).length > 1000) throw new ValidationError('reason is too long (max 1000 characters)');
+    // Only the institution's own leave types (Settings → Custom Lists, or the defaults)
+    const allowedTypes = (await getActiveList(req.institutionId, 'LEAVE_TYPE')).map((t) => t.code);
+    const leaveType = type || (allowedTypes.includes('CASUAL') ? 'CASUAL' : allowedTypes[0]);
+    if (!allowedTypes.includes(leaveType)) throw new ValidationError(`Unknown leave type "${leaveType}"`);
 
     const leave = await prisma.leaveRequest.create({
       data: {
         institutionId: req.institutionId,
         studentId: req.user.studentId,
-        type: type || 'CASUAL',
-        startDate: new Date(startDate),
-        endDate: new Date(endDate),
-        reason,
+        type: leaveType,
+        startDate: start,
+        endDate: end,
+        reason: String(reason).trim(),
       },
     });
 

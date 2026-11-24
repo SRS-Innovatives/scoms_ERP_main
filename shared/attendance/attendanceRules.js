@@ -92,13 +92,16 @@ const createCorrectionRequest = async ({ sessionId, institutionId, userId, stude
   return request;
 };
 
-const listCorrectionRequests = async ({ institutionId, status, requestedById, sessionId }) => {
+/** sectionIds: only corrections for sessions in these sections (an HOD's department);
+ * omitted / null = the whole institution (Principal, VP, Institute Admin). */
+const listCorrectionRequests = async ({ institutionId, status, requestedById, sessionId, sectionIds = null }) => {
   const rows = await prisma.attendanceCorrectionRequest.findMany({
     where: {
       institutionId,
       ...(status && { status }),
       ...(requestedById && { requestedById }),
       ...(sessionId && { sessionId }),
+      ...(Array.isArray(sectionIds) && { session: { sectionId: { in: sectionIds } } }),
     },
     include: {
       student: { select: { id: true, firstName: true, lastName: true, rollNumber: true } },
@@ -148,9 +151,12 @@ const notifyStudentOfDecision = async (request, decision, remarks) => {
   }
 };
 
-const reviewCorrectionRequest = async ({ requestId, institutionId, userId, decision, remarks }) => {
+/** sectionIds: the reviewer may only decide corrections in these sections (null = any). */
+const reviewCorrectionRequest = async ({ requestId, institutionId, userId, decision, remarks, sectionIds = null }) => {
   if (!['APPROVE', 'REJECT'].includes(decision)) throw new ValidationError('decision must be APPROVE or REJECT');
-  const request = await prisma.attendanceCorrectionRequest.findFirst({ where: { id: requestId, institutionId } });
+  const request = await prisma.attendanceCorrectionRequest.findFirst({
+    where: { id: requestId, institutionId, ...(Array.isArray(sectionIds) && { session: { sectionId: { in: sectionIds } } }) },
+  });
   if (!request) throw new NotFoundError('Correction request not found');
   if (request.status !== 'PENDING') throw new BusinessRuleError(`This request was already ${request.status.toLowerCase()}`);
   if (request.requestedById === userId) throw new BusinessRuleError('A correction must be reviewed by someone other than the requester');

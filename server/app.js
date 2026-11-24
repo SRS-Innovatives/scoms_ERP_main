@@ -12,6 +12,7 @@
  *   /api/v1/public/*       → IntituteAdmin_Backend public pre-admission routes
  *   /api/v1/staff/*        → Staff_backend routes
  *   /api/v1/student/*      → Student_Backend routes
+ *   /api/v1/mobile/*       → the two mobile apps (scoms-app-backend/src/mobileRoutes.js)
  *
  * Point all four VITE_*_API_URL values (or just SCOMS_API_URL, see scripts/build-web.mjs)
  * at this one service. The per-portal servers still work for local development.
@@ -63,6 +64,12 @@ app.use('/api/v1/public', publicRoutes);
 app.use('/api/v1/admin', instituteAdminRoutes);
 app.use('/api/v1/staff', staffRoutes);
 app.use('/api/v1/student', studentRoutes);
+
+// The mobile apps (scoms-app-student, scoms-app-staff): /api/v1/mobile/{student,staff}/*,
+// served by this same process — the same router the standalone gateway uses
+// (scoms-app-backend/src/mobileRoutes.js). Loading it also makes push delivery in-process
+// for notifications written by ANY portal here (shared/utils/notificationCenter.js).
+app.use(require('../scoms-app-backend/src/mobileRoutes'));
 
 app.use(errorHandler);
 

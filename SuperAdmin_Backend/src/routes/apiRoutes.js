@@ -17,6 +17,7 @@ const settingsController = require('../controllers/settingsController');
 const securityController = require('../controllers/securityController');
 const sessionsController = require('../controllers/sessionsController');
 const featureFlagController = require('../controllers/featureFlagController');
+const appModuleController = require('../controllers/appModuleController');
 const systemController = require('../controllers/systemController');
 const platformInfraController = require('../controllers/platformInfraController');
 const smsController = require('../controllers/smsController');
@@ -82,6 +83,10 @@ router.post('/institutions/:institutionId/admin', shadowPermission(PERMISSIONS.I
 router.get('/institutions/:id', institutionController.getInstitutionById);
 router.patch('/institutions/:id/status', shadowPermission(PERMISSIONS.INSTITUTIONS_UPDATE), institutionController.updateInstitutionStatus);
 router.patch('/institutions/:id/modules', shadowPermission(PERMISSIONS.INSTITUTIONS_MANAGE_MODULES), institutionController.updateInstitutionModules);
+// App Module Access — which modules each role sees in each mobile app (shared/appModules/)
+router.get('/app-modules/catalog', appModuleController.getAppModuleCatalog);
+router.get('/institutions/:id/app-modules', appModuleController.getInstitutionAppModules);
+router.put('/institutions/:id/app-modules', shadowPermission(PERMISSIONS.INSTITUTIONS_MANAGE_MODULES), appModuleController.updateInstitutionAppModules);
 
 // Admission Custom Field Approvals
 router.get('/admission-fields/pending', admissionFieldReviewController.getPendingFields);

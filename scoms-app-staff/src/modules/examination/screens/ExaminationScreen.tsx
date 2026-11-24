@@ -145,7 +145,7 @@ function MarksEntryScreen({ schedule, onBack }: { schedule: ExamScheduleSummary;
       ) : (
         // Publishing is a Principal/Vice Principal/Exam Admin action (RESULTS_PUBLISH),
         // not a Teacher/HOD one — this screen only ever gets MARKS_ENTER, so it only
-        // ever offers Save, never Publish (see roleNavigation.ts for why).
+        // ever offers Save, never Publish (see test/staffNavPermissionCoverage.test.js for why).
         <View style={styles.actions}>
           <Button label="Save Marks" onPress={handleSave} loading={saving} style={styles.actionButton} />
           {status === 'DRAFT' ? (

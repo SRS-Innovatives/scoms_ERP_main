@@ -16,6 +16,7 @@ const ReportRequestReviewPage = lazy(() => import('../pages/reports/ReportReques
 const OnboardingWizardPage = lazy(() => import('../pages/institutions/OnboardingWizardPage'));
 const InstitutionDetailPage = lazy(() => import('../pages/institutions/InstitutionDetailPage'));
 const InstitutionModuleAccessPage = lazy(() => import('../pages/institutions/InstitutionModuleAccessPage'));
+const AppModuleAccessPage = lazy(() => import('../pages/institutions/AppModuleAccessPage'));
 const InstitutionActivityPage = lazy(() => import('../pages/institutions/InstitutionActivityPage'));
 const AdmissionFieldApprovalsPage = lazy(() => import('../pages/institutions/AdmissionFieldApprovalsPage'));
 // Subscriptions
@@ -96,6 +97,7 @@ export const AppRoutes = () => {
               <Route path="institutions" element={<InstitutionListPage />} />
               <Route path="institutions/new" element={<OnboardingWizardPage />} />
               <Route path="institutions/modules" element={<InstitutionModuleAccessPage />} />
+          <Route path="institutions/app-modules" element={<AppModuleAccessPage />} />
               <Route path="institutions/activity" element={<InstitutionActivityPage />} />
               <Route path="institutions/admission-fields" element={<AdmissionFieldApprovalsPage />} />
               <Route path="institutions/:id" element={<InstitutionDetailPage />} />

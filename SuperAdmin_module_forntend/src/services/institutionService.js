@@ -35,6 +35,15 @@ export const institutionService = {
     return apiCall(`/api/v1/super-admin/institutions/${id}/modules`, { method: 'PATCH', body: { modules } });
   },
 
+  // App Module Access — per-role module visibility in the mobile apps (shared/appModules)
+  getInstitutionAppModules: async (id, app = 'STUDENT_APP') => {
+    return apiCall(`/api/v1/super-admin/institutions/${id}/app-modules?app=${encodeURIComponent(app)}`);
+  },
+
+  updateInstitutionAppModules: async (id, app, hidden) => {
+    return apiCall(`/api/v1/super-admin/institutions/${id}/app-modules`, { method: 'PUT', body: { app, hidden } });
+  },
+
   deleteInstitution: async (id) => {
     return apiCall(`/api/v1/super-admin/institutions/${id}`, { method: 'DELETE' });
   }

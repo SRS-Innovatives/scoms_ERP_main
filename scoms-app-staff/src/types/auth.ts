@@ -17,6 +17,9 @@ export interface Institution {
 export interface StaffSummary {
   id: string;
   employeeCode: string;
+  /** Present from the gateway version that returns them (older: undefined) */
+  firstName?: string;
+  lastName?: string;
   designation: string;
   department?: { name: string } | null;
 }

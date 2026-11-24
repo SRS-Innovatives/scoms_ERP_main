@@ -1,6 +1,6 @@
 import React from 'react';
 import { StyleSheet, View, ViewProps } from 'react-native';
-import { colors, radius, spacing } from '../constants/theme';
+import { colors, radius, shadow, spacing } from '../constants/theme';
 
 export function Card({ style, children, ...rest }: ViewProps) {
   return (
@@ -15,7 +15,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderRadius: radius.lg,
     padding: spacing.md,
-    borderWidth: 1,
-    borderColor: colors.border,
+    ...shadow(1),
   },
 });

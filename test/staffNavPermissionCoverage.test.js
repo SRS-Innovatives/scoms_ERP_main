@@ -8,12 +8,13 @@
  * ATTENDANCE_MARK/ASSIGNMENTS_VIEW/MARKS_ENTER entirely, and Teacher/HOD lack
  * RESULTS_PUBLISH (only Principal/VP/Exam Admin/Admin can publish). Every one of
  * those would have 403'd in the app. Fixed in scoms-app-staff/src/navigation/
- * roleNavigation.ts and the Examination screen; this test locks the fix in place.
+ * moduleRegistry.tsx and the Examination screen; this test locks the fix in place.
  *
- * ROLE_SCREEN_PERMISSIONS mirrors scoms-app-staff/src/navigation/roleNavigation.ts's
- * ROLE_TABS plus the permission each of that role's actual mobile screens call (see
- * docs/mobile-api.md for the route list). Kept in sync by hand — this test suite is
- * plain JS, not TypeScript, so it can't import the .ts file directly.
+ * ROLE_SCREEN_PERMISSIONS mirrors the `roles` of each entry in scoms-app-staff/src/navigation/
+ * moduleRegistry.tsx (which screens a role gets) plus the permission each of those screens
+ * calls (see docs/mobile-api.md for the route list). Kept in sync by hand — this suite is
+ * plain JS, not TypeScript, so it can't import the .tsx file directly. Super Admin's App
+ * Module Access can hide more on top (test/staffAppModules.test.js).
  */
 process.env.RBAC_ENFORCEMENT_ENABLED = 'true';
 
@@ -30,12 +31,10 @@ const ROLE_SCREEN_PERMISSIONS = {
     PERMISSIONS.MARKS_ENTER,
     PERMISSIONS.LEAVE_APPLY,
     PERMISSIONS.TIMETABLE_VIEW,
+    PERMISSIONS.PTM_MANAGE, // PTM Notes
   ],
-  // Same screens as Teacher. NOTE: HOD does NOT have LEAVE_APPLY in the real matrix —
-  // the Leave screen's read side (GET /leave, /leave/types) is ungated so it still
-  // loads, but tapping "Apply Leave" will 403 for HOD. Flagged, not silently patched
-  // here — whether HOD should be able to self-apply leave is a policy call for
-  // whoever owns shared/permissions/permissionMatrix.js, not this test.
+  // Same screens as Teacher, plus correction review and PTM notes. LEAVE_APPLY was missing
+  // for HOD / Principal / VP (their "Apply Leave" 403'd under RBAC enforcement) — granted.
   [ROLES.HOD]: [
     PERMISSIONS.ATTENDANCE_VIEW,
     PERMISSIONS.ATTENDANCE_MARK,
@@ -43,15 +42,21 @@ const ROLE_SCREEN_PERMISSIONS = {
     PERMISSIONS.EXAMS_VIEW,
     PERMISSIONS.MARKS_ENTER,
     PERMISSIONS.TIMETABLE_VIEW,
+    PERMISSIONS.LEAVE_APPLY,
+    PERMISSIONS.ATTENDANCE_APPROVE,
+    PERMISSIONS.PTM_MANAGE,
   ],
+  // Leave Approvals, Corrections, PTM Notes, My Leave
+  [ROLES.PRINCIPAL]: [PERMISSIONS.LEAVE_APPLY, PERMISSIONS.ATTENDANCE_APPROVE, PERMISSIONS.PTM_MANAGE],
+  [ROLES.VICE_PRINCIPAL]: [PERMISSIONS.LEAVE_APPLY, PERMISSIONS.ATTENDANCE_APPROVE, PERMISSIONS.PTM_MANAGE],
   [ROLES.LIBRARIAN]: [PERMISSIONS.LIBRARY_MANAGE],
   [ROLES.TRANSPORT_MANAGER]: [PERMISSIONS.TRANSPORT_MANAGE],
   // ACCOUNTANT: no Fee Desk tab any more — fees are handled by the Institute Admin only
   [ROLES.HOSTEL_WARDEN]: [PERMISSIONS.HOSTEL_MANAGE],
   [ROLES.EXAM_ADMIN]: [PERMISSIONS.EXAMS_VIEW, PERMISSIONS.EXAMS_CREATE],
   [ROLES.PLACEMENT_OFFICER]: [PERMISSIONS.PLACEMENT_MANAGE],
-  // Every other role (Principal, Vice Principal, Staff, ...) falls back to
-  // DEFAULT_TABS (Home + More) in roleNavigation.ts — no gated permission to check.
+  // Staff / Accountant: Timetable + My Leave etc. — permissions covered by the catalog
+  // check in test/staffAppModules.test.js.
 };
 
 const check = (role, permission) => new Promise((resolve) => {
@@ -77,5 +82,5 @@ const check = (role, permission) => new Promise((resolve) => {
     console.error(`\n❌ FAIL: ${failures} role(s) are missing a permission their own mobile tab actually calls — that tab would 403 in the app.`);
     process.exit(1);
   }
-  console.log('\n🎉 Every staff role listed in roleNavigation.ts has every permission its own mobile screens call.');
+  console.log('\n🎉 Every staff role listed in moduleRegistry.tsx has every permission its own mobile screens call.');
 })();

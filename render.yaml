@@ -9,8 +9,10 @@
 # The per-portal servers (SuperAdmin_Backend/src/server.js etc.) still exist for local
 # development (`npm run dev`) and can be deployed separately later if traffic demands it.
 #
-# Mobile gateway (scoms-app-backend) is intentionally not deployed yet; with
-# INTERNAL_PUSH_SECRET unset the backends skip push dispatch and keep working.
+# The mobile apps are served by this same service too: /api/v1/mobile/{student,staff}/*
+# (scoms-app-backend/src/mobileRoutes.js, mounted in server/app.js). Push notifications are
+# delivered in-process; set FIREBASE_SERVICE_ACCOUNT_JSON (below) to send real pushes —
+# without it they are simulated (logged) and everything else keeps working.
 
 services:
   - type: web
@@ -45,4 +47,25 @@ services:
       - key: DIRECT_URL # Supabase direct/session connection (port 5432) — used only by migrate deploy
         sync: false
       - key: CORS_ORIGINS # the Vercel site URL, e.g. https://scoms-erp-main.vercel.app ; blank = allow all
+        sync: false
+      # --- optional integrations: without a value each one runs in safe simulated mode ---
+      - key: FIREBASE_SERVICE_ACCOUNT_JSON # push notifications to the mobile apps (Firebase service-account JSON, one line)
+        sync: false
+      - key: RAZORPAY_KEY_ID # online fee payment (without keys production refuses online payment)
+        sync: false
+      - key: RAZORPAY_KEY_SECRET
+        sync: false
+      - key: SMTP_HOST # email
+        sync: false
+      - key: SMTP_PORT
+        sync: false
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASSWORD
+        sync: false
+      - key: SMS_API_KEY
+        sync: false
+      - key: WHATSAPP_ACCESS_TOKEN
+        sync: false
+      - key: WHATSAPP_PHONE_NUMBER_ID
         sync: false

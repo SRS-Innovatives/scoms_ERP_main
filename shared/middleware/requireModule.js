@@ -7,10 +7,8 @@
  * not just hides a nav link. Checked live on every request (not cached on the JWT) so a
  * Super Admin toggle takes effect immediately, without requiring the user to log out.
  */
-const prisma = require('../database/client');
-const { resolveEnabledModulesForInstitution } = require('../moduleRegistry/resolveModules');
 const { BusinessRuleError } = require('../errors/customErrors');
-const { cached } = require('../utils/hotCache');
+const { getInstitutionEnabledModules } = require('../appModules/resolveAppModules');
 
 const requireModule = (moduleKey) => async (req, res, next) => {
   try {
@@ -22,17 +20,12 @@ const requireModule = (moduleKey) => async (req, res, next) => {
     // Cached per institution (shared/utils/hotCache.js) — dropped automatically whenever
     // the Institution / module-assignment tables are written, so a Super Admin toggle
     // still takes effect immediately in the same process.
-    const enabled = await cached('institutionModules', req.institutionId, async () => {
-      const institution = await prisma.institution.findUnique({
-        where: { id: req.institutionId },
-        select: { modules: true },
-      });
-      // Dual-path (Phase 1): resolves through the new registry only for an institution
-      // that's been explicitly assigned into it AND only with MODULE_REGISTRY_ENABLED=true
-      // — everyone else gets exactly the legacy resolveEnabledModules() behavior this
-      // always called directly. See shared/moduleRegistry/resolveModules.js.
-      return resolveEnabledModulesForInstitution({ id: req.institutionId, modules: institution?.modules });
-    });
+    // Dual-path (Phase 1): resolves through the new registry only for an institution
+    // that's been explicitly assigned into it AND only with MODULE_REGISTRY_ENABLED=true
+    // — everyone else gets exactly the legacy resolveEnabledModules() behavior this
+    // always called directly. See shared/moduleRegistry/resolveModules.js. The loader is
+    // shared with the mobile app-module resolver so the two can never disagree.
+    const enabled = await getInstitutionEnabledModules(req.institutionId);
     if (!enabled.includes(moduleKey)) {
       throw new BusinessRuleError(`This module is not enabled for your institution. Contact your Super Admin to activate it.`);
     }

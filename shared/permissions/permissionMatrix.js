@@ -69,6 +69,9 @@ const ROLE_PERMISSIONS = {
   ],
 
   [ROLES.PRINCIPAL]: [
+    // apply for their OWN leave (staff Leave screen) — was missing, so under RBAC
+    // enforcement (production) they could not apply at all. Approval stays with the admin.
+    PERMISSIONS.LEAVE_APPLY,
     PERMISSIONS.ACADEMICS_VIEW,
     PERMISSIONS.STUDENTS_VIEW,
     PERMISSIONS.STAFF_VIEW,
@@ -94,6 +97,9 @@ const ROLE_PERMISSIONS = {
   // (hasPermission() silently returned false for every permission), a real gap found
   // during Phase 3 shadow-mode wiring, not a pre-existing intentional restriction.
   [ROLES.VICE_PRINCIPAL]: [
+    // apply for their OWN leave (staff Leave screen) — was missing, so under RBAC
+    // enforcement (production) they could not apply at all. Approval stays with the admin.
+    PERMISSIONS.LEAVE_APPLY,
     PERMISSIONS.ACADEMICS_VIEW,
     PERMISSIONS.STUDENTS_VIEW,
     PERMISSIONS.STAFF_VIEW,
@@ -115,6 +121,9 @@ const ROLE_PERMISSIONS = {
   ],
 
   [ROLES.HOD]: [
+    // apply for their OWN leave (staff Leave screen) — was missing, so under RBAC
+    // enforcement (production) they could not apply at all. Approval stays with the admin.
+    PERMISSIONS.LEAVE_APPLY,
     PERMISSIONS.ACADEMICS_VIEW,
     PERMISSIONS.STUDENTS_VIEW,
     PERMISSIONS.STAFF_VIEW,
@@ -170,6 +179,9 @@ const ROLE_PERMISSIONS = {
     PERMISSIONS.RESEARCH_MANAGE,
     PERMISSIONS.GALLERY_MANAGE,
     PERMISSIONS.EVENTS_MANAGE,
+    // PTM notes — teachers hold most parent meetings; the server still limits a note to
+    // students of classes the teacher teaches (parentMeetingController)
+    PERMISSIONS.PTM_MANAGE,
   ],
 
   [ROLES.STAFF]: [
@@ -261,6 +273,12 @@ const ROLE_PERMISSIONS = {
     PERMISSIONS.RESULTS_VIEW,
     PERMISSIONS.FEES_VIEW,
     PERMISSIONS.PAYMENTS_ONLINE,
+    // view-only access to the child's homework, study materials and exam schedule / hall
+    // ticket — without these the parent app's screens got 403 under RBAC enforcement.
+    // Submitting homework stays blocked for parents (blockParentWrite).
+    PERMISSIONS.ASSIGNMENTS_VIEW,
+    PERMISSIONS.MATERIALS_VIEW,
+    PERMISSIONS.EXAMS_VIEW,
   ],
 };
 

@@ -168,8 +168,20 @@ const getLeaveApprovalSectionIds = async (user, institutionId) => {
   return [...ids];
 };
 
+/**
+ * Sections whose attendance corrections this reviewer decides (attendance.approve holders):
+ * Principal / VP → null = the whole institution; HOD → their department's sections (plus
+ * any they are class teacher of) — the same rule as student leave approvals.
+ */
+const getCorrectionReviewSectionIds = async (user, institutionId) => {
+  const scope = await getStaffScope(user, institutionId);
+  if (scope.viewsWholeInstitution) return null;
+  return getLeaveApprovalSectionIds(user, institutionId);
+};
+
 module.exports = {
   getStaffScope,
+  getCorrectionReviewSectionIds,
   getSectionInInstitution,
   teachesSubjectInSection,
   isClassTeacherOf,

@@ -18,7 +18,7 @@ const {
 } = require('../../../shared');
 const { attachInstallments } = require('../../../shared/fees/feeView');
 const { isFeatureOn } = require('../../../shared/utils/featureFlags');
-const { refreshLateFee, lateFeeSummary } = require('../../../shared/fees/lateFee');
+const { refreshLateFee, refreshLateFees, lateFeeSummary } = require('../../../shared/fees/lateFee');
 const {
   getFeePolicy, effectivePolicy, planPayment, applyToAssignment, recordLatePart, addCredit, autoApplyCredit, round2,
   wholeInstalmentAmounts, minimumPayment, creditBalance, getFeeHolds, HOLD_TYPES,
@@ -45,7 +45,17 @@ const getFeesOverview = async (req, res, next) => {
     // each fee's instalments (due dates, paid, which heads they cover)
     await attachInstallments(prisma, feeAssignments);
     // each fee's late fee, brought up to date (payable at the fee office)
-    for (const a of feeAssignments) a.lateFee = await refreshLateFee(prisma, a.id);
+    // Batched: computed from the rows already loaded above (one grouped write per distinct
+    // new amount) instead of a read + write per fee, one after another.
+    const lateFees = await refreshLateFees(
+      prisma,
+      feeAssignments.map((a) => ({
+        id: a.id, dueAmount: a.dueAmount, lateFeeCharged: a.lateFeeCharged, lateFeeWaived: a.lateFeeWaived, lateFeePaid: a.lateFeePaid,
+        feeStructure: a.feeStructure,
+        installments: (a.installments || []).map((i) => ({ dueDate: i.dueDate, status: i.status })),
+      })),
+    );
+    for (const a of feeAssignments) a.lateFee = lateFees.get(a.id) ?? null;
 
     return sendSuccess(res, feeAssignments, 'Fee ledger retrieved');
   } catch (err) {

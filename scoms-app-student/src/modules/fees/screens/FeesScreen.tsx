@@ -10,6 +10,7 @@ import { Card } from '../../../components/Card';
 import { Button } from '../../../components/Button';
 import { TextField } from '../../../components/TextField';
 import { useAuth } from '../../../store/AuthContext';
+import { queryKeys } from '../../../services/api/queryKeys';
 import {
   StudentFeeAssignment,
   fetchFeesOverview,
@@ -31,7 +32,7 @@ export function FeesScreen() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ['fees', 'overview'],
+    queryKey: queryKeys.fees,
     queryFn: fetchFeesOverview,
   });
 
@@ -66,7 +67,8 @@ export function FeesScreen() {
         `₹${Number(amount).toLocaleString()} received — Receipt ${result.receipt.receiptNumber}`,
       );
       setSelected(null);
-      queryClient.invalidateQueries({ queryKey: ['fees'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.feesAll });
+    queryClient.invalidateQueries({ queryKey: queryKeys.dashboardAll }); // fee-due tile
     } catch (err: any) {
       Alert.alert('Payment Failed', err?.response?.data?.message || 'Please try again.');
     } finally {

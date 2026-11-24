@@ -3,28 +3,84 @@
 React Native CLI, TypeScript. Talks to the mobile gateway at
 `/api/v1/mobile/staff` (see `docs/mobile-architecture.md`, `docs/mobile-api.md`).
 
-## Navigation is role-driven, not fixed
+## Navigation: App Module Access + role
 
-Unlike the student app, staff nav tabs vary by role. `src/navigation/
-roleNavigation.ts`'s `resolveStaffTabs(role, enabledModules)` decides the tab set at
-render time in `MainTabNavigator.tsx` — see `docs/mobile-architecture.md` §5 for the
-full table and the reasoning (it's cross-checked against
-`shared/permissions/permissionMatrix.js`, not guessed from job title; get this wrong
-and a tab just 403s or renders permanently empty — see
-`test/staffNavPermissionCoverage.test.js`).
+`src/navigation/moduleRegistry.tsx` maps each Staff App module to its screen, icon and
+the roles that screen serves. An entry shows when Super Admin's App Module Access
+(`GET /app-modules`, `src/services/api/appModules.ts`) says the module is visible for this
+user **and** the role is one the screen serves today. The first 3 visible tab-eligible
+entries become bottom tabs; the rest go into More, grouped as Teaching / My Desk / My Work.
 
-| Role | Tabs | Module |
+| Role | Tabs (everything visible) | More |
 |---|---|---|
-| Teacher, HOD | Home, Attendance, Homework, Examination, More | `attendance` |
-| Librarian | Home, Library, More | `library` |
-| Transport Manager | Home, Transport, More | `transport` |
-| Accountant | Home, FeeDesk, More | `feeDesk` |
-| Hostel Warden | Home, Hostel, More | `hostel` |
-| Exam Admin | Home, ExamSetup, More | `examSetup` |
-| Placement Officer | Home, Placement, More | `placement` |
-| Principal, Vice Principal, Staff, anything else | Home, More | — (no working mobile screen yet, see below) |
+| Teacher | Home · Attendance · Homework · Exams · More | Leave Approvals, Study Materials, Timetable, My Leave, Exam Duties, Notices, Calendar, PTM Notes, Messages |
+| HOD | Home · Attendance · Homework · Exams · More | Leave Approvals, Corrections, Study Materials, Timetable, My Leave, Exam Duties, Notices, Calendar, PTM Notes, Messages |
+| Librarian / Transport / Hostel / Exam Admin / Placement | Home · *their desk* · Timetable · More | My Leave, Exam Duties, Notices, Calendar |
+| Accountant | Home · Timetable · More | My Leave, Exam Duties, Notices, Calendar |
+| Staff | Home · Timetable · More | Study Materials, My Leave, Exam Duties, Notices, Calendar, Messages |
+| Principal, Vice Principal | Home · Leave Approvals · Corrections · More | My Leave, Exam Duties, Notices, Calendar, PTM Notes, Messages |
 
-`More` (every role) holds: Timetable, Leave, Notifications, Profile.
+Messages and SMS start hidden until Super Admin turns them on.
+
+### Collaboration modules
+
+| Screen | API | Notes |
+|---|---|---|
+| PTM Notes | `GET/POST /parent-meetings`, `GET /parent-meetings/students` | Teacher, HOD, Principal, VP (ptm.manage). Only students of classes you teach; parents are notified and see it in Parent Corner. |
+| Corrections | `GET /attendance-corrections`, `POST /attendance-corrections/:id/review` | HOD: only their department's sections; Principal / VP: the whole institution (`teachingScope.getCorrectionReviewSectionIds`, same rule as leave approvals). The Institute Admin portal still sees all. |
+| Study Materials | `/materials`, `/materials/download-history`, `/materials/:id/downloads` | Share a web link (file uploads stay on the web portal); see who opened each item. |
+| Exam Duties | `GET /exam-duties/mine` | Next-duty card, grouped by exam. |
+| Messages | `/messages/students`, `/messages/conversation`, `POST /messages` | Students of classes you teach. An open chat polls every 15 s with `?after=<newest>` (only new rows), paused in the background. |
+
+### Desk dashboards and lighter queries
+
+- **Desk roles** (Librarian, Transport, Warden, Exam Admin, Placement) get their key numbers
+  on Home from the same single summary request (`desk` section, counts only).
+- **Hostel beds:** `GET /hostel/beds?status=vacant|occupied&q=&page=&limit=` filters and pages
+  on the server; the app loads 50 at a time (infinite scroll). Without `?page` the response is
+  the same array as before (web portal unchanged).
+- **Searches** (library books / students, hostel students) wait until you pause typing
+  (`src/hooks/useDebouncedValue.ts`) and are cached per query string.
+- **Roster:** attendance % comes from a grouped count; the app now sends `subjectId`, so an
+  elective's roster is only the students who chose it.
+
+The "classes I teach" lookup behind messages and PTM is cached (`shared/academic/taughtSections.js`) and dropped whenever SubjectTeacherMapping changes.
+
+More always ends with Notifications and Profile. If Super Admin hides a tab module, the
+next one moves up (a Teacher without Attendance gets Homework · Exams · Timetable). The
+Fee Desk is gone from the app: `/fee-desk` is closed for every staff role on the server.
+
+- **Adding a module screen:** add its key to `src/navigation/moduleKeys.ts` (must exist in
+  `shared/appModules/catalog.js` STAFF_APP), its screen name to `ModuleScreenName` in
+  `types.ts`, and one entry to `MODULE_REGISTRY`. Its `roles` must be a subset of the
+  catalog's roles for that module (`__tests__/moduleLayout.test.ts` checks this).
+- **Refresh:** the module list re-loads when the app returns to the foreground, on
+  dashboard pull-to-refresh, and whenever the gateway answers `403 APP_MODULE_HIDDEN`. A
+  screen open at that moment shows `ModuleUnavailableView`.
+- **Fallback:** if `/app-modules` can't be loaded, visibility falls back to
+  `institution.enabledModules` from `/auth/me` (`LEGACY_REQUIRES`).
+- **Quick actions** on the dashboard follow the same layout (`useOpenModule` opens a
+  module whether it's a tab or in More).
+- Permissions: `test/staffNavPermissionCoverage.test.js` checks every role has the
+  permissions its screens call.
+
+## Visual system
+
+`src/constants/theme.ts`: teal brand (different from the student app's indigo), one
+`moduleColors` accent per module (dashboard tiles, quick access, More icons), `shadow()`
+elevation, `ROLE_LABELS`. Shared pieces in `src/components/`: `Button` (primary /
+secondary / danger, optional icon), `Card`, `TextField` (icon, password reveal),
+`Avatar`, `StatTile`, `IconTile`, `Chip` (+ `statusTone()`), `SectionHeader`,
+`DateStrip` (tap-a-day date picker, no native dependency), `EmptyView`, `ErrorView`.
+Dates: `src/utils/dates.ts` — local-time only (never `toISOString()` for a calendar day).
+
+- **Dashboard:** teal hero (greeting, name, role badge, bell with unread count), tappable
+  stat tiles, "In progress / Up next" card, today's timeline, quick-access grid built from
+  the module layout.
+- **Attendance:** P / A / OD buttons per student, live counts, All P / All A, search,
+  low-attendance (< 75%) highlight, confirm before submit, Android back returns to the
+  class list.
+- **Leave / Homework:** chips + `DateStrip` + day counter instead of typed dates.
 
 ## Modules (`src/modules/<name>/`)
 

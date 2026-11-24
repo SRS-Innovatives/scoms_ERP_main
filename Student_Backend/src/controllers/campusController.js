@@ -45,11 +45,33 @@ const renewBook = async (req, res, next) => {
 // ============================================================
 const getMyTransport = async (req, res, next) => {
   try {
+    // Only what a student / parent needs — the vehicle's licence number and insurance /
+    // fitness expiry dates are the transport office's business, not the family's.
     const mapping = await prisma.studentTransportMapping.findUnique({
       where: { studentId: req.user.studentId },
-      include: { route: { include: { vehicle: true } } },
+      select: {
+        id: true,
+        pickupPoint: true,
+        route: {
+          select: {
+            id: true, routeName: true, startPoint: true, endPoint: true, monthlyFare: true,
+            vehicle: { select: { id: true, vehicleNumber: true, vehicleType: true, driverName: true, driverPhone: true, gpsEnabled: true } },
+          },
+        },
+      },
     });
-    return sendSuccess(res, mapping, 'Transport assignment retrieved successfully');
+    // Today's trips for that bus (India's date — VehicleTrip.tripDate is a DATE column)
+    let todayTrips = null;
+    if (mapping?.route?.vehicle) {
+      const ymd = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+      const trips = await prisma.vehicleTrip.findMany({
+        where: { vehicleId: mapping.route.vehicle.id, tripDate: new Date(ymd) },
+        select: { session: true, status: true, completedAt: true },
+      });
+      const of = (s) => trips.find((t) => t.session === s) || null;
+      todayTrips = { morning: of('MORNING'), evening: of('EVENING') };
+    }
+    return sendSuccess(res, mapping ? { ...mapping, todayTrips } : null, 'Transport assignment retrieved successfully');
   } catch (err) {
     next(err);
   }

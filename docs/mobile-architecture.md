@@ -98,24 +98,17 @@ Mobile-side (`services/api/client.ts` in each app):
   module-registry resolver (`shared/moduleRegistry/resolveModules.js`) the web app
   uses, so mobile nav visibility can never disagree with what a route actually allows.
 
-## 5. Dynamic role-based navigation (Staff app)
+## 5. Module-driven navigation (Staff app)
 
-`scoms-app-staff/src/navigation/roleNavigation.ts` exports
-`resolveStaffTabs(role, enabledModules)`, a pure function mapping a staff role to its
-tab set, then filtering out any tab whose backing module isn't enabled for that
-institution. `MainTabNavigator.tsx` builds its `<Tab.Screen>` list from this at
-render time — nothing hardcoded.
+`scoms-app-staff/src/navigation/moduleRegistry.tsx`'s `buildModuleLayout(role, isVisible)`
+picks the tabs: a module shows when Super Admin's App Module Access (Staff App) has it
+visible for this user and the role is one its screen serves. See `docs/staff-app.md`.
 
-| Role | Tabs |
-|---|---|
-| Teacher / HOD / Principal / Vice Principal / Staff | Home, Attendance, Homework, Examination, More |
-| Librarian | Home, Library, More |
-| Transport Manager | Home, Transport, More |
-| Accountant | Home, FeeDesk, More |
-| Hostel Warden | Home, Hostel, More |
-| Exam Admin | Home, ExamSetup, More |
-| Placement Officer | Home, Placement, More |
-| any other role | Home, More |
+The per-role tab and More layout is in docs/staff-app.md (Navigation).
+
+More always ends with Notifications and Profile. If Super Admin hides a tab module, the
+next one moves up (a Teacher without Attendance gets Homework · Exams · Timetable). The
+Fee Desk is gone from the app: `/fee-desk` is closed for every staff role on the server.
 
 **This is display-only.** Every route behind every one of these tabs is independently
 re-checked by `requireModule()`/`shadowPermission()` on the backend — a role never
