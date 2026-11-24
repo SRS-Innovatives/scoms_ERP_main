@@ -7,11 +7,24 @@ const logger = require('../utils/logger');
 
 let prisma;
 
+/**
+ * Interactive transactions ($transaction(async (tx) => ...)) default to a 5s limit. In
+ * production every query is a network round trip to Supabase (~0.5-2s from Render), so a
+ * multi-step create (institution onboarding, student admission) ran past 5s and failed
+ * with P2028 "Transaction already closed". Raised for every transaction; a call that
+ * passes its own { timeout } still wins. Tunable without a deploy via env.
+ */
+const transactionOptions = {
+  maxWait: Number(process.env.PRISMA_TX_MAX_WAIT_MS || 10000), // waiting for a pooled connection
+  timeout: Number(process.env.PRISMA_TX_TIMEOUT_MS || 30000), // the transaction itself
+};
+
 if (process.env.NODE_ENV === 'production') {
-  prisma = new PrismaClient();
+  prisma = new PrismaClient({ transactionOptions });
 } else {
   if (!global.__prisma) {
     global.__prisma = new PrismaClient({
+      transactionOptions,
       // Query logging floods stdout (every findMany + Prisma's SELECT 1 ping). Opt in with PRISMA_QUERY_LOG=1.
       log: process.env.PRISMA_QUERY_LOG === '1'
         ? ['query', 'info', 'warn', 'error']
