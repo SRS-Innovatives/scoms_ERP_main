@@ -29,6 +29,9 @@ app.get('/health', async (req, res) => {
 app.use(['/api/v1/public', '/api/v1/admin'], require('../../shared/middleware/maintenanceMode').blockDuringMaintenance);
 app.use('/api/v1/public', publicRoutes);
 app.use('/api/v1/admin', apiRoutes);
+// Push circulars / announcements / admin notifications to the mobile apps from this process
+// (scoms-app-backend/src/mobileRoutes.js) — no separate gateway or shared secret needed.
+require('../../scoms-app-backend/src/mobileRoutes').enableLocalPush();
 // Profile photos + institution logos as cacheable image files (signed links — see shared/media/mediaUrl.js)
 app.use('/api/v1/media', require('../../shared/media/mediaRoutes'));
 app.use(errorHandler);

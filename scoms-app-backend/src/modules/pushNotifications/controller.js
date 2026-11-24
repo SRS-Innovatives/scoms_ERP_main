@@ -2,7 +2,7 @@
  * Thin HTTP layer: read the request, call the service, format the response.
  * No Prisma calls here — see service.js.
  */
-const { sendSuccess, ValidationError, AuthenticationError } = require('@scoms/shared');
+const { sendSuccess, ValidationError, AuthenticationError } = require('../../../../shared');
 const { registerDevice, unregisterDevice, dispatchToUsers, VALID_PLATFORMS } = require('./service');
 
 const register = async (req, res, next) => {

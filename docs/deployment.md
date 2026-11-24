@@ -37,15 +37,23 @@ npx react-native run-android   # or run-ios (needs a Mac)
 
 ## Mobile apps — production
 
-- **API:** the single Render service (`server/server.js`) serves the mobile apps too —
-  `/api/v1/mobile/{student,staff}/*` from `scoms-app-backend/src/mobileRoutes.js`, mounted in
-  `server/app.js`. No separate gateway service is needed. Push is delivered in-process, so
-  `INTERNAL_PUSH_SECRET` / `MOBILE_BACKEND_INTERNAL_URL` are only for the local per-portal
-  dev servers.
+- **API — no extra service needed.** Production currently runs one Render service per portal,
+  and each app's API lives in its own portal's service (`mobileRouterFor()` in
+  `scoms-app-backend/src/mobileRoutes.js`):
+
+  | App | Served by | Production URL |
+  |---|---|---|
+  | Student / Parent app (`/api/v1/mobile/student/*`) | Student backend | `https://scoms-erp-main-3.onrender.com` |
+  | Staff app (`/api/v1/mobile/staff/*`) | Staff backend | `https://scoms-erp-main.onrender.com` |
+
+  If you switch to the single combined service (`render.yaml`, `server/server.js`), it serves
+  both apps as well (`combinedMobileRouter()`); then point both apps at that one URL.
+- **Push** is delivered in-process by all four backends (`enableLocalPush()`), so
+  `INTERNAL_PUSH_SECRET` / `MOBILE_BACKEND_INTERNAL_URL` are only needed for odd local setups.
+  Real sends need `FIREBASE_SERVICE_ACCOUNT_JSON` on each of the four services.
 - **App → server:** release builds use `PRODUCTION_API_ORIGIN` in each app's
-  `src/constants/config.ts` (default `https://scoms-erp-main.onrender.com`). **Set it to your
-  Render service URL — the same value as `SCOMS_API_URL` in Vercel — before building a
-  release.** Debug builds keep using the local gateway (`DEV_HOST`, port 5005).
+  `src/constants/config.ts` (set to the URLs above). Debug builds keep using the local gateway
+  (`DEV_HOST`, port 5005).
 - **Before publishing to the Play Store:** replace the debug keystore in the `release`
   signing block (see below), and add Firebase (next section) if you want push.
 

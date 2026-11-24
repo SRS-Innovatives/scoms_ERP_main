@@ -25,6 +25,8 @@ app.get('/health', async (req, res) => {
 
 // API Routes Mounted at Versioned Endpoint
 app.use('/api/v1/super-admin', apiRoutes);
+// Push platform notifications to the mobile apps from this process (scoms-app-backend/src/mobileRoutes.js)
+require('../../scoms-app-backend/src/mobileRoutes').enableLocalPush();
 
 // Profile photos + institution logos as cacheable image files (signed links — see shared/media/mediaUrl.js)
 app.use('/api/v1/media', require('../../shared/media/mediaRoutes'));

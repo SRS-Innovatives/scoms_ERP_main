@@ -5,7 +5,7 @@
  */
 const prisma = require('../../database/client');
 const { sendPushToTokens } = require('./sender');
-const { ValidationError } = require('@scoms/shared');
+const { ValidationError } = require('../../../../shared');
 
 const VALID_PLATFORMS = ['ANDROID', 'IOS'];
 
