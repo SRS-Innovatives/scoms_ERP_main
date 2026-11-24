@@ -10,9 +10,23 @@ export interface HostelBed {
   student: { firstName: string; lastName: string; rollNumber: string } | null;
 }
 
-export async function fetchBeds(): Promise<HostelBed[]> {
-  const { data } = await apiClient.get<ApiEnvelope<HostelBed[]>>('/hostel/beds');
-  return data.data;
+export type BedFilter = 'all' | 'vacant' | 'occupied';
+export const BED_PAGE_SIZE = 50;
+
+export interface BedPage {
+  beds: HostelBed[];
+  page: number;
+  totalPages: number;
+  total: number;
+}
+
+/** One page of beds, filtered on the server (?status=, ?q=) — never the whole hostel at once. */
+export async function fetchBedPage(page: number, filter: BedFilter, q: string): Promise<BedPage> {
+  const { data } = await apiClient.get<ApiEnvelope<HostelBed[]>>('/hostel/beds', {
+    params: { page, limit: BED_PAGE_SIZE, ...(filter !== 'all' && { status: filter }), ...(q && { q }) },
+  });
+  const meta = data.meta;
+  return { beds: data.data ?? [], page, totalPages: meta?.totalPages ?? 1, total: meta?.total ?? (data.data ?? []).length };
 }
 
 export async function vacateBed(bedId: string) {

@@ -1,6 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { clearTokens, getTokens, saveTokens } from '../utils/secureStorage';
 import { setSessionExpiredHandler } from '../services/api/client';
+import { queryClient } from '../services/api/queryClient';
 import { fetchMe, login as loginRequest, logout as logoutRequest } from '../modules/auth/services/authService';
 import { AuthUser } from '../types/auth';
 
@@ -19,9 +20,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isBootstrapping, setIsBootstrapping] = useState(true);
 
+  // Most query keys aren't per-user, so the next person to sign in on this device must
+  // never see the previous account's cached data.
   const forceLogout = useCallback(async () => {
     await clearTokens();
     setUser(null);
+    queryClient.clear();
   }, []);
 
   useEffect(() => {
@@ -56,6 +60,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
     await clearTokens();
     setUser(null);
+    queryClient.clear();
   }, []);
 
   const refreshUser = useCallback(async () => {

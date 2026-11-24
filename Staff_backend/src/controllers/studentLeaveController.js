@@ -5,7 +5,7 @@
  * HOD: their department). A subject teacher of that section sees the requests, read-only.
  * Rules live in shared/academic/teachingScope.js.
  */
-const { prisma, sendSuccess, NotFoundError, ValidationError, AuthorizationError, teachingScope, pushNotification } = require('../../../shared');
+const { prisma, sendSuccess, NotFoundError, ValidationError, AuthorizationError, teachingScope, pushNotificationToMany } = require('../../../shared');
 const { hasValue } = require('../../../shared/media/mediaUrl');
 
 const VALID_STATUSES = ['APPROVED', 'REJECTED'];
@@ -46,7 +46,12 @@ const updateStudentLeaveStatus = async (req, res, next) => {
 
     const leave = await prisma.leaveRequest.findFirst({
       where: { id, institutionId: req.institutionId, studentId: { not: null } },
-      select: { id: true, startDate: true, endDate: true, student: { select: { sectionId: true, userId: true } } },
+      select: {
+        id: true,
+        startDate: true,
+        endDate: true,
+        student: { select: { sectionId: true, userId: true, firstName: true, parents: { select: { parent: { select: { userId: true } } } } } },
+      },
     });
     if (!leave) throw new NotFoundError('Leave request not found or access denied');
     const sectionIds = await teachingScope.getLeaveApprovalSectionIds(req.user, req.institutionId);
@@ -60,15 +65,31 @@ const updateStudentLeaveStatus = async (req, res, next) => {
       omit: { attachmentUrl: true },
     });
 
-    // Let the student know the decision (best-effort — never blocks the decision itself)
-    pushNotification({
-      userId: leave.student?.userId,
-      institutionId: req.institutionId,
-      title: `Leave ${status === 'APPROVED' ? 'Approved' : 'Rejected'}`,
-      message: `Your leave request for ${new Date(leave.startDate).toLocaleDateString('en-IN')} – ${new Date(leave.endDate).toLocaleDateString('en-IN')} was ${status.toLowerCase()} by your class teacher.`,
-      type: 'LEAVE',
-      link: '/student/leave',
-    }).catch(() => {});
+    // Let the student AND their linked parents know (a parent may have applied from the
+    // parent app). Best-effort — never blocks the decision itself.
+    const days = `${new Date(leave.startDate).toLocaleDateString('en-IN')} – ${new Date(leave.endDate).toLocaleDateString('en-IN')}`;
+    const parentUserIds = (leave.student?.parents || []).map((p) => p.parent?.userId).filter(Boolean);
+    const title = `Leave ${status === 'APPROVED' ? 'Approved' : 'Rejected'}`;
+    Promise.all([
+      pushNotificationToMany({
+        userIds: [leave.student?.userId].filter(Boolean),
+        institutionId: req.institutionId,
+        title,
+        message: `Your leave request for ${days} was ${status.toLowerCase()} by your class teacher.`,
+        type: 'LEAVE',
+        link: '/student/leave',
+      }),
+      parentUserIds.length
+        ? pushNotificationToMany({
+            userIds: [...new Set(parentUserIds)],
+            institutionId: req.institutionId,
+            title,
+            message: `${leave.student?.firstName || 'Your child'}'s leave request for ${days} was ${status.toLowerCase()} by the class teacher.`,
+            type: 'LEAVE',
+            link: '/student/leave',
+          })
+        : null,
+    ]).catch(() => {});
 
     return sendSuccess(res, updated, `Leave request ${status.toLowerCase()}`);
   } catch (err) {

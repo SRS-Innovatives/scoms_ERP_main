@@ -6,10 +6,11 @@ import { LoadingView } from '../../../components/LoadingView';
 import { ErrorView } from '../../../components/ErrorView';
 import { Card } from '../../../components/Card';
 import { fetchAttendanceSummary } from '../services/attendanceService';
+import { queryKeys } from '../../../services/api/queryKeys';
 
 export function AttendanceScreen() {
   const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ['attendance', 'summary'],
+    queryKey: queryKeys.attendance,
     queryFn: fetchAttendanceSummary,
   });
 

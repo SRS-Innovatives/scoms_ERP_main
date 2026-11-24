@@ -51,9 +51,13 @@ const getProfile = async (req, res, next) => {
 
 const getAttendanceSummary = async (req, res, next) => {
   try {
+    // select, not include: only the columns the response below actually uses
     const records = await prisma.attendanceRecord.findMany({
       where: { studentId: req.user.studentId },
-      include: { session: { include: { subject: { select: { name: true } } } } },
+      select: {
+        id: true, sessionId: true, status: true, remarks: true,
+        session: { select: { periodNumber: true, date: true, subject: { select: { name: true } } } },
+      },
       orderBy: { session: { date: 'desc' } },
     });
 

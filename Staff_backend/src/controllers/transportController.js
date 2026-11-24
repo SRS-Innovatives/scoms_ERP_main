@@ -169,7 +169,7 @@ const getTrips = async (req, res, next) => {
       where: { institutionId: req.institutionId },
       include: {
         trips: { where: { tripDate: day } },
-        routes: { select: { routeName: true } },
+        routes: { select: { routeName: true }, take: 1 }, // only the first is shown
       },
       orderBy: { vehicleNumber: 'asc' },
     });

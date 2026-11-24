@@ -52,9 +52,11 @@ export interface RosterStudent {
   attendancePercent: number | null;
 }
 
-export async function fetchRoster(sectionId: string): Promise<RosterStudent[]> {
+/** subjectId matters: for an ELECTIVE subject the server returns only the students who chose
+ * it — without it the whole section came back and got marked. */
+export async function fetchRoster(sectionId: string, subjectId: string): Promise<RosterStudent[]> {
   const { data } = await apiClient.get<ApiEnvelope<RosterStudent[]>>('/attendance/roster', {
-    params: { sectionId },
+    params: { sectionId, subjectId },
   });
   return data.data;
 }

@@ -147,6 +147,8 @@ const handleGetMe = async (req, res, next) => {
           select: {
             id: true,
             employeeCode: true,
+            firstName: true,
+            lastName: true,
             designation: true,
             department: { select: { name: true } },
           },

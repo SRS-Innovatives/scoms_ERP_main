@@ -8,6 +8,8 @@
 const { prisma, sendSuccess, NotFoundError, ValidationError } = require('../../../shared');
 const { attachFileLinks } = require('../../../shared/media/mediaUrl');
 
+const FILE_TYPES = ['PDF', 'PPT', 'DOC', 'VIDEO', 'LINK']; // same list as the Staff portal's upload page
+
 /** Subjects this staff member actually teaches — populates the "subject" dropdown. */
 const getMySubjects = async (req, res, next) => {
   try {
@@ -47,6 +49,10 @@ const createMaterial = async (req, res, next) => {
     if (!title || !subjectId || !fileType || !fileUrl) {
       throw new ValidationError('title, subjectId, fileType and fileUrl are required');
     }
+    if (!FILE_TYPES.includes(fileType)) throw new ValidationError(`fileType must be one of ${FILE_TYPES.join(', ')}`);
+    if (String(title).length > 200) throw new ValidationError('title can be at most 200 characters');
+    // an uploaded file (data URI, from the web portal) or a web link — nothing else is openable
+    if (!/^(https?:\/\/|data:)/i.test(String(fileUrl))) throw new ValidationError('fileUrl must be an http(s) link or an uploaded file');
 
     const mapping = await prisma.subjectTeacherMapping.findFirst({ where: { staffId: req.user.staffId, subjectId } });
     if (!mapping) throw new ValidationError('You are not assigned to teach this subject');
@@ -113,11 +119,13 @@ const getDownloadSummary = async (req, res, next) => {
     const byId = new Map(stats.map((s) => [s.materialId, s]));
 
     // audience size per subject (several materials usually share a subject)
-    const audience = new Map();
-    for (const subjectId of [...new Set(materials.map((m) => m.subjectId).filter(Boolean))]) {
+    // one count per distinct subject, all in parallel (was one after another)
+    const subjectIds = [...new Set(materials.map((m) => m.subjectId).filter(Boolean))];
+    const counts = await Promise.all(subjectIds.map(async (subjectId) => {
       const where = await audienceWhere(req.institutionId, subjectId);
-      audience.set(subjectId, where ? await prisma.student.count({ where }) : null);
-    }
+      return [subjectId, where ? await prisma.student.count({ where }) : null];
+    }));
+    const audience = new Map(counts);
 
     const rows = materials.map((m) => {
       const s = byId.get(m.id);

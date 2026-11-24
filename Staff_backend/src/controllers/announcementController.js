@@ -13,9 +13,13 @@ const {
 const getAnnouncements = async (req, res, next) => {
   try {
     const { rows: announcements, meta: listMeta } = await findList(prisma.announcement, {
+      // notices for staff / everyone, plus the ones this staff member posted themselves
+      // (a class notice to STUDENTS used to vanish from its own author's list)
       where: {
-        OR: [{ institutionId: req.institutionId }, { institutionId: null }],
-        targetRole: { in: ['ALL', 'STAFF'] },
+        AND: [
+          { OR: [{ institutionId: req.institutionId }, { institutionId: null }] },
+          { OR: [{ targetRole: { in: ['ALL', 'STAFF'] } }, { authorId: req.user.id }] },
+        ],
       },
       include: {
         author: { select: { email: true, role: true } },

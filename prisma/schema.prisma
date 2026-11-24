@@ -177,6 +177,7 @@ model Institution {
   examsConductedForOthers Exam[]                        @relation("ExamConductedBy")
   degreesIssuedForOthers  DegreeRecord[]                @relation("DegreeIssuedBy")
   moduleAssignments       InstitutionModuleAssignment[]
+  appModuleSettings       InstitutionAppModuleSetting[]
 
   @@index([code])
   @@index([status])
@@ -293,6 +294,28 @@ model InstitutionModuleAssignment {
 
   @@unique([institutionId, moduleId])
   @@index([institutionId, status])
+}
+
+// Super Admin → Institutions → App Module Access. Per institution, per mobile app, per role:
+// which app modules are HIDDEN. Only hidden rows are stored — a missing row means visible,
+// so nothing disappears for an institution nobody has configured. This can only hide more
+// than the institution's own module set (Institution.modules / module registry), never
+// unlock a module the institution doesn't have. Catalog + resolution live in
+// shared/appModules/; enforced on the mobile gateway by requireAppModule().
+model InstitutionAppModuleSetting {
+  id            String   @id @default(uuid())
+  institutionId String
+  app           String // STUDENT_APP | STAFF_APP — see shared/appModules/catalog.js APPS
+  role          String // a setting column of that app (catalog `columns`): STUDENT / PARENT, or ALL_STAFF
+  moduleKey     String // an app-module key from that app's catalog
+  visible       Boolean  @default(false)
+  updatedById   String? // Super Admin User.id — no FK, same convention as InstitutionModuleAssignment.assignedById
+  updatedAt     DateTime @updatedAt
+
+  institution Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+
+  @@unique([institutionId, app, role, moduleKey])
+  @@index([institutionId, app])
 }
 
 // ------------------------------------------------------
@@ -1501,6 +1524,8 @@ model Assignment {
 
   @@index([institutionId])
   @@index([staffId])
+  // student homework list + dashboard pending count filter on exactly these three
+  @@index([institutionId, className, status])
 }
 
 model AssignmentSubmission {
@@ -2215,6 +2240,7 @@ model BookIssue {
   student Student @relation(fields: [studentId], references: [id])
 
   @@index([studentId])
+  @@index([status, dueDate]) // active / overdue / due-today lists and the librarian dashboard
 }
 
 /// Optional formal library-card registration for a student — entirely separate from

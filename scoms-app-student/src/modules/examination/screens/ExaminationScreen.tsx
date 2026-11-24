@@ -7,12 +7,13 @@ import { ErrorView } from '../../../components/ErrorView';
 import { EmptyView } from '../../../components/EmptyView';
 import { Card } from '../../../components/Card';
 import { fetchExamResults, fetchExamSchedule } from '../services/examinationService';
+import { queryKeys } from '../../../services/api/queryKeys';
 
 export function ExaminationScreen() {
   const [tab, setTab] = useState<'schedule' | 'results'>('schedule');
 
-  const scheduleQuery = useQuery({ queryKey: ['exams', 'schedule'], queryFn: fetchExamSchedule, enabled: tab === 'schedule' });
-  const resultsQuery = useQuery({ queryKey: ['exams', 'results'], queryFn: fetchExamResults, enabled: tab === 'results' });
+  const scheduleQuery = useQuery({ queryKey: queryKeys.examSchedule, queryFn: fetchExamSchedule, enabled: tab === 'schedule' });
+  const resultsQuery = useQuery({ queryKey: queryKeys.examResults, queryFn: fetchExamResults, enabled: tab === 'results' });
 
   const active = tab === 'schedule' ? scheduleQuery : resultsQuery;
 

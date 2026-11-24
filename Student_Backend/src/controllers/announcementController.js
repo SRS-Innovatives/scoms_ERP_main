@@ -6,7 +6,7 @@
  * announcement specifies one (an announcement with no course/section set applies to
  * every student in the institution).
  */
-const { prisma, sendSuccess, NotFoundError, findList } = require('../../../shared');
+const { prisma, sendSuccess, NotFoundError, findList, ROLES } = require('../../../shared');
 
 const getAnnouncements = async (req, res, next) => {
   try {
@@ -19,7 +19,9 @@ const getAnnouncements = async (req, res, next) => {
     const { rows: announcements, meta: listMeta } = await findList(prisma.announcement, {
       where: {
         OR: [{ institutionId: req.institutionId }, { institutionId: null }],
-        targetRole: { in: ['ALL', 'STUDENTS'] },
+        // A parent also gets announcements written for PARENTS (they never did before), and
+        // keeps seeing the student ones for their child's course/section.
+        targetRole: { in: req.user.role === ROLES.PARENT ? ['ALL', 'STUDENTS', 'PARENTS'] : ['ALL', 'STUDENTS'] },
         AND: [
           { OR: [{ targetCourseId: null }, { targetCourseId: student.courseId }] },
           { OR: [{ targetSectionId: null }, { targetSectionId: student.sectionId }] },

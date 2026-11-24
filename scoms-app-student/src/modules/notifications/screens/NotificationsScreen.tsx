@@ -7,11 +7,12 @@ import { ErrorView } from '../../../components/ErrorView';
 import { EmptyView } from '../../../components/EmptyView';
 import { Card } from '../../../components/Card';
 import { fetchNotifications, markNotificationRead, NotificationItem } from '../services/notificationsService';
+import { queryKeys } from '../../../services/api/queryKeys';
 
 export function NotificationsScreen() {
   const queryClient = useQueryClient();
   const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ['notifications', 'list'],
+    queryKey: queryKeys.notifications,
     queryFn: () => fetchNotifications(30),
   });
 
@@ -22,7 +23,8 @@ export function NotificationsScreen() {
   const onPress = async (item: NotificationItem) => {
     if (!item.isRead) {
       await markNotificationRead(item.id).catch(() => {});
-      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.notificationsAll });
+    queryClient.invalidateQueries({ queryKey: queryKeys.dashboardAll }); // bell badge + recent updates
     }
   };
 

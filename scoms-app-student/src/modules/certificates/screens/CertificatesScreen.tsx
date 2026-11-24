@@ -8,6 +8,7 @@ import { EmptyView } from '../../../components/EmptyView';
 import { Card } from '../../../components/Card';
 import { Button } from '../../../components/Button';
 import { TextField } from '../../../components/TextField';
+import { queryKeys } from '../../../services/api/queryKeys';
 import {
   CERTIFICATE_TYPES,
   CertificateType,
@@ -67,7 +68,7 @@ export function CertificatesScreen() {
         onDone={() => {
           setShowForm(false);
           setTab('requests');
-          queryClient.invalidateQueries({ queryKey: ['certificates'] });
+          queryClient.invalidateQueries({ queryKey: queryKeys.certificates });
         }}
       />
     );

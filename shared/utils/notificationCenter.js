@@ -17,7 +17,24 @@ const logger = require('./logger');
  * never awaited by the caller, never throws, and a failure here never rolls back or
  * blocks the in-app Notification row that was already written.
  */
+/**
+ * When the mobile gateway's routes are loaded in THIS process (the combined production
+ * server, or the standalone gateway itself), it registers its own push sender here and
+ * pushes are delivered directly — no HTTP round trip to /internal/push and no shared
+ * secret needed. Otherwise (a per-portal dev server) the HTTP call below is used.
+ */
+let localDispatcher = null;
+const setLocalPushDispatcher = (fn) => {
+  localDispatcher = typeof fn === 'function' ? fn : null;
+};
+
 const dispatchPush = ({ userIds, title, message, link }) => {
+  if (localDispatcher) {
+    Promise.resolve()
+      .then(() => localDispatcher({ userIds, title, message, link }))
+      .catch((err) => logger.error('Push dispatch failed (in-app notification was still saved):', err.message));
+    return;
+  }
   const secret = process.env.INTERNAL_PUSH_SECRET;
   if (!secret) return; // push dispatch not configured — in-app notification still wrote fine
 
@@ -88,4 +105,4 @@ const pushNotificationsBatch = async (items) => {
   }
 };
 
-module.exports = { pushNotification, pushNotificationToMany, pushNotificationsBatch };
+module.exports = { pushNotification, pushNotificationToMany, pushNotificationsBatch, setLocalPushDispatcher };

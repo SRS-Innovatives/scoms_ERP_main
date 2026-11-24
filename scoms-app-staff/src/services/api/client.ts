@@ -9,6 +9,11 @@ export function setSessionExpiredHandler(handler: SessionExpiredHandler): void {
   onSessionExpired = handler;
 }
 
+let onModuleHidden: (() => void) | null = null;
+export function setModuleHiddenHandler(handler: () => void): void {
+  onModuleHidden = handler;
+}
+
 // Separate instance with no interceptors — used only for the refresh call itself,
 // so a 401 there never re-triggers the response interceptor below.
 const rawClient = axios.create({ baseURL: API_BASE_URL, timeout: 15000 });
@@ -50,6 +55,12 @@ apiClient.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
     const originalRequest = error.config as (InternalAxiosRequestConfig & { _retried?: boolean }) | undefined;
+
+    // Super Admin hid a module while this screen was open — reload the module list so
+    // navigation drops it (services/api/appModules.ts registers the handler).
+    if (error.response?.status === 403 && (error.response.data as { code?: string } | undefined)?.code === 'APP_MODULE_HIDDEN') {
+      onModuleHidden?.();
+    }
 
     if (error.response?.status === 401 && originalRequest && !originalRequest._retried) {
       originalRequest._retried = true;

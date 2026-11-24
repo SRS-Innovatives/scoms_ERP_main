@@ -35,6 +35,8 @@ const jobPostingController = require('../controllers/jobPostingController');
 const galleryController = require('../controllers/galleryController');
 const academicCalendarController = require('../controllers/academicCalendarController');
 const parentController = require('../controllers/parentController');
+const parentRecordsController = require('../controllers/parentRecordsController');
+const dashboardSummaryController = require('../controllers/dashboardSummaryController');
 const {
   requireAuth, requireTenant, requireModule, handleForgotPassword, handleVerifyOtp, handleResetPassword,
   loginLimiter, otpLimiter,
@@ -69,6 +71,9 @@ router.patch('/auth/profile', authController.updateProfile);
 
 // Parent — which real children are linked to this account (for the child-switcher)
 router.get('/parent/children', parentController.getMyChildren);
+// Parent — their own account details (not the child's), view + edit contact fields
+router.get('/parent/profile', parentController.getMyProfile);
+router.patch('/parent/profile', parentController.updateMyProfile);
 
 // Notification Center
 router.get('/notifications', handleGetNotifications);
@@ -94,7 +99,7 @@ router.get('/documents', myDocumentsController.getMyDocuments);
 router.get('/attendance', requireModule('attendance'), shadowPermission(PERMISSIONS.ATTENDANCE_VIEW), studentProfileController.getAttendanceSummary);
 // ask for a wrong mark to be fixed — decided under Attendance → Correction Approvals
 router.get('/attendance/corrections', requireModule('attendance'), shadowPermission(PERMISSIONS.ATTENDANCE_VIEW), attendanceCorrectionController.getMyCorrections);
-router.post('/attendance/corrections', requireModule('attendance'), shadowPermission(PERMISSIONS.ATTENDANCE_VIEW), attendanceCorrectionController.requestCorrection);
+router.post('/attendance/corrections', requireModule('attendance'), blockParentWrite('Requesting an attendance correction'), shadowPermission(PERMISSIONS.ATTENDANCE_VIEW), attendanceCorrectionController.requestCorrection);
 
 // Fee & Payment Routes
 router.use('/fees', requireModule('fee'));
@@ -146,11 +151,11 @@ router.post('/assignments/submit', blockParentWrite('Submitting homework'), shad
 // Campus Events & Clubs
 router.use('/events', requireModule('events_clubs'));
 router.get('/events', eventController.getEvents);
-router.post('/events/register', eventController.registerForEvent);
+router.post('/events/register', blockParentWrite('Registering for an event'), eventController.registerForEvent);
 
 router.use('/clubs', requireModule('events_clubs'));
 router.get('/clubs', clubController.getClubs);
-router.post('/clubs/join', clubController.joinClub);
+router.post('/clubs/join', blockParentWrite('Joining a club'), clubController.joinClub);
 
 // Grievances
 router.use('/grievances', requireModule('grievance_feedback'));
@@ -214,5 +219,13 @@ router.get('/gallery/albums/:id/photos', galleryController.getAlbumPhotos);
 
 // Academic Calendar (read-only)
 router.get('/academic-calendar', requireModule('academic_calendar'), academicCalendarController.getEvents);
+
+// Home screen in one request — counts/sums only (dashboardSummaryController)
+router.get('/dashboard/summary', dashboardSummaryController.getDashboardSummary);
+
+// Parent-only, read-only records about the active child (parentRecordsController)
+router.get('/discipline', requireModule('discipline'), parentRecordsController.getDisciplineRecords);
+router.get('/health-records', requireModule('health'), parentRecordsController.getHealthRecords);
+router.get('/ptm-notes', requireModule('ptm'), parentRecordsController.getPtmNotes);
 
 module.exports = router;

@@ -107,16 +107,36 @@ const searchStudents = async (req, res, next) => {
 // ============================================================
 const getBeds = async (req, res, next) => {
   try {
-    const { hostelId } = req.query;
-    const beds = await prisma.hostelBed.findMany({
-      where: { hostel: { institutionId: req.institutionId }, ...(hostelId && { hostelId }) },
-      include: {
+    // Optional filters + paging (?page=&limit=, shared findList) — without ?page the response
+    // is the same array as before, so the web portal is unchanged.
+    //   ?status=vacant|occupied   ?q=<room / bed / student name / roll no.>
+    const { hostelId, status } = req.query;
+    const q = typeof req.query.q === 'string' ? req.query.q.trim() : '';
+    const where = {
+      hostel: { institutionId: req.institutionId },
+      ...(hostelId && { hostelId }),
+      ...(status === 'vacant' && { isOccupied: false }),
+      ...(status === 'occupied' && { isOccupied: true }),
+      ...(q && {
+        OR: [
+          { roomNumber: { contains: q, mode: 'insensitive' } },
+          { bedNumber: { contains: q, mode: 'insensitive' } },
+          { student: { firstName: { contains: q, mode: 'insensitive' } } },
+          { student: { lastName: { contains: q, mode: 'insensitive' } } },
+          { student: { rollNumber: { contains: q, mode: 'insensitive' } } },
+        ],
+      }),
+    };
+    const { rows: beds, meta } = await findList(prisma.hostelBed, {
+      where,
+      select: {
+        id: true, hostelId: true, roomId: true, roomNumber: true, bedNumber: true, studentId: true, isOccupied: true, monthlyFee: true, customFields: true,
         hostel: { select: { name: true, type: true } },
         student: { select: { firstName: true, lastName: true, rollNumber: true } },
       },
       orderBy: [{ roomNumber: 'asc' }, { bedNumber: 'asc' }],
-    });
-    return sendSuccess(res, beds, 'Hostel beds retrieved successfully');
+    }, req);
+    return sendSuccess(res, beds, 'Hostel beds retrieved successfully', 200, meta);
   } catch (err) {
     next(err);
   }

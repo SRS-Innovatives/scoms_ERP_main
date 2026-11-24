@@ -13,6 +13,7 @@ const examController = require('../controllers/examController');
 const announcementController = require('../controllers/announcementController');
 const circularController = require('../controllers/circularController');
 const timetableController = require('../controllers/timetableController');
+const dashboardSummaryController = require('../controllers/dashboardSummaryController');
 const profileController = require('../controllers/profileController');
 const staffDocumentController = require('../controllers/staffDocumentController');
 const examDutyController = require('../controllers/examDutyController');
@@ -69,6 +70,9 @@ router.patch('/auth/profile', authController.updateProfile);
 // Notification Center
 router.get('/notifications', handleGetNotifications);
 router.get('/notifications/unread-count', handleGetUnreadCount);
+
+// Home screen in one request — counts + today's timetable (dashboardSummaryController)
+router.get('/dashboard/summary', dashboardSummaryController.getDashboardSummary);
 router.patch('/notifications/:id/read', handleMarkNotificationRead);
 router.patch('/notifications/read-all', handleMarkAllNotificationsRead);
 
@@ -193,6 +197,7 @@ router.patch('/appointments/:id', shadowPermission(PERMISSIONS.APPOINTMENTS_MANA
 // Parent-Teacher Meeting Notes
 router.use('/parent-meetings', requireModule('ptm'));
 router.get('/parent-meetings', shadowPermission(PERMISSIONS.PTM_MANAGE), parentMeetingController.getMyNotes);
+router.get('/parent-meetings/students', shadowPermission(PERMISSIONS.PTM_MANAGE), parentMeetingController.getMyStudents);
 router.post('/parent-meetings', shadowPermission(PERMISSIONS.PTM_MANAGE), parentMeetingController.createNote);
 
 // SMS Broadcast Center & History

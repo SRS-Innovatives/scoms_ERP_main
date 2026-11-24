@@ -7,6 +7,7 @@ import { ErrorView } from '../../../components/ErrorView';
 import { EmptyView } from '../../../components/EmptyView';
 import { Card } from '../../../components/Card';
 import { TimetableEntry, fetchTimetable } from '../services/timetableService';
+import { queryKeys } from '../../../services/api/queryKeys';
 
 const DAY_ORDER = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'];
 
@@ -21,7 +22,7 @@ function groupByDay(entries: TimetableEntry[]) {
 
 export function TimetableScreen() {
   const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ['timetable'],
+    queryKey: queryKeys.timetable,
     queryFn: fetchTimetable,
   });
 

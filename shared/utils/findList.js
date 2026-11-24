@@ -47,6 +47,23 @@ const findList = async (delegate, args, req, { max = MAX_ROWS } = {}) => {
  */
 const CONVERSATION_PAGE = 200;
 const findConversation = async (prisma, userA, userB, req) => {
+  // ?after=<ISO date of the newest message shown> → only what arrived since (oldest-first),
+  // so an app polling an open chat fetches a few rows instead of the last 200 every time
+  const after = req.query?.after ? new Date(req.query.after) : null;
+  if (after && !Number.isNaN(after.getTime())) {
+    const fresh = await prisma.message.findMany({
+      where: {
+        OR: [
+          { senderId: userA, receiverId: userB },
+          { senderId: userB, receiverId: userA },
+        ],
+        createdAt: { gt: after },
+      },
+      orderBy: { createdAt: 'asc' },
+      take: CONVERSATION_PAGE,
+    });
+    return { rows: fresh, meta: { hasMore: false } };
+  }
   const before = req.query?.before ? new Date(req.query.before) : null;
   const rows = await prisma.message.findMany({
     where: {

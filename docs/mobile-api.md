@@ -161,6 +161,28 @@ create-exam screens — see `docs/mobile-architecture.md` §1 and the Staff_back
 controllers (`hostelController.searchStudents`, `examAdminController.getAcademicYears`)
 for the full ownership/scoping logic.
 
+## Dashboard summaries (one request per home screen)
+
+Both home screens load from a single counts-only endpoint instead of several full
+lists:
+
+| App | Endpoint | Sections | Replaces |
+|---|---|---|---|
+| Student / Parent | `GET /api/v1/mobile/student/dashboard/summary?sections=` | `attendance`, `homework`, `fees`, `notifications`, `parent` | `/attendance`, `/assignments`, `/fees`, `/notifications`, `/notifications/unread-count`, `/discipline`, `/health-records` |
+| Staff | `GET /api/v1/mobile/staff/dashboard/summary?sections=` | `today`, `homework`, `leave`, `notifications`, `approvals` (`studentLeave` pending in the sections I decide; `corrections` only with attendance.approve, excluding my own), `desk` (desk roles only, counts: library issued/overdue/due today/unpaid fines · transport trips done today · hostel beds occupied/vacant · exam admin upcoming/ongoing · placement open postings/new applications — Staff_backend `deskSummary.js`) | `/attendance/my-classes`, `/assignments`, `/leave`, `/notifications` |
+
+- **Hidden sections:** a section is `null` when the caller can't see it (the institution
+  module is off, or RBAC is enforced and the role lacks the route's permission). On the
+  student gateway it's also `null` when Super Admin hid the module in the app.
+- **Totals:** the student fee total is due + outstanding late fee, the same as
+  `/fees/badge`. It writes nothing; the fee page still applies credit and late fees when
+  opened.
+- **Staff "today":** the staff member's real timetable for today, by day of week in India
+  time.
+- **App caching:** both apps keep their keys in `src/services/api/queryKeys.ts`. Any action
+  that changes a dashboard number also invalidates `['dashboard']`. 4xx responses are
+  never retried, and logout clears the whole cache.
+
 ## Internal-only route (not for either app)
 
 | Method | Path | Auth |

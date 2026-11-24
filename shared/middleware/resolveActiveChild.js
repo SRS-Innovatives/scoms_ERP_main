@@ -20,6 +20,7 @@
 const prisma = require('../database/client');
 const { AuthorizationError } = require('../errors/customErrors');
 const { ROLES } = require('../constants/roles');
+const { cached } = require('../utils/hotCache');
 
 const resolveActiveChild = async (req, res, next) => {
   try {
@@ -28,10 +29,14 @@ const resolveActiveChild = async (req, res, next) => {
 
     const requestedStudentId = req.query.studentId || req.headers['x-active-student-id'];
 
-    const links = await prisma.parentStudent.findMany({
-      where: { parentId: req.user.parentId },
-      select: { studentId: true },
-    });
+    // Runs on every parent request — cached per parent (shared/utils/hotCache.js), dropped
+    // whenever a ParentStudent link is written, so linking/unlinking a child still applies
+    // on the next request.
+    const links = await cached('parentLinks', req.user.parentId, () =>
+      prisma.parentStudent.findMany({
+        where: { parentId: req.user.parentId },
+        select: { studentId: true },
+      }));
     if (links.length === 0) throw new AuthorizationError('This parent account is not linked to any student record — contact your institution.');
 
     const linkedIds = links.map((l) => l.studentId);

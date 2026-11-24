@@ -120,7 +120,13 @@ dependencies {
 
 // Must be applied after the dependencies block — reads google-services.json (see
 // android/build.gradle for where to get one) to configure this app's Firebase project.
-apply plugin: "com.google.gms.google-services"
+// Only when that file exists: without it the build used to FAIL outright. The app then runs
+// without push notifications (usePushRegistration catches the missing Firebase app).
+if (file("google-services.json").exists()) {
+    apply plugin: "com.google.gms.google-services"
+} else {
+    logger.warn("google-services.json not found in android/app — building WITHOUT push notifications. Add it from your Firebase project to enable push.")
+}
 
 // Copies react-native-vector-icons' .ttf files into this app's Android assets so
 // <Icon name="..."/> renders instead of a missing-glyph box. No Firebase-style
